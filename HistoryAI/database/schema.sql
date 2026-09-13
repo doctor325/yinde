@@ -51,7 +51,11 @@ CREATE TABLE IF NOT EXISTS sections (
   label      TEXT,                      -- 篇/节题（堯典 / 五帝本紀 / 三代世表）
   division   TEXT,                      -- 史记类目 紀/表/書/世家/傳
   first_row  INTEGER,
-  status     TEXT
+  status     TEXT,
+  detection_method TEXT,                -- header|title|first-occurrence|interval|metadata|override
+  confidence REAL,                      -- 1.0 人工/属性，0.9 结构正则，0.8 显式标记，0.5 兜底
+  last_row   INTEGER,                   -- 区间右端（下一条 first_row-1；末条=文件末行）
+  note       TEXT
 );
 
 CREATE TABLE IF NOT EXISTS passages (

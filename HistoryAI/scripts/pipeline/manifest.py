@@ -13,6 +13,14 @@
                           （见 publish_gate_sync）
 - section_coverage.json   逐书覆盖明细 + 逐文件缺口点名
 
+## 两个 status，别混（6.3 起）
+
+- `coverage_status`（FAIL/WARN/OK）＝**篇名覆盖**口径，判据与 `api/db.py` 的
+  list_books 逐字一致，页面与审计表必须给同一个答案，**一个字都不许改**。
+- `status`（planned/imported/verified/warning/failed）＝**语料状态**五态，由
+  `merge_catalog()` 把「语料目录说应该有什么」与「库和磁盘实际有什么」相乘得出，
+  见该函数注释。它回答的是「这本书可不可用、为什么不可用」，与覆盖口径并存不替代。
+
 ## coverage 的口径，以及为什么它不是一个「越高越好」的装饰指标
 
 section 用**区间模型**：一条 section 覆盖它所在文件内从 first_row 到该文件下一条
@@ -43,12 +51,17 @@ import json
 import sqlite3
 from datetime import datetime, timezone
 
+from . import catalog
 from . import config
 
 # 正文层的判定：layer 为空（老数据）或 main 都算正文
 BODY_LAYER_SQL = "(p.layer IS NULL OR p.layer = 'main')"
 
 WARN_COVERAGE = 0.90
+
+# 篇题溯源：confidence <= 这个值的算「靠猜的」（首现兜底 0.5 / 弱形态 0.6）。
+# 它比覆盖率百分比更早暴露问题：覆盖率 100% 也可能是篇篇都靠首现硬记的。
+LOW_CONFIDENCE = 0.6
 
 
 def _connect() -> sqlite3.Connection:
@@ -101,6 +114,16 @@ def audit_book(con, book: sqlite3.Row) -> dict:
     nfile = con.execute("SELECT COUNT(*) FROM files WHERE book_id=?",
                         (bid,)).fetchone()[0]
 
+    # 篇题溯源直方图（6.3-C③）：这条 section 是 header/title 认出来的，还是靠
+    # 「section 首现」硬记的？NULL 归 untagged —— 旧库没重跑过时整列都是 untagged，
+    # 一眼就能看出「该重建了」。低置信的条数单独报：覆盖率 100% 也可能是篇篇靠猜。
+    methods = {r["m"]: r["n"] for r in con.execute(
+        "SELECT COALESCE(detection_method,'untagged') AS m, COUNT(*) AS n "
+        "FROM sections WHERE book_id=? GROUP BY m", (bid,))}
+    low_conf = con.execute(
+        "SELECT COUNT(*) FROM sections WHERE book_id=? AND confidence IS NOT NULL "
+        "AND confidence<=?", (bid, LOW_CONFIDENCE)).fetchone()[0]
+
     # indexed：拿这本书自己的正文去 FTS 里**真查一次**，不靠计数比对。
     # 计数比对在这里是假的：passages_fts 是 external-content 表
     # （content='passages', content_rowid='passage_id'），select count(*) 直接
@@ -122,16 +145,18 @@ def audit_book(con, book: sqlite3.Row) -> dict:
         indexed = {"ok": False, "probe": None, "hits": 0,
                    "reason": "该书没有可检索正文（normalized_text 全空）"}
 
-    # 判据必须与 api/db.py 的 list_books 逐字一致（同一套 status，页面与审计表
-    # 才会给同一个答案）。那边算不出「有没有文件完全无 section」，所以这里也不把
-    # 它当判据——只作为明细报出来，由人去看。
+    # 判据必须与 api/db.py 的 list_books 逐字一致（同一套 coverage_status，页面与
+    # 审计表才会给同一个答案）。那边算不出「有没有文件完全无 section」，所以这里也
+    # 不把它当判据——只作为明细报出来，由人去看。
+    # 6.3 起这个字段叫 coverage_status（与 api/db.py 同名），另有五态 status 由
+    # merge_catalog() 按语料目录推出——两者并存，不改这一处口径。
     cov = (covered / total) if total else 1.0
     if total and nsec == 0:
-        status = "FAIL"
+        coverage_status = "FAIL"
     elif cov < WARN_COVERAGE:
-        status = "WARN"
+        coverage_status = "WARN"
     else:
-        status = "OK"
+        coverage_status = "OK"
 
     # 缺口点名：按缺口行数排序，只列前 5 个文件，附文件号便于人工翻原文件
     gap_detail = []
@@ -162,7 +187,10 @@ def audit_book(con, book: sqlite3.Row) -> dict:
         "files_with_section": len(files_with),
         "files_without_section": no_section,
         "indexed": indexed,
-        "status": status,
+        "coverage_status": coverage_status,
+        "section_methods": methods,
+        "low_confidence": low_conf,
+        "untagged": methods.get("untagged", 0),
         "gap_files": gap_detail,
     }
 
@@ -185,6 +213,93 @@ def publish_gate_sync(titles: list[str]) -> dict:
             "titles": sorted(have)}
 
 
+def merge_catalog(rows: list[dict], cat) -> dict:
+    """语料目录（应该有什么）× 库内实况（实际有什么）→ 每本书一个五态 status。
+
+    五态判据（计划书 §4）：
+
+      planned   目录在册，磁盘无目录、库中无记录
+      imported  已入库，但证据不足以称 verified（审计未跑 / 召回尚未人工确认）
+      verified  coverage_status == OK 且该书的 recall_verified 为真
+      warning   coverage_status == WARN（篇名覆盖 <0.90）
+      failed    coverage_status == FAIL（有正文行但 0 section）或 FTS 探针查不到自己
+
+    `verified` 为什么要人工确认位：审计 OK 只证明「结构解析没出问题」，不证明
+    「搜得到」。后者要召回用例背书（tests/search_cases/，每部 verified 书至少一条
+    专属用例），那是人在 catalog 里置 `recall_verified` 的动作，机器不替人拍板。
+
+    两处刻意的取舍（五态是计划书定死的，不为边角另立状态，改用附加字段点名）：
+    - 「目录里没有、库里却有」→ status=imported + catalog_gap=true，并在报告里
+      点名。目录是人工维护的，漏登记必须有人看见，而不是被静默当成正常书。
+    - 「已下载、还没入库」→ status=planned + on_disk=true，报告提示跑管线。它与
+      真·planned（连目录都没下载）的区别就在 on_disk 上，一眼可辨。
+    """
+    cat_by_id = {b.book_id: b for b in cat.books.values()} if cat else {}
+    on_disk = cat.dirs_on_disk() if cat else {}
+    in_db = {r["book_id"] for r in rows}
+
+    for r in rows:
+        b = cat_by_id.get(r["book_id"])
+        r["catalog_gap"] = b is None
+        if b is None:
+            # 库里有、目录没登记：不谎称 verified，退回 imported
+            r["status"] = "imported"
+            r["era_group"] = r["category"] = r["dynasty"] = None
+            continue
+        r["era_group"], r["category"], r["dynasty"] = b.era_group, b.category, b.dynasty
+        r["recall_verified"] = b.recall_verified
+        if r["coverage_status"] == "FAIL" or not r["indexed"]["ok"]:
+            r["status"] = "failed"
+        elif r["coverage_status"] == "WARN":
+            r["status"] = "warning"
+        elif b.recall_verified:
+            r["status"] = "verified"
+        else:
+            r["status"] = "imported"
+
+    planned = [{
+        "book_id": b.book_id, "title": b.title, "dir": b.dir,
+        "dynasty": b.dynasty, "era_group": b.era_group, "category": b.category,
+        "kanripo_id": b.book_id, "repo": b.repo, "branch": b.branch,
+        "on_disk": on_disk.get(b.dir, False),
+    } for b in (cat.books.values() if cat else ()) if b.book_id not in in_db]
+
+    counts: dict[str, int] = {}
+    for r in rows:
+        counts[r["status"]] = counts.get(r["status"], 0) + 1
+
+    return {
+        "catalog_path": str(cat.path) if cat else None,
+        "catalog_version": cat.version if cat else None,
+        "note": ("catalog = 应该有什么（人工维护），books = 实际有什么（库内实况）。"
+                 "status 是两者相乘的五态；coverage_status 仍是篇名覆盖的三态口径"
+                 "（与 api/db.py 一致，一字未改）。"),
+        "in_catalog": len(rows) - len([r for r in rows if r["catalog_gap"]]),
+        "counts": dict(sorted(counts.items())),
+        "planned": planned,
+        "not_in_catalog": sorted(r["title"] for r in rows if r["catalog_gap"]),
+        "on_disk_not_imported": sorted(p["title"] for p in planned if p["on_disk"]),
+        "uncatalogued_dirs": cat.uncatalogued_dirs() if cat else [],
+        "by_era_group": _era_progress(rows, planned),
+    }
+
+
+def _era_progress(rows: list[dict], planned: list[dict]) -> dict:
+    """按时代分组的收录进度——前端 #/coverage 的时代进度条与它同源。"""
+    out: dict[str, dict] = {}
+    for r in rows:
+        g = out.setdefault(r.get("era_group") or "未分组",
+                           {"in_library": 0, "planned": 0, "verified": 0})
+        g["in_library"] += 1
+        if r["status"] == "verified":
+            g["verified"] += 1
+    for p in planned:
+        g = out.setdefault(p["era_group"] or "未分组",
+                           {"in_library": 0, "planned": 0, "verified": 0})
+        g["planned"] += 1
+    return dict(sorted(out.items()))
+
+
 def build(quiet: bool = False) -> dict:
     con = _connect()
     try:
@@ -192,6 +307,9 @@ def build(quiet: bool = False) -> dict:
         rows = [audit_book(con, b) for b in books]
     finally:
         con.close()
+
+    cat = catalog.try_load()
+    cat_rep = merge_catalog(rows, cat)
 
     gate = publish_gate_sync([r["title"] for r in rows])
 
@@ -209,7 +327,9 @@ def build(quiet: bool = False) -> dict:
             "juans": sum(r["juans"] for r in rows),
             "body_rows": sum(r["body_rows"] for r in rows),
             "uncovered_rows": sum(r["uncovered_rows"] for r in rows),
+            "planned_books": len(cat_rep["planned"]),
         },
+        "catalog": cat_rep,
         "publish_gate": gate,
         "books": rows,
     }
@@ -225,7 +345,10 @@ def build(quiet: bool = False) -> dict:
             "body_rows": r["body_rows"], "covered_rows": r["covered_rows"],
             "section_coverage": r["section_coverage"],
             "files_without_section": r["files_without_section"],
-            "status": r["status"], "gap_files": r["gap_files"],
+            "coverage_status": r["coverage_status"], "status": r["status"],
+            "section_methods": r["section_methods"],
+            "low_confidence": r["low_confidence"], "untagged": r["untagged"],
+            "gap_files": r["gap_files"],
         } for r in rows],
     }
 
@@ -240,6 +363,66 @@ def build(quiet: bool = False) -> dict:
     return manifest
 
 
+def print_section_methods(manifest: dict) -> None:
+    """篇题溯源：这批 section 是认出来的还是猜出来的（6.3-C③）。"""
+    print("\n=== 篇题溯源（detection_method：这条 section 是怎么来的）")
+    tot: dict[str, int] = {}
+    for b in manifest["books"]:
+        for k, v in (b.get("section_methods") or {}).items():
+            tot[k] = tot.get(k, 0) + v
+    print("  合计：" + ("、".join(f"{k} {v}" for k, v in sorted(tot.items()))
+                       or "（无 section）"))
+    for b in manifest["books"]:
+        if not b.get("sections"):
+            continue
+        m = b.get("section_methods") or {}
+        flags = []
+        if b.get("low_confidence"):
+            flags.append(f"低置信 {b['low_confidence']}")
+        if b.get("untagged"):
+            flags.append(f"未标注 {b['untagged']}")
+        print(f'  {b["title"]:<9}{b["sections"]:>5} 条  '
+              + "、".join(f"{k} {v}" for k, v in sorted(m.items()))
+              + ("   ← " + "；".join(flags) if flags else ""))
+    if tot.get("untagged"):
+        print("  ** 有未标注的 section —— 旧库没重跑过；跑一次 run_all 即可补齐")
+    if tot.get("first-occurrence"):
+        print(f'  ** 首现兜底 {tot["first-occurrence"]} 条：没有标题证据、靠 section '
+              f'首次出现记下的，篇名可信度低，audit_sections 里逐条可查')
+
+
+def print_catalog_status(manifest: dict) -> None:
+    """五态总表（catalog × 库）+ 未入库名单 + 三处必须有人看的告警。"""
+    rep = manifest.get("catalog") or {}
+    if not rep.get("catalog_path"):
+        print("\n=== 语料状态：没有语料目录（corpus_catalog.json 缺失）"
+              "—— 五态退化为三态，未入库的书无从得知")
+        return
+    print(f"\n=== 语料状态（五态 = 语料目录 × 库内实况；目录 {rep['catalog_path']}）")
+    print(f'{"书名":<9}{"时代":<8}{"类目":<11}{"覆盖":<7}{"书籍状态":<10}召回确认')
+    for b in manifest["books"]:
+        print(f'{b["title"]:<9}{str(b.get("era_group") or "-"):<8}'
+              f'{str(b.get("category") or "-"):<11}'
+              f'{b["coverage_status"]:<7}{b["status"]:<10}'
+              f'{"是" if b.get("recall_verified") else "否"}')
+    print("  已入库 " + str(manifest["totals"]["books"]) + " 部："
+          + "、".join(f"{k} {v}" for k, v in rep["counts"].items()))
+    print(f"  未入库（目录在册）{len(rep['planned'])} 部"
+          + ("：" + "、".join(p["title"] for p in rep["planned"])
+             if rep["planned"] else ""))
+    print("  按时代：" + "  ".join(
+        f"{g} {v['in_library']}/{v['in_library'] + v['planned']}"
+        for g, v in rep["by_era_group"].items()))
+    if rep["on_disk_not_imported"]:
+        print(f"  ** 已下载未入库：{rep['on_disk_not_imported']}"
+              f" —— 跑一次 python -m scripts.pipeline.run_all")
+    if rep["not_in_catalog"]:
+        print(f"  ** 库里有、目录未登记：{rep['not_in_catalog']}"
+              f" —— 补进 corpus_catalog.json（否则状态永远停在 imported）")
+    if rep["uncatalogued_dirs"]:
+        print(f"  ** 磁盘上有未登记的书目录：{rep['uncatalogued_dirs']}")
+
+
 def print_audit(coverage: dict, manifest: dict) -> None:
     print("\n=== Corpus Manifest（§17）：" + str(manifest["totals"]))
     print("\n=== Section Coverage Audit（§15 / §18）")
@@ -249,24 +432,26 @@ def print_audit(coverage: dict, manifest: dict) -> None:
         print(f'{b["title"]:<9}{b["family"]:<6}{str(b["edition"]):<6}'
               f'{len(b["files_without_section"]):>8}{b["juans"]:>7}{b["sections"]:>9}'
               f'{b["body_rows"]:>8}{b["covered_rows"]:>8}'
-              f'{b["section_coverage"] * 100:>7.1f}%  {b["status"]}')
+              f'{b["section_coverage"] * 100:>7.1f}%  {b["coverage_status"]}')
     for b in coverage["books"]:
-        if b["status"] == "OK":
+        if b["coverage_status"] == "OK":
             continue
-        print(f'\n  [{b["status"]}] {b["title"]}：{len(b["files_without_section"])} '
+        print(f'\n  [{b["coverage_status"]}] {b["title"]}：{len(b["files_without_section"])} '
               f'个文件无 section，缺口 {b["body_rows"] - b["covered_rows"]} 行')
         if b["files_without_section"]:
             print(f'        无 section 的文件号：{b["files_without_section"]}')
         for g in b["gap_files"]:
             print(f'        {g["file_name"]}  缺 {g["missing_rows"]} 行'
                   f'{"（该文件无 section）" if not g["has_section"] else "（section 之前）"}')
-    bad = [b["title"] for b in coverage["books"] if b["status"] == "FAIL"]
-    warn = [b["title"] for b in coverage["books"] if b["status"] == "WARN"]
+    bad = [b["title"] for b in coverage["books"] if b["coverage_status"] == "FAIL"]
+    warn = [b["title"] for b in coverage["books"] if b["coverage_status"] == "WARN"]
     print(f"\n  合计 {len(coverage['books'])} 书："
           f"{len(coverage['books']) - len(bad) - len(warn)} OK / {len(warn)} WARN / "
           f"{len(bad)} FAIL" + (f"  FAIL={bad}" if bad else ""))
     idx_bad = [b["title"] for b in manifest["books"] if not b["indexed"]["ok"]]
     print(f"  FTS 索引完整：{'全部入索引' if not idx_bad else '缺口 ' + str(idx_bad)}")
+    print_section_methods(manifest)
+    print_catalog_status(manifest)
     g = manifest["publish_gate"]
     print(f"  发布闸门书名清单（check_publish.REAL_TITLES）："
           + ("与语料一致" if g["ok"] else

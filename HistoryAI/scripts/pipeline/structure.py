@@ -9,9 +9,11 @@
 from __future__ import annotations
 
 import re
+import sys
 
-from . import config
+from . import catalog, config
 from .records import Record
+from .title_patterns import PATTERNS
 
 # ----------------------------------------------------------------- pb
 
@@ -100,19 +102,82 @@ def part_layer_of(label: str | None) -> str | None:
     return None
 
 
+# 家族层默认里「层名由函数算」的解析器：JSON 按名字引用（catalog.LAYER_RESOLVERS
+# 是同一份名字清单，供目录校验用），实现留在本模块——part_layer_of 在这里。
+LAYER_RESOLVERS = {"part_layer_of": part_layer_of}
+
+_warned_no_catalog = False
+
+
+def _warn_no_catalog() -> None:
+    """catalog 不可用时只吼一次：接着跑的是 6.2 的冻结规则，不是 JSON 里那套。"""
+    global _warned_no_catalog
+    if not _warned_no_catalog:
+        _warned_no_catalog = True
+        print("** corpus_catalog.json 不可用（缺失或校验不过）：层默认回落到 6.2 "
+              "内置规则，目录里的文件特例/家族规则**没有生效**。",
+              file=sys.stderr)
+
+
+def _apply_layer_rules(rules, file_no: int | None, juan: str) -> tuple[str, str, str] | None:
+    """按**声明顺序**取第一条命中的家族规则 → (layer, status, note)；都不中 → None。"""
+    for r in rules:
+        when = r.get("when", "always")
+        layer = r.get("layer")
+        if when == "juan_part":
+            resolver = LAYER_RESOLVERS.get(r.get("resolver") or "")
+            layer = resolver(juan) if resolver else None
+            if not layer:
+                continue
+        elif when == "file_zero":
+            if file_no != 0:
+                continue
+        elif when != "always":
+            continue
+        return (layer, r.get("status") or "ok", (r.get("note") or "").format(JUAN=juan or ""))
+    return None
+
+
 def file_layer_defaults(book_dir: str, file_no: int | None, family: str | None,
                         metadata: dict) -> tuple[str, str, str]:
     """按文件级证据给出默认 layer/status，返回 (layer, status, note)。
 
     证据优先级：
-    1. 显式例外表（已人工确认的特例，集中在此，不做散落的 if 分支）
-    2. WYG 族：首段名（`#+PROPERTY: JUAN`）自己就说明了这一文件是什么
-       —— 御製詩/提要/自序 → preface，考證跋語/箚子 → appendix，`卷N` → 正文。
+    1. 该书的文件级特例：catalog `books[<id>].file_overrides`（人工确认过的，
+       如 尚書 _059 逸篇附集；键是文件号的字符串）
+    2. 家族层默认规则：catalog `families[<family>].layer_defaults`，按声明顺序
+       —— WYG 族：首段名（`#+PROPERTY: JUAN`）自己就说明了这一文件是什么：
+       御製詩/提要/自序 → preface，考證跋語/箚子 → appendix，`卷N` → 正文。
        实测 227 个文件全部据此判对，无需逐本登记（§13）。
-    3. SBCK 族 _000 且 FILE 含“序”→ preface（國語解敘 / 戰國策序 均如此）
-    4. 默认正文 main（tls/sbck/wyg 正文文件）；拿不准 → unknown
+       —— SBCK 族 _000 → preface/pending_section。
+    3. catalog 不可用（文件缺失/校验不过）→ 6.2 内置规则，并在 stderr 吼一声。
+       家族未知（family=None）也走这里 → unknown/pending_section，不猜。
+
+    规则搬进 JSON 的收益：加一本新书要改的层默认，**只动 corpus_catalog.json**。
+    签名与返回值形状不变（test_overrides / test_sbck_fallback / test_main 照旧）。
     """
-    # (dir_name, file_no) -> (layer, status, note)  人工确认过的特例
+    juan = (metadata or {}).get("JUAN") or ""
+    cat = catalog.try_load()
+    if cat is not None:
+        ov = cat.file_override(book_dir, file_no)
+        if ov:
+            return (ov["layer"], ov["status"],
+                    ov.get("note") or f"{book_dir} 文件 {file_no} 人工特例")
+        hit = _apply_layer_rules(cat.layer_defaults(family), file_no, juan)
+        if hit:
+            return hit
+    else:
+        _warn_no_catalog()
+    return _builtin_layer_defaults(book_dir, file_no, family, juan)
+
+
+def _builtin_layer_defaults(book_dir: str, file_no: int | None, family: str | None,
+                            juan: str) -> tuple[str, str, str]:
+    """**6.2 的冻结快照**，只在 catalog 不可用（或家族未知）时兜底。
+
+    刻意不与 corpus_catalog.json 同步：它是「回滚到 6.2」时该有的样子，不是第二
+    份可维护的真源。改规则请改 JSON，别改这里。
+    """
     overrides = {
         # 尚書 _059 为逸篇附录（Readme 目次 59.x 段，人工复核过）
         ("shangshu", 59): ("appendix", "ok", "尚書逸篇附集(Readme 目次 59.x)"),
@@ -123,14 +188,11 @@ def file_layer_defaults(book_dir: str, file_no: int | None, family: str | None,
     key = (book_dir, file_no)
     if key in overrides:
         return overrides[key]
-
     if family == "wyg":
-        juan = (metadata or {}).get("JUAN")
         layer = part_layer_of(juan)
         if layer:
             return (layer, "ok", f"WYG 首段名「{juan}」")
-        # `卷一上` / `卷二` 之类：正常卷正文
-        return ("main", "ok", "WYG 卷正文")
+        return ("main", "ok", "WYG 卷正文")   # `卷一上` / `卷二` 之类：正常卷正文
     if family == "sbck" and file_no == 0:
         return ("preface", "pending_section", "SBCK 首文件疑为序（未在例外表确认）")
     if family in ("tls", "sbck"):
@@ -241,11 +303,23 @@ def clean_title(raw: str) -> str:
     return t
 
 
-def title_candidates() -> list[re.Pattern]:
-    """已知明文篇题形态（各书风格不一，全部并列候选，逐条尝试）。"""
-    return [
-        re.compile(r"^(\d+\.\d+)[《〈](.+)$"),      # 史记 1.1《五帝本紀》
-    ]
+# 唯一一条「编号 + 书名号」形态的篇题模式（史記）。形态若再多一条，改这里成元组。
+_PLAIN_TITLE_PATTERN = "shiji_plain"
+
+
+def title_candidates(patterns: tuple = ()) -> list[re.Pattern]:
+    """「编号 + 书名号」形态的明文篇题（史記 `1.1《五帝本紀》`），逐条尝试。
+
+    `patterns` 传本书的声明（catalog.patterns_for(book)）：**书没声明就不试**。
+    title_patterns 声明的是「本书会出现哪些标题形态」；没声明却照样去匹配，认错
+    的代价是那行被当标题行、从此不进正文索引（heading 不进 FTS）。空 tuple 只在
+    catalog 不可用时出现 → 回落到 6.2 行为（史記那一份）。
+
+    调用方按 `m.group(2)` 取标题文字，所以将来同等形态的模式可以直接加进注册表。
+    """
+    if patterns and all(p.name != _PLAIN_TITLE_PATTERN for p in patterns):
+        return []
+    return [PATTERNS[_PLAIN_TITLE_PATTERN].regex]
 
 
 # ------------------------------------------------------------ normalized

@@ -23,7 +23,7 @@ from .config import (
     SRC_LINE_RE,
     natural_sort_key,
 )
-from .kanripo_header import FileHeader, file_no_of, split_header
+from .kanripo_header import FileHeader, family_of_edition, file_no_of, split_header
 
 # 正文统计用的“页标记”计数：<pb:...> 出现次数（与行位置无关）
 PB_COUNT_RE = PB_ANY_RE
@@ -164,16 +164,10 @@ def scan_library(library: Path | None = None) -> list[BookInfo]:
             bi.title = h.get("TITLE", "")
             ed = (h.get("BASEEDITION") or "").strip()
             bi.edition = ed
-            # 家族 = BASEEDITION（kanripo 自己的属性，不是我们的猜测）。
-            # wyg = 文淵閣四庫全書，第六点二阶段加入：kanripo 的《前漢書》《後漢書》
-            # 只有这一个底本，形态与 tls/SBCK 都不同（见 structure/segmentation）。
-            if ed == "tls":
-                bi.family = "tls"
-            elif ed == "SBCK":
-                bi.family = "sbck"
-            elif ed == "WYG":
-                bi.family = "wyg"
-            # 家族以多数 txt 投票为准（不做零散猜测）
+            # 家族 = BASEEDITION（kanripo 自己的属性，不是我们的猜测）：wyg = 文淵閣
+            # 四庫全書，形态与 tls/SBCK 都不同。取**首个 txt 文件**的头（同一本书的
+            # 文件同族）；映射只有一份，见 kanripo_header.family_of_edition。
+            bi.family = family_of_edition(ed)
         books.append(bi)
     return books
 

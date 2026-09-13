@@ -29,6 +29,11 @@ CI 里跑不了、或者因为找不到参照物而「永远通过」的闸门�
 
 第 2 条是主力。第 1 条管的是「以后有人加了新文件」这种情况。
 
+第 2 条的名单（`REAL_TITLES`）**从语料目录 `corpus_catalog.json` 派生**（6.3-L）：
+手写名单在 6.2 就漏过一次（前漢書/後漢書），而 6.3 一次加 12 本书。名单读不出来
+时闸门直接拒发 —— 名单为空 = 判据②对任何书名都判通过，那种「永远通过」的闸门
+正是本模块开头警告过的虚假安心。
+
 ## 它**不是**什么
 
 不是「产物正确」的证明。它只回答一个问题：**这里面有没有不该公开的语料**。
@@ -66,11 +71,32 @@ ALLOWED_FILES = {
 # 1 MB 离两者都很远，不会误伤，也拦得住「悄悄塞了半份语料」。
 MAX_BYTES = 1 << 20
 
-# 真实语料的书名。它们出现在 `book_title` 之类**字段**里就是泄露；
-# 出现在 index.html 的页脚文案里是正常的（那是项目介绍，不是数据）。
-# 第六点二阶段加入 前漢書/後漢書（WYG 底本）——名单不跟着语料长大，闸门对新加
-# 的书就是形同虚设。
-REAL_TITLES = {"尚書", "春秋左傳", "史記", "國語", "戰國策", "前漢書", "後漢書"}
+# 真实语料的书名。它们出现在 `book_title` 之类**字段**里就是泄露。
+# （index.html 的页脚曾经写死过 7 个书名，6.3-I 改成了运行时从数据填 —— 产物里
+# 一个真实书名都不剩，见 frontend/app.js 的 footBooks()。这里不再为它留例外。）
+#
+# **真源上移到语料目录**（6.3-L）：6.2 时这份名单是手写的，规定「只对账、不复制」，
+# 但 6.3 一次加 12 本书 —— 靠记性同步名单正是 6.2 补过的那类 bug（那次漏了
+# 前漢書/後漢書）。现在书进了 `scripts/pipeline/corpus_catalog.json` 就自动进闸门，
+# 不存在「忘了加」。语义变化（已写进 6.3 报告，不是悄悄改）：`publish_gate_sync()`
+# 的 missing（库里有、闸门不认识）从此结构性恒为空；仍要人看的是 stale（在册未入库）。
+def _load_real_titles() -> tuple[set[str], str]:
+    """读语料目录得到真实书名集合。读不出来就**拒发**，不放行。
+
+    失败时返回空集 + 原因：一个「名单为空」的闸门对任何真实书名都判通过，比没有
+    闸门更危险 —— 它给的是虚假的安心（同本模块开头对 sha256 判据的取舍）。所以
+    catalog 读不出来时不静默退化成空集，而是当成一条问题报出去。catalog 是仓库内
+    的 JSON，CI（无本地语料）也能读，闸门在 Actions 里照常工作。
+    """
+    try:
+        from scripts.pipeline import catalog as corpus_catalog
+        return set(corpus_catalog.load().titles()), ""
+    except Exception as e:                       # noqa: BLE001 —— 任何读不出来的原因都拒发
+        return set(), (f"真实书名名单取不到（语料目录 corpus_catalog.json 读不出来："
+                       f"{e}）——名单为空时判据②对任何书名都判通过，故拒绝发布")
+
+
+REAL_TITLES, TITLES_ERROR = _load_real_titles()
 
 
 def check_file_set(root: Path) -> list[str]:
@@ -186,10 +212,14 @@ def main(argv: list[str]) -> int:
 
     allowed = demo_lines()
     tbad, n_piece = check_text_is_demo(root, allowed)
+    # 名字列表来自语料目录，会随语料长大（28 部），全列出来会把这一行撑成一段话 ——
+    # 报个数，抽查前几个，其余留在 REAL_TITLES 里可查。
+    tnames = sorted(REAL_TITLES)
+    tshow = "、".join(tnames[:4]) + ("…" if len(tnames) > 4 else "")
     rules = [
         (f"① 文件白名单（{len(ALLOWED_FILES)} 项）", check_file_set(root)),
-        (f"② 数据里无真实书名（{'、'.join(sorted(REAL_TITLES))}）",
-         check_no_real_titles(root)),
+        (f"② 数据里无真实书名（{len(tnames)} 个：{tshow}）",
+         ([TITLES_ERROR] if TITLES_ERROR else []) + check_no_real_titles(root)),
         (f"③ 正文逐字反查自撰文本（{len(allowed)} 行自撰 / "
          f"{n_piece:,} 段产出行）", tbad),
     ]

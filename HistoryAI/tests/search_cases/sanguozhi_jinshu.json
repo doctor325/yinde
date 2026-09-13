@@ -1,0 +1,1126 @@
+{
+ "version": 2,
+ "corpus": "9 部语料（先秦：尚書/春秋左傳/史記/國語/戰國策；秦汉：前漢書/後漢書；三国两晋：三國志/晉書），465507 条记录",
+ "era": "sanguozhi_jinshu",
+ "note": [
+  "召回测试集，按时代分文件（第六点二阶段 §21）。本文件 = 三国两晋（第六点三阶段第一批导入的三國志/晉書，kanripo WYG 底本）。",
+  "**这两部书都不是全本 —— 上游 Kanripo 转录到一半**（第六点三阶段实测，不是我们漏导）：三國志的 000 卷目録列到「六十五卷」（魏書 30 + 蜀書 15 + 吳書 20），但仓库里只有 001~030 文件，即**只转录到魏書卷三十**；晉書提要写着「一百三十卷」，仓库只有 001~033，即**只到卷三十三（帝紀 1~10、志 1~20、列傳 1~3）**。master 与 WYG 两个分支的内容一致，所以不是分支选错。",
+  "由此带来两条读用例时必须知道的事实：①「諸葛亮」在三國志里只有 37 段，全是**魏書里的提及**（魏志卷三/卷十四/卷十七…），蜀書諸葛亮傳（卷三十五）根本不在库里；關羽、劉備、周瑜同理（蜀書/吳書未转录）。②晉書里的人物多来自帝紀与志；王祥是**最后一个有本傳的人**（列傳第三 = 卷三十三，恰在本批范围内），羊祜（列傳第四）、王導（列傳第三十五）、陶侃（列傳第三十六）都只有帝紀/志中的提及。",
+  "第三件要知道的事：命中里混着**目錄行**（layer=toc，kind 仍是 passage，检索不按 layer 过滤）。最纯的例子是 王羲之 —— 2 段全是晉書目錄里的一行，本傳不在库；陳壽 5 段里 2 段是三國志卷端的撰者署名。",
+  "id 一律带时代前缀 sz-（三國志/晉書）。",
+  "baseline_hits / baseline_blocks 是 2026-09-13 在 9 部语料上实测的 hit_total / total，只用于报告漂移，不作为失败判据（语料扩充后必然变化）。",
+  "recall: \"section\" 的条目判的是**篇名命中**（match_type 为 section 或 both），不看 hit_total —— 篇名命中的 hit_total 本来就是 0（如 魏志卷三十）。",
+  "可选字段：page / page_size / mode / book / edition / text_mode 覆盖默认检索参数；check_pagination 跑末页可达性。",
+  "**用例分三类，报告里必须分清**：正例（must_hit=true，语料里有，引擎必须召回）；负例（must_hit=false + expect_class，语料里确实没有，空得归因正确才算过）；对照（同一现象两种写法各一条，如 荊州 5 vs 荆州 470、管仲 tls 80 / sbck 22 / WYG 201）。",
+  "**两条已知的检索收窄**（第六点三阶段实测，按计划书 §16 与「先测后议」没有擅自改引擎，待用户决定）：① `edition=WYG` 是空操作 —— search/engine.py:92 `resolve_edition` 只认 tls/sbck，其余一律返回 None＝不过滤，而本批新书全是 WYG；sz-edition-04/05 就是把这个空操作钉在明面上的（王祥 WYG 22 段＝不过滤的 22，管仲 WYG 201 段＝不过滤的 201）。② 繁简转换会把语料里的写法转成另一种写法：语料里「荆州」（U+8346）有 470 段、「荊州」（U+834A）只有 5 段，而 zh.to_traditional 一律把查询转成 U+834A，于是按语料写法输入的用户只拿得到 5 段（sz-script-13/14 记的就是这个 5）。字级实测：全库 9,658 个不同字符里，语料原形出现 ≥20 次、而转换后写法不足原形 20% 的只有 **15 个**（蘖 20→0、凶 766→16、琅 654→20、别 1530→167、荆 1083→181、内 4251→743、粤 186→20、羡 154→12、彦 85→15、衮 76→12、葱 68→5、奥 97→10、厮 53→10、莅 38→7、亘 21→1）—— 面不宽，但「荆」「内」「别」这三个在语料里都是上千次的高频字，所以对特定查询的影响不小。",
+  "本文件的新增用例全部是先实测、后写数：数字来自 2026-09-13 的库，不是估的。"
+ ],
+ "cases": [
+  {
+   "id": "sz-person-01",
+   "group": "person",
+   "query": "诸葛亮",
+   "must_hit": true,
+   "baseline_hits": 92,
+   "baseline_blocks": 82,
+   "top_needle": "諸葛亮",
+   "note": "三國志37/晉書17/後漢書4/戰國策1；简体输入必须转成諸葛亮。三國志那 37 段全在魏志（卷三7/卷十四4/卷十七3…，含 layer=commentary_candidate 12、toc 1），**蜀書諸葛亮傳不在本批语料内**"
+  },
+  {
+   "id": "sz-person-02",
+   "group": "person",
+   "query": "关羽",
+   "must_hit": true,
+   "baseline_hits": 33,
+   "baseline_blocks": 29,
+   "top_needle": "關羽",
+   "note": "三國志24/晉書2/後漢書1；三國志 24 段集中在魏志卷十四8、卷十七7（于禁/張遼等傳），蜀書關羽傳（卷三十六）不在库内"
+  },
+  {
+   "id": "sz-person-03",
+   "group": "person",
+   "query": "曹操",
+   "must_hit": true,
+   "baseline_hits": 186,
+   "baseline_blocks": 155,
+   "top_needle": "曹操",
+   "note": "後漢書150/三國志16/晉書2/戰國策1（简繁同形）。曹操在后汉书里有本纪，所以三國志只占一小部分；三國志里多称「太祖」（见 sz-alias-06）"
+  },
+  {
+   "id": "sz-person-04",
+   "group": "person",
+   "query": "周瑜",
+   "must_hit": true,
+   "baseline_hits": 10,
+   "baseline_blocks": 10,
+   "top_needle": "周瑜",
+   "note": "三國志4/晉書1/後漢書1；吳書周瑜傳（卷五十四）不在库内，4 段是魏志卷九/十七/十八里的提及"
+  },
+  {
+   "id": "sz-person-05",
+   "group": "person",
+   "query": "司马懿",
+   "must_hit": true,
+   "baseline_hits": 22,
+   "baseline_blocks": 14,
+   "top_needle": "司馬懿",
+   "note": "三國志6/晉書1/後漢書1。晉書帝紀第一就是宣帝紀，但晉書本文多称「宣帝/宣王」，直写「司馬懿」只有 1 段 —— 这是**称谓差异**，不是漏召回"
+  },
+  {
+   "id": "sz-person-06",
+   "group": "person",
+   "query": "王祥",
+   "must_hit": true,
+   "baseline_hits": 28,
+   "baseline_blocks": 22,
+   "top_needle": "王祥",
+   "note": "晉書16/三國志6。晉書 16 段里 8 段来自**列傳第三（卷三十三）＝王祥本傳**，是本批语料里最后一位有本傳的人；晉書卷首还有一首「御製讀王祥傳率題」"
+  },
+  {
+   "id": "sz-person-07",
+   "group": "person",
+   "query": "陶侃",
+   "must_hit": true,
+   "baseline_hits": 34,
+   "baseline_blocks": 24,
+   "top_needle": "陶侃",
+   "note": "晉書20；陶侃傳是列傳第三十六，不在本批（止于列傳第三），20 段全部是帝紀第五/六/七里的提及"
+  },
+  {
+   "id": "sz-person-08",
+   "group": "person",
+   "query": "王导",
+   "must_hit": true,
+   "baseline_hits": 82,
+   "baseline_blocks": 67,
+   "top_needle": "王導",
+   "note": "晉書42；王導傳是列傳第三十五，不在本批；42 段来自帝紀第六15/帝紀第七10/志第十八3…（东晋开国那几朝纪里他是主角，志第十八是元帝渡江后的地理沿革）"
+  },
+  {
+   "id": "sz-person-09",
+   "group": "person",
+   "query": "祖逖",
+   "must_hit": true,
+   "baseline_hits": 11,
+   "baseline_blocks": 8,
+   "top_needle": "祖逖",
+   "note": "晉書7；祖逖傳是列傳第三十二，不在本批；7 段里 6 段在帝紀第六（元帝紀）"
+  },
+  {
+   "id": "sz-person-10",
+   "group": "person",
+   "query": "陆逊",
+   "must_hit": true,
+   "baseline_hits": 13,
+   "baseline_blocks": 13,
+   "top_needle": "陸遜",
+   "note": "三國志4/晉書3/後漢書1；吳書陸遜傳（卷五十八）不在库内；晉書那 3 段在志第十六/十七/十九（地理/职官志里引吴事）"
+  },
+  {
+   "id": "sz-person-11",
+   "group": "person",
+   "query": "邓艾",
+   "must_hit": true,
+   "baseline_hits": 65,
+   "baseline_blocks": 50,
+   "top_needle": "鄧艾",
+   "note": "三國志37/晉書10；邓艾是本批里少数**有本傳**的三國志人物（魏志卷二十八16 段），另在魏志卷四/二十二/三十"
+  },
+  {
+   "id": "sz-person-12",
+   "group": "person",
+   "query": "羊祜",
+   "must_hit": true,
+   "baseline_hits": 31,
+   "baseline_blocks": 29,
+   "top_needle": "羊祜",
+   "note": "晉書16/三國志1；羊祜傳是列傳第四（卷三十四），**刚好在截断之外**；16 段里 6 段在帝紀第三、4 段在列傳第三（王祥等傳中的提及）"
+  },
+  {
+   "id": "sz-person-13",
+   "group": "person",
+   "query": "嵇康",
+   "must_hit": true,
+   "baseline_hits": 25,
+   "baseline_blocks": 25,
+   "top_needle": "嵇康",
+   "note": "三國志8/後漢書4；嵇康傳在晉書列傳第十九，不在本批；三國志 8 段里 4 段是注文（commentary_candidate）、1 段是目錄行"
+  },
+  {
+   "id": "sz-person-14",
+   "group": "person",
+   "query": "谢安",
+   "must_hit": true,
+   "baseline_hits": 56,
+   "baseline_blocks": 52,
+   "top_needle": "謝安",
+   "note": "晉書17/前漢書3/戰國策2/後漢書1/史記1；謝安傳是列傳第四十九，不在本批；晉書 17 段里 10 段在帝紀第九（简文帝/孝武帝纪）。前漢書/戰國策里的「謝安」是**同名异人**，字面命中不等于同一个人"
+  },
+  {
+   "id": "sz-person-15",
+   "group": "person",
+   "query": "张辽",
+   "must_hit": true,
+   "baseline_hits": 37,
+   "baseline_blocks": 28,
+   "top_needle": "張遼",
+   "note": "三國志30/後漢書1；张辽有本傳（魏志卷十七，11 段），另在魏志卷一（武帝纪）5 段"
+  },
+  {
+   "id": "sz-person-16",
+   "group": "person",
+   "query": "马谡",
+   "must_hit": true,
+   "baseline_hits": 7,
+   "baseline_blocks": 7,
+   "top_needle": "馬謖",
+   "note": "三國志4/晉書1/戰國策1；三國志 4 段散在魏志卷三/九/十七/二十六（街亭之败的几处记载），无本傳；晉書 1 段在志第十八"
+  },
+  {
+   "id": "sz-person-17",
+   "group": "person",
+   "query": "贾充",
+   "must_hit": true,
+   "baseline_hits": 73,
+   "baseline_blocks": 61,
+   "top_needle": "賈充",
+   "note": "晉書34/三國志14/後漢書1/前漢書1；贾充传是列傳第十，不在本批；晉書 34 段来自帝紀第二/第三（司马昭/武帝纪，他是主角之一），含大量注文（commentary_candidate 13）"
+  },
+  {
+   "id": "sz-person-18",
+   "group": "person",
+   "query": "石崇",
+   "must_hit": true,
+   "baseline_hits": 13,
+   "baseline_blocks": 13,
+   "top_needle": "石崇",
+   "note": "三國志5/晉書3；石崇传是列傳第三，**在本批范围内**（卷三十三），8 段里一半是注文 —— 这条与 sz-person-12（羊祜，列傳第四，刚好被截掉）正好构成截断边界的对照"
+  },
+  {
+   "id": "sz-person-19",
+   "group": "person",
+   "query": "王羲之",
+   "must_hit": true,
+   "baseline_hits": 11,
+   "baseline_blocks": 10,
+   "top_needle": "王羲之",
+   "note": "晉書2，**两段都是目錄行**（layer=toc）—— 王羲之传是列傳第五十，不在本批。这条用例的作用就是提醒：hit_total>0 不等于真是正文命中"
+  },
+  {
+   "id": "sz-person-20",
+   "group": "person",
+   "query": "刘禅",
+   "must_hit": true,
+   "baseline_hits": 33,
+   "baseline_blocks": 31,
+   "top_needle": "劉禪",
+   "note": "晉書12/三國志8；蜀書後主傳（卷三十三）不在库内，三國志 8 段是魏志里的提及（魏志卷四/二十八…），晉書 12 段散在帝紀第二/志第四/志第十八"
+  },
+  {
+   "id": "sz-person-21",
+   "group": "person",
+   "query": "刘备",
+   "must_hit": true,
+   "baseline_hits": 187,
+   "baseline_blocks": 157,
+   "top_needle": "劉備",
+   "note": "三國志117/後漢書43/晉書9；三國志 117 段全在魏志（武帝纪25/卷十四15/卷十七12…，含注文 34）—— 蜀書先主傳不在库内，所以「劉備」的召回基本是**对手视角的记载**"
+  },
+  {
+   "id": "sz-person-22",
+   "group": "person",
+   "query": "孙权",
+   "must_hit": true,
+   "baseline_hits": 238,
+   "baseline_blocks": 189,
+   "top_needle": "孫權",
+   "note": "三國志110/晉書35/後漢書14；吳書吳主傳不在库内，110 段是魏志里的提及（魏志卷二10/卷十四10/卷一8…，含注文 30）"
+  },
+  {
+   "id": "sz-person-23",
+   "group": "person",
+   "query": "华佗",
+   "must_hit": true,
+   "baseline_hits": 32,
+   "baseline_blocks": 29,
+   "top_needle": "華佗",
+   "note": "三國志17/後漢書5；华佗有本傳（魏志卷二十九，14 段），是三國志里召回最集中的人物之一；另在魏志卷一、目錄行 2 段"
+  },
+  {
+   "id": "sz-person-24",
+   "group": "person",
+   "query": "陈寿",
+   "must_hit": true,
+   "baseline_hits": 7,
+   "baseline_blocks": 4,
+   "top_needle": "陳壽",
+   "note": "三國志5（全部在三國志）；陈寿是本书记载的作者，5 段里 3 段是魏志卷一正文、2 段是卷端署名行（toc）—— 命中段少但块数只有 2，说明它们挤在同一批相邻行里"
+  },
+  {
+   "id": "sz-alias-01",
+   "group": "alias",
+   "query": "孔明",
+   "must_hit": true,
+   "baseline_hits": 19,
+   "baseline_blocks": 19,
+   "top_needle": "孔明",
+   "note": "後漢書4/晉書1/前漢書1 —— **三國志 0 段**。诸如此类：三國志里「孔明」出现在蜀書（不在库内），而後漢書/晉書里的「孔明」多为同名字（如晉書帝紀第五的其他人）。对照 sz-person-01（諸葛亮 59 段）"
+  },
+  {
+   "id": "sz-alias-02",
+   "group": "alias",
+   "query": "雲長",
+   "must_hit": true,
+   "baseline_hits": 10,
+   "baseline_blocks": 10,
+   "top_needle": "雲長",
+   "note": "後漢書1/前漢書1；三國志 0 段（關羽字雲長，但写成「雲長」的地方在蜀書）。另：语料里「云長」（U+4E91）有 6 段，是云/雲两种写法的差异，见 note 里第 9 条同源问题"
+  },
+  {
+   "id": "sz-alias-03",
+   "group": "alias",
+   "query": "孟德",
+   "must_hit": true,
+   "baseline_hits": 1,
+   "baseline_blocks": 1,
+   "top_needle": "孟德",
+   "note": "三國志1（魏志卷一，武帝纪开头「姓曹諱操字孟德」）；全库只有这 1 段 —— 史料里称字极少，绝大多数场合写「太祖」「公」"
+  },
+  {
+   "id": "sz-alias-04",
+   "group": "alias",
+   "query": "仲達",
+   "must_hit": true,
+   "baseline_hits": 11,
+   "baseline_blocks": 11,
+   "top_needle": "仲達",
+   "note": "晉書2/後漢書1；三國志 0 段。晉書帝紀第一开头「宣皇帝諱懿字仲達」，但正文此后一律称宣帝/宣王 —— 与 sz-person-05 是同一个称谓现象"
+  },
+  {
+   "id": "sz-alias-05",
+   "group": "alias",
+   "query": "玄德",
+   "must_hit": true,
+   "baseline_hits": 2,
+   "baseline_blocks": 2,
+   "top_needle": "玄德",
+   "note": "晉書1/尚書1；三國志 0 段（蜀書里才写「字玄德」）。**尚書那 1 段是异义**：「玄德升聞」指幽潜之德，与刘备无关 —— 字面命中不等于同一个人，和 sz-person-14 的「謝安」同类"
+  },
+  {
+   "id": "sz-alias-06",
+   "group": "alias",
+   "query": "太祖",
+   "must_hit": true,
+   "baseline_hits": 3963,
+   "baseline_blocks": 1623,
+   "top_needle": "太祖",
+   "note": "三國志1265/後漢書41/前漢書35/晉書32/史記6/國語2。庙号是**多义的**（曹操、司馬昭、各朝开国君主都叫太祖），所以这条既是高频词用例，也是「别名解析不能想当然归到曹操」的反面教材；三國志 1265 段里主层 919、注文 376"
+  },
+  {
+   "id": "sz-alias-07",
+   "group": "alias",
+   "query": "先主",
+   "must_hit": true,
+   "baseline_hits": 36,
+   "baseline_blocks": 29,
+   "top_needle": "先主",
+   "note": "三國志7/後漢書6/國語6/史記5/晉書3/春秋左傳1/前漢書1。三國志里的 7 段有 4 段是目錄行（toc）—— 蜀書正文里的「先主」不在库内；國語/左傳里的「先主」另有所指"
+  },
+  {
+   "id": "sz-alias-08",
+   "group": "alias",
+   "query": "後主",
+   "must_hit": true,
+   "baseline_hits": 648,
+   "baseline_blocks": 253,
+   "top_needle": "後主",
+   "note": "後漢書6/三國志4/晉書3/史記2/前漢書2；与 sz-alias-07 同构：三國志 4 段里 3 段是目錄行"
+  },
+  {
+   "id": "sz-alias-09",
+   "group": "alias",
+   "query": "昭烈",
+   "must_hit": true,
+   "baseline_hits": 36,
+   "baseline_blocks": 31,
+   "top_needle": "昭烈",
+   "note": "三國志1/前漢書1；刘备的谥号「昭烈皇帝」在本批语料里只出现 2 次（三國志那 1 段在魏志），蜀書不在库内"
+  },
+  {
+   "id": "sz-alias-10",
+   "group": "alias",
+   "query": "晋宣帝",
+   "must_hit": true,
+   "baseline_hits": 11,
+   "baseline_blocks": 11,
+   "top_needle": "晉宣帝",
+   "note": "三國志1/後漢書1；简体输入要转成晉宣帝。司马懿的庙号在史料里多作「宣帝」（晉書帝紀第一），带朝代前缀的「晉宣帝」是后人的称呼法，所以只有 2 段"
+  },
+  {
+   "id": "sz-script-01",
+   "group": "script",
+   "query": "诸葛亮",
+   "must_hit": true,
+   "baseline_hits": 92,
+   "baseline_blocks": 82,
+   "top_needle": "諸葛亮",
+   "expect_same_as": "sz-script-02",
+   "note": "简体输入；与 sz-script-02（繁体直输）必须给出相同命中数"
+  },
+  {
+   "id": "sz-script-02",
+   "group": "script",
+   "query": "諸葛亮",
+   "must_hit": true,
+   "baseline_hits": 92,
+   "baseline_blocks": 82,
+   "top_needle": "諸葛亮",
+   "note": "繁体直输。转换是恒等，与 sz-script-01 同值才算繁简环节正常"
+  },
+  {
+   "id": "sz-script-03",
+   "group": "script",
+   "query": "司马懿",
+   "must_hit": true,
+   "baseline_hits": 22,
+   "baseline_blocks": 14,
+   "top_needle": "司馬懿",
+   "expect_same_as": "sz-script-04",
+   "note": "简体输入；对的繁体条目是 sz-script-04"
+  },
+  {
+   "id": "sz-script-04",
+   "group": "script",
+   "query": "司馬懿",
+   "must_hit": true,
+   "baseline_hits": 22,
+   "baseline_blocks": 14,
+   "top_needle": "司馬懿",
+   "note": "繁体直输；执行路径走 fts 表"
+  },
+  {
+   "id": "sz-script-05",
+   "group": "script",
+   "query": "张飞",
+   "must_hit": true,
+   "baseline_hits": 15,
+   "baseline_blocks": 15,
+   "top_needle": "張飛",
+   "expect_same_as": "sz-script-06",
+   "note": "简体输入。张飞本傳在蜀書（不在库内），三國志12 段是魏志里的提及"
+  },
+  {
+   "id": "sz-script-06",
+   "group": "script",
+   "query": "張飛",
+   "must_hit": true,
+   "baseline_hits": 15,
+   "baseline_blocks": 15,
+   "top_needle": "張飛",
+   "note": "繁体直输；三國志12/後漢書1"
+  },
+  {
+   "id": "sz-script-07",
+   "group": "script",
+   "query": "华佗",
+   "must_hit": true,
+   "baseline_hits": 32,
+   "baseline_blocks": 29,
+   "top_needle": "華佗",
+   "expect_same_as": "sz-script-08",
+   "note": "简体输入；华佗是少见的华/華 与 佗 都需转换的例子"
+  },
+  {
+   "id": "sz-script-08",
+   "group": "script",
+   "query": "華佗",
+   "must_hit": true,
+   "baseline_hits": 32,
+   "baseline_blocks": 29,
+   "top_needle": "華佗",
+   "note": "繁体直输；三國志17/後漢書5"
+  },
+  {
+   "id": "sz-script-09",
+   "group": "script",
+   "query": "陆逊",
+   "must_hit": true,
+   "baseline_hits": 13,
+   "baseline_blocks": 13,
+   "top_needle": "陸遜",
+   "expect_same_as": "sz-script-10",
+   "note": "简体输入；陆/陸、逊/遜 两字都要转"
+  },
+  {
+   "id": "sz-script-10",
+   "group": "script",
+   "query": "陸遜",
+   "must_hit": true,
+   "baseline_hits": 13,
+   "baseline_blocks": 13,
+   "top_needle": "陸遜",
+   "note": "繁体直输；三國志4/晉書3/後漢書1"
+  },
+  {
+   "id": "sz-script-11",
+   "group": "script",
+   "query": "谢安",
+   "must_hit": true,
+   "baseline_hits": 56,
+   "baseline_blocks": 52,
+   "top_needle": "謝安",
+   "expect_same_as": "sz-script-12",
+   "note": "简体输入；謝/谢 转换"
+  },
+  {
+   "id": "sz-script-12",
+   "group": "script",
+   "query": "謝安",
+   "must_hit": true,
+   "baseline_hits": 56,
+   "baseline_blocks": 52,
+   "top_needle": "謝安",
+   "note": "繁体直输；晉書17/前漢書3/戰國策2/後漢書1/史記1"
+  },
+  {
+   "id": "sz-script-13",
+   "group": "script",
+   "query": "荊州",
+   "must_hit": true,
+   "baseline_hits": 17,
+   "baseline_blocks": 15,
+   "top_needle": "荊州",
+   "note": "繁体（港台通行）写法：语料里 U+834A 的「荊州」只有 5 段，全在史記天官書/夏本紀与尚書禹貢（九州名的荊州）。**与 sz-script-14 是一对对照**，两条同值 5 正说明转换把两种写法合并了 —— 但语料里真正多的是 U+8346 的「荆州」470 段，见该条"
+  },
+  {
+   "id": "sz-script-14",
+   "group": "script",
+   "query": "荆州",
+   "must_hit": true,
+   "baseline_hits": 17,
+   "baseline_blocks": 15,
+   "top_needle": "荊州",
+   "expect_same_as": "sz-script-13",
+   "note": "**已知收窄（待用户决定是否修）**：语料里 U+8346 的「荆州」有 470 段（後漢書172/三國志152/晉書114/前漢書25/戰國策6/國語1），而 zh.to_traditional 把它转成 U+834A 的「荊州」（语料仅 5 段），引擎只按转换后的词检索，于是按语料写法输入的用户只拿得到 5 段、丢掉约 465 段。字级同源问题全库只有 15 个字符（见文件头 note 第 9 条），但「荆」在语料里出现 1,083 次、转换形「荊」只有 181 次 —— 它正好落在本批两本书的核心地名上，所以影响集中。**没有擅自改引擎**（计划书 §16 与用户「先测后议」）"
+  },
+  {
+   "id": "sz-section-01",
+   "group": "section",
+   "query": "魏志卷一",
+   "must_hit": true,
+   "baseline_hits": 1,
+   "baseline_blocks": 2,
+   "top_needle": "魏志卷一",
+   "recall": "section",
+   "note": "篇名检索；三國志 30 个篇题全是「魏志卷N」（检测方法 title / 置信 0.9）。命中块里一块是篇名（match_type=section、text 为卷端署名行），一块是该卷正文里的字面命中"
+  },
+  {
+   "id": "sz-section-02",
+   "group": "section",
+   "query": "魏志卷三十",
+   "must_hit": true,
+   "baseline_hits": 0,
+   "baseline_blocks": 2,
+   "recall": "section",
+   "note": "**纯篇名命中**：hit_total=0（正文里没有「魏志卷三十」这个串），两块都是 match_type=section 的卷端（陈寿撰/裴松之注署名行）。这条专门证明「命中段数=0 不等于没结果」——所以 recall.py 对 recall:section 的条目看 match_type 而不是 hit_total。也因为没有正文命中，这条不设 top_needle"
+  },
+  {
+   "id": "sz-section-03",
+   "group": "section",
+   "query": "魏志卷十",
+   "must_hit": true,
+   "baseline_hits": 21,
+   "baseline_blocks": 27,
+   "top_needle": "魏志卷十",
+   "recall": "section",
+   "note": "篇名＋正文双命中（match_type 同时出现 both/section/text）。注意「魏志卷十」是「魏志卷十五」的子串，所以正文命中里混着卷十五/卷十二的考證行 —— 篇名检索的**子串特性**，不是错误"
+  },
+  {
+   "id": "sz-section-04",
+   "group": "section",
+   "query": "魏志卷十六",
+   "must_hit": true,
+   "baseline_hits": 2,
+   "baseline_blocks": 2,
+   "top_needle": "魏志卷十六",
+   "recall": "section",
+   "note": "篇名＋正文；三國志里卷十六在文件顺序上是最后一卷（030 文件），section 表里排位靠后"
+  },
+  {
+   "id": "sz-section-05",
+   "group": "section",
+   "query": "魏志卷二十八",
+   "must_hit": true,
+   "baseline_hits": 4,
+   "baseline_blocks": 5,
+   "top_needle": "魏志卷二十八",
+   "recall": "section",
+   "note": "篇名＋正文；邓艾/钟会/王凌等传所在卷，考證行里也反复出现卷题"
+  },
+  {
+   "id": "sz-section-06",
+   "group": "section",
+   "query": "帝紀第一",
+   "must_hit": true,
+   "baseline_hits": 1,
+   "baseline_blocks": 2,
+   "top_needle": "帝紀第一",
+   "book": "晉書",
+   "recall": "section",
+   "note": "晉書篇名（帝紀第一 = 宣帝纪）；book=晉書 把同名篇题的其它书排除掉。全库字面「帝紀第一」有 6 段（前漢書3/後漢書2/晉書1），晋书那 1 段是目錄行"
+  },
+  {
+   "id": "sz-section-07",
+   "group": "section",
+   "query": "志第十六",
+   "must_hit": true,
+   "baseline_hits": 1,
+   "baseline_blocks": 2,
+   "top_needle": "志第十六",
+   "book": "晉書",
+   "recall": "section",
+   "note": "晉書篇名（志第十六 = 食貨志）；16 字的篇题在史書里普遍复用，所以这条必须带 book 过滤，否则会混進前漢書/後漢書的志"
+  },
+  {
+   "id": "sz-section-08",
+   "group": "section",
+   "query": "列傳第三",
+   "must_hit": true,
+   "baseline_hits": 11,
+   "baseline_blocks": 5,
+   "top_needle": "列傳第三",
+   "book": "晉書",
+   "recall": "section",
+   "note": "晉書篇名（列傳第三 = 卷三十三，王祥等传）。11 段里多数是把「列傳第三」当子串命中的目錄行（列傳第三十二/三十八…），真正的篇名命中是 section 那两块"
+  },
+  {
+   "id": "sz-single-01",
+   "group": "single",
+   "query": "蜀",
+   "must_hit": true,
+   "baseline_hits": 1916,
+   "baseline_blocks": 1357,
+   "top_needle": "蜀",
+   "note": "高频单字，执行路径 like（trigram/bigram 都覆盖不了单字）。後漢書298/三國志221/前漢書216/史記177/晉書168/戰國策30/春秋左傳9/國語3/尚書1。三國志只占 221 段 —— 因为「蜀」在先秦秦汉书里就大量出现"
+  },
+  {
+   "id": "sz-single-02",
+   "group": "single",
+   "query": "吳",
+   "must_hit": true,
+   "baseline_hits": 4764,
+   "baseline_blocks": 2849,
+   "top_needle": "吳",
+   "note": "高频单字：史記923/前漢書510/春秋左傳417/晉書348/後漢書329/三國志233/國語190/戰國策1。繁体直输（简体「吴」转成吳）"
+  },
+  {
+   "id": "sz-single-03",
+   "group": "single",
+   "query": "魏",
+   "must_hit": true,
+   "baseline_hits": 12877,
+   "baseline_blocks": 7468,
+   "top_needle": "魏",
+   "note": "本文件里最大的单字查询之一：戰國策1912/史記1291/三國志963/晉書568/後漢書532/前漢書493/春秋左傳85/國語48。块数 3931 说明分块后仍然很多 —— 性能回归（6.3-J）就是拿这类词做红线的"
+  },
+  {
+   "id": "sz-single-04",
+   "group": "single",
+   "query": "晉",
+   "must_hit": true,
+   "baseline_hits": 12828,
+   "baseline_blocks": 7643,
+   "top_needle": "晉",
+   "note": "全库最大单字：春秋左傳1816/史記1274/前漢書1154/國語611/晉書550/後漢書433/三國志334/戰國策258/尚書2。「晉」既是国名又是书名又是年号字，是新书带来的**高频字膨胀**的典型"
+  },
+  {
+   "id": "sz-multi-01",
+   "group": "multi",
+   "query": "曹操 袁紹",
+   "must_hit": true,
+   "baseline_hits": 9,
+   "baseline_blocks": 9,
+   "top_needle": "袁紹",
+   "note": "多词 AND 语义（同一段要同时含两词）。8 段全在後漢書（官渡前后的记载）；三國志里两人同段的地方没命中，因为三國志多写「太祖」而非「曹操」（见 sz-alias-06）"
+  },
+  {
+   "id": "sz-multi-02",
+   "group": "multi",
+   "query": "周瑜 赤壁",
+   "must_hit": true,
+   "baseline_hits": 2,
+   "baseline_blocks": 2,
+   "top_needle": "赤壁",
+   "note": "全库只有 1 段同时写着这两词（後漢書）—— 赤壁之战的主战场记载在吳書（不在库内），所以这条既是 AND 用例也是**截断的旁证**"
+  },
+  {
+   "id": "sz-multi-03",
+   "group": "multi",
+   "query": "王導 王敦",
+   "must_hit": true,
+   "baseline_hits": 2,
+   "baseline_blocks": 2,
+   "top_needle": "王敦",
+   "note": "晉書 2 段；两人的本傳（列傳第三十五/三十七）都不在本批，同段命中来自帝紀第六/七"
+  },
+  {
+   "id": "sz-multi-04",
+   "group": "multi",
+   "query": "諸葛亮 先主",
+   "must_hit": false,
+   "expect_class": "Coverage",
+   "note": "负例：语料里**没有一段**同时写着这两词（蜀書里的君臣同段不在库内）。与 sz-multi-01/02/03 对照：AND 检索在共现为 0 时如实返回空。旁边有 sz-alias-07（先主 29 段）与 sz-person-01（諸葛亮 59 段）证明两个词各自都有命中 —— 空是**共现**的空，不是词的空"
+  },
+  {
+   "id": "sz-multi-05",
+   "group": "multi",
+   "query": "關羽 荊州",
+   "must_hit": false,
+   "expect_class": "Coverage",
+   "note": "负例：繁体写法的「荊州」只有 5 段（全在尚書/史記的九州名），与關羽无共现。**注意这条只对 U+834A 成立**：换成 sz-script-14 的 U+8346「荆州」，语料里有关羽+荆州同段 2 段，而引擎同样返回 0 —— 那是转换造成的漏召回，不是语料没有"
+  },
+  {
+   "id": "sz-multi-06",
+   "group": "multi",
+   "query": "諸葛亮 北伐",
+   "must_hit": false,
+   "expect_class": "Coverage",
+   "note": "负例：语料里没有一段同时含「諸葛亮」与「北伐」—— 现代合成词「北伐」是史书里没有的说法（史书作「北征」「伐魏」）。与 sz-person-01 对照"
+  },
+  {
+   "id": "sz-multi-07",
+   "group": "multi",
+   "query": "司馬懿 公孫淵",
+   "must_hit": false,
+   "expect_class": "Coverage",
+   "book": "晉書",
+   "note": "**第六点三阶段第二批扩容后本条收窄到晉書**：原是全库负例（9 部时代共段 0），扩容后宋書天文志 有 3 段同段共现（「司馬懿與相持」「司馬懿圍公孫淵於襄平」），全库不再是 0。晉書 内仍 0：司马懿平公孙渊是帝紀第一的大事，行文写「帝」而不直书「司馬懿」（晉書「司馬懿」仅 1 段、「公孫淵」0 段），这类空最容易误判成引擎坏了 —— 它其实是**称谓差异**（sz-person-05/alias-04 同源现象）。"
+  },
+  {
+   "id": "sz-book-01",
+   "group": "book",
+   "query": "诸葛亮",
+   "must_hit": true,
+   "baseline_hits": 37,
+   "baseline_blocks": 34,
+   "top_needle": "諸葛亮",
+   "book": "三國志",
+   "note": "书名过滤（第六点三阶段 §10 第七类）：不过滤时 59 段（三國志37/晉書17/後漢書4/戰國策1），过滤后正好 37 —— 过滤是**真在起作用**的（与 sz-edition-04/05 的版片空操作形成对照）"
+  },
+  {
+   "id": "sz-book-02",
+   "group": "book",
+   "query": "王祥",
+   "must_hit": true,
+   "baseline_hits": 16,
+   "baseline_blocks": 10,
+   "top_needle": "王祥",
+   "book": "晉書",
+   "note": "书名过滤：22 段里晉書占 16、三國志占 6，过滤后 16"
+  },
+  {
+   "id": "sz-book-03",
+   "group": "book",
+   "query": "关羽",
+   "must_hit": true,
+   "baseline_hits": 24,
+   "baseline_blocks": 21,
+   "top_needle": "關羽",
+   "book": "三國志",
+   "note": "书名过滤：27 → 24（去掉晉書2/後漢書1）"
+  },
+  {
+   "id": "sz-book-04",
+   "group": "book",
+   "query": "謝安",
+   "must_hit": true,
+   "baseline_hits": 17,
+   "baseline_blocks": 14,
+   "top_needle": "謝安",
+   "book": "晉書",
+   "note": "书名过滤：24 → 17，正好把前漢書/戰國策里**同名异人**的 5 段剔掉 —— 书名过滤在这里也是人物消歧的手段"
+  },
+  {
+   "id": "sz-book-05",
+   "group": "book",
+   "query": "曹操",
+   "must_hit": true,
+   "baseline_hits": 2,
+   "baseline_blocks": 2,
+   "top_needle": "曹操",
+   "book": "晉書",
+   "note": "书名过滤的**边界用例**：169 段里晉書只占 2。小结果集下要确认分页与 has_more 不出错（page_size 默认 20 > 2）"
+  },
+  {
+   "id": "sz-edition-01",
+   "group": "edition",
+   "query": "管仲",
+   "must_hit": true,
+   "baseline_hits": 80,
+   "baseline_blocks": 38,
+   "top_needle": "管仲",
+   "edition": "tls",
+   "note": "版片过滤（§10 第七类）：tls 家族（史記68/春秋左傳12）共 80 段。六个家族里只有 tls/sbck 能被过滤，见下两条"
+  },
+  {
+   "id": "sz-edition-02",
+   "group": "edition",
+   "query": "管仲",
+   "must_hit": true,
+   "baseline_hits": 22,
+   "baseline_blocks": 22,
+   "top_needle": "管仲",
+   "edition": "sbck",
+   "note": "版片过滤：sbck 家族（戰國策13/國語9）共 22 段。与 tls 那条相加 102，剩下的 99 段是 WYG 家族（见下一条）"
+  },
+  {
+   "id": "sz-edition-03",
+   "group": "edition",
+   "query": "諸葛亮",
+   "must_hit": true,
+   "baseline_hits": 1,
+   "baseline_blocks": 1,
+   "top_needle": "諸葛亮",
+   "edition": "sbck",
+   "note": "版片过滤：59 段里 sbck 只剩 1 段（戰國策），**证明本批新书（WYG）确实被 tls/sbck 过滤排除在外** —— 过滤本身是好的"
+  },
+  {
+   "id": "sz-edition-04",
+   "group": "edition",
+   "query": "王祥",
+   "must_hit": true,
+   "baseline_hits": 28,
+   "baseline_blocks": 22,
+   "top_needle": "王祥",
+   "edition": "WYG",
+   "note": "**已知空操作（待用户决定是否修）**：WYG 段与不过滤时**完全同值**（22/16），因为 search/engine.py:92 的 resolve_edition 只认 tls/sbck、其余返回 None＝不过滤，且前端下拉也只有这两项。本批 12 部新书全是 WYG，所以「按版片筛四庫本」现在是做不到的。修法是一行（加 \"wyg\"）＋前端加一个 option，属检索行为变更，按用户「先测后议」没有擅自改"
+  },
+  {
+   "id": "sz-edition-05",
+   "group": "edition",
+   "query": "管仲",
+   "must_hit": true,
+   "baseline_hits": 219,
+   "baseline_blocks": 170,
+   "top_needle": "管仲",
+   "edition": "WYG",
+   "note": "同一条空操作的另一半证据：WYG 给出 201 段，正好等于不过滤的总数（tls 80 + sbck 22 + WYG 99）。与 sz-edition-01/02 并排看，三行数字就把「WYG 等于没有过滤」钉死了"
+  },
+  {
+   "id": "sz-place-01",
+   "group": "place",
+   "query": "汉中",
+   "must_hit": true,
+   "baseline_hits": 572,
+   "baseline_blocks": 472,
+   "top_needle": "漢中",
+   "note": "地名：後漢書95/三國志83/前漢書73/史記68/戰國策38/晉書23。汉中在楚汉之际就是要地，所以先秦秦汉书里的记载比三國志还多"
+  },
+  {
+   "id": "sz-place-02",
+   "group": "place",
+   "query": "许都",
+   "must_hit": true,
+   "baseline_hits": 13,
+   "baseline_blocks": 12,
+   "top_needle": "許都",
+   "note": "地名：三國志4/後漢書3/晉書2。「許都」是曹操迎献帝都许后的称呼，**三部书全是本批语料**（含新书 6 段）—— 这正是扩容带来的新覆盖"
+  },
+  {
+   "id": "sz-place-03",
+   "group": "place",
+   "query": "建康",
+   "must_hit": true,
+   "baseline_hits": 387,
+   "baseline_blocks": 334,
+   "top_needle": "建康",
+   "note": "地名：後漢書16/晉書14。建康是东晋都城，晉書 14 段说明新书确实在覆盖六朝地理；後漢書那 16 段是东汉的建康（另有其地），**同名异地**"
+  },
+  {
+   "id": "sz-place-04",
+   "group": "place",
+   "query": "洛阳",
+   "must_hit": true,
+   "baseline_hits": 1271,
+   "baseline_blocks": 1027,
+   "top_needle": "洛陽",
+   "note": "地名：後漢書354/三國志110/晉書99/前漢書26/史記14/戰國策13。高频地名，块数 533 —— 与 sz-single-03/04 一起是性能红线的主力用例"
+  },
+  {
+   "id": "sz-place-05",
+   "group": "place",
+   "query": "五丈原",
+   "must_hit": true,
+   "baseline_hits": 5,
+   "baseline_blocks": 4,
+   "top_needle": "五丈原",
+   "note": "地名：晉書3（帝紀第一2/帝紀第八1）。诸葛亮卒于五丈原，**三國志里 0 段**（蜀書不在库内）—— 一条只有新书命中的地名用例"
+  },
+  {
+   "id": "sz-place-06",
+   "group": "place",
+   "query": "合肥",
+   "must_hit": true,
+   "baseline_hits": 169,
+   "baseline_blocks": 128,
+   "top_needle": "合肥",
+   "note": "地名：三國志43/晉書12/後漢書7/前漢書4/史記1。逍遥津所在的合肥，三國志占多数，是本批新书贡献最明显的地名之一"
+  },
+  {
+   "id": "sz-place-07",
+   "group": "place",
+   "query": "成都",
+   "must_hit": true,
+   "baseline_hits": 330,
+   "baseline_blocks": 252,
+   "top_needle": "成都",
+   "note": "地名：晉書64/後漢書57/前漢書57/三國志18/史記7。**晉書反超後漢書**（64 段）—— 成都是成汉/蜀地的政治中心，兩晉纪里反复出现"
+  },
+  {
+   "id": "sz-place-08",
+   "group": "place",
+   "query": "街亭",
+   "must_hit": true,
+   "baseline_hits": 4,
+   "baseline_blocks": 4,
+   "top_needle": "街亭",
+   "note": "地名：三國志3（魏志卷三/卷十七/卷二十六）。马谡失街亭的三处记载，与 sz-person-16（馬謖 6 段）互相印证"
+  },
+  {
+   "id": "sz-war-01",
+   "group": "war",
+   "query": "官渡",
+   "must_hit": true,
+   "baseline_hits": 67,
+   "baseline_blocks": 51,
+   "top_needle": "官渡",
+   "note": "战役：三國志46/後漢書9/晉書4/前漢書1。官渡之战在三國志魏志里记载最详，是本批新书贡献最大的战役词"
+  },
+  {
+   "id": "sz-war-02",
+   "group": "war",
+   "query": "赤壁",
+   "must_hit": true,
+   "baseline_hits": 14,
+   "baseline_blocks": 14,
+   "top_needle": "赤壁",
+   "note": "战役：後漢書4/三國志3/晉書2/戰國策1。赤壁之战的主记载在吳書（不在库内），所以只有 10 段 —— 与 sz-multi-02 同源"
+  },
+  {
+   "id": "sz-war-03",
+   "group": "war",
+   "query": "淝水",
+   "must_hit": true,
+   "baseline_hits": 7,
+   "baseline_blocks": 7,
+   "top_needle": "淝水",
+   "note": "战役：晉書3（志第三/志第十八/志第十九）——**全部来自新书**，且都是志里的地理/职官行文，淝水之战的详细记载在列傳第七十九（不在本批）"
+  },
+  {
+   "id": "sz-office-01",
+   "group": "office",
+   "query": "丞相",
+   "must_hit": true,
+   "baseline_hits": 2348,
+   "baseline_blocks": 1732,
+   "top_needle": "丞相",
+   "note": "职官：前漢書862/史記536/後漢書130/三國志82/晉書58/戰國策6。本文件第二大的正例（仅次于单字），块数 1241 会跑 passage/provenance 审计的 500 一批上限"
+  },
+  {
+   "id": "sz-office-02",
+   "group": "office",
+   "query": "都督",
+   "must_hit": true,
+   "baseline_hits": 3321,
+   "baseline_blocks": 1732,
+   "top_needle": "都督",
+   "note": "职官：晉書169/三國志74/後漢書2/前漢書2。**新书占九成**：都督作为固定军职是魏晋才成型的，所以晉書+三國志 243 段远超秦汉诸书"
+  },
+  {
+   "id": "sz-office-03",
+   "group": "office",
+   "query": "侍中",
+   "must_hit": true,
+   "baseline_hits": 3757,
+   "baseline_blocks": 2431,
+   "top_needle": "侍中",
+   "note": "职官：後漢書293/前漢書222/三國志177/晉書113/史記40/國語36/戰國策1。跨全部 9 部书的职官词，适合验证「新书进来后跨书分布仍然正确」"
+  },
+  {
+   "id": "sz-office-04",
+   "group": "office",
+   "query": "录尚书事",
+   "must_hit": true,
+   "baseline_hits": 162,
+   "baseline_blocks": 132,
+   "top_needle": "錄尚書事",
+   "note": "职官：晉書18/後漢書16/三國志2；简体输入要转成錄尚書事。「錄尚書事」是魏晋掌权的标志性头衔，本批新书贡献 20 段"
+  },
+  {
+   "id": "sz-event-01",
+   "group": "event",
+   "query": "永嘉",
+   "must_hit": true,
+   "baseline_hits": 391,
+   "baseline_blocks": 336,
+   "top_needle": "永嘉",
+   "note": "年号/事件：晉書70/後漢書12/三國志8/前漢書2。永嘉之乱是西晋灭亡的标志，晉書 70 段里多数来自志第十九（五行志）等 —— 年号词在史书里同时是纪年标记"
+  },
+  {
+   "id": "sz-event-02",
+   "group": "event",
+   "query": "八王",
+   "must_hit": true,
+   "baseline_hits": 19,
+   "baseline_blocks": 20,
+   "top_needle": "八王",
+   "note": "前漢書5/後漢書4/晉書2/國語1/史記1/三國志1。块数(15) > 命中数(14)：有 section 型命中（篇名里含「八王」），这类块不占 hit_total —— 与 sz-section-02 同一机制"
+  },
+  {
+   "id": "sz-event-03",
+   "group": "event",
+   "query": "建安",
+   "must_hit": true,
+   "baseline_hits": 814,
+   "baseline_blocks": 701,
+   "top_needle": "建安",
+   "note": "年号：三國志148/後漢書108/晉書45/前漢書8/國語1。东汉献帝年号，三國志+後漢書共 256 段，是本批新书贡献最大的年号词"
+  },
+  {
+   "id": "sz-event-04",
+   "group": "event",
+   "query": "太康",
+   "must_hit": true,
+   "baseline_hits": 728,
+   "baseline_blocks": 357,
+   "top_needle": "太康",
+   "note": "年号：晉書97/後漢書18/三國志15/史記5/前漢書5/尚書2/戰國策1/國語1。西晋武帝年号，**晉書独占 97 段**；另「太康」也是地名（太康县）与书名（晉書汲冢），字面命中不全是年号"
+  },
+  {
+   "id": "sz-page-01",
+   "group": "pagination",
+   "query": "蜀",
+   "must_hit": true,
+   "baseline_hits": 1916,
+   "baseline_blocks": 1357,
+   "top_needle": "蜀",
+   "page_size": 100,
+   "check_pagination": true,
+   "note": "分页：page_size=100、816 块 → 9 页；recall.py 会翻到第 9 页确认真的还有内容（不是只看 has_more 自洽）"
+  },
+  {
+   "id": "sz-page-02",
+   "group": "pagination",
+   "query": "将军",
+   "must_hit": true,
+   "baseline_hits": 818,
+   "baseline_blocks": 417,
+   "top_needle": "將軍",
+   "book": "三國志",
+   "check_pagination": true,
+   "note": "分页＋书名过滤：三國志里 818 段/417 块（不过滤时全库 5387 段）→ 21 页。**过滤后的命中数(818)仍小于语料真值**：另一处同源现象，語料里「將軍」写作 U+5C07 以外形态的地方查不到"
+  },
+  {
+   "id": "sz-page-03",
+   "group": "pagination",
+   "query": "王導",
+   "must_hit": true,
+   "baseline_hits": 82,
+   "baseline_blocks": 67,
+   "top_needle": "王導",
+   "page_size": 10,
+   "check_pagination": true,
+   "note": "分页：page_size=10 的小页（33 块 → 4 页），专门用来驗证小页下末页仍可达"
+  },
+  {
+   "id": "sz-passage-01",
+   "group": "passage",
+   "query": "諸葛亮",
+   "must_hit": true,
+   "baseline_hits": 92,
+   "baseline_blocks": 80,
+   "top_needle": "諸葛亮",
+   "mode": "long",
+   "note": "完整 Passage 模式（mode=long）：同一查询在 standard 下 53 块、long 下 52 块 —— 长片段模式会合并相邻块，所以块数略少而每块更长。passage/provenance 审计对每条用例都跑，这条用来对比同一查询在两种模式下的块数差"
+  },
+  {
+   "id": "sz-passage-02",
+   "group": "passage",
+   "query": "曹操",
+   "must_hit": true,
+   "baseline_hits": 186,
+   "baseline_blocks": 155,
+   "top_needle": "曹操",
+   "mode": "long",
+   "note": "完整 Passage 模式：140 块（standard 也是 140）—— 块数不变说明这批命中的段落本来就不相邻，合并规则没有可合并的对象"
+  },
+  {
+   "id": "sz-passage-03",
+   "group": "passage",
+   "query": "王導",
+   "must_hit": true,
+   "baseline_hits": 82,
+   "baseline_blocks": 55,
+   "top_needle": "王導",
+   "mode": "long",
+   "note": "完整 Passage 模式：standard 33 块 → long 24 块（合并掉 9 块）。与 sz-passage-01 同向，是合并规则**确实在工作**的证据"
+  },
+  {
+   "id": "sz-neg-01",
+   "group": "negative",
+   "query": "安祿山",
+   "must_hit": false,
+   "expect_class": "Coverage",
+   "note": "负例标杆：安祿山只存在于舊唐書/新唐書（尚未收录）。第二批要加的南北朝 10 部与隋書（止于 618 年）都写不到他，所以这个名字能一直用作「语料确实没有」的探针 —— 它同时是 tests/test_phase4_questions.py 的探针词（那里也有一条断言钉住它没入库）"
+  },
+  {
+   "id": "sz-neg-02",
+   "group": "negative",
+   "query": "三顧茅廬",
+   "must_hit": false,
+   "expect_class": "Coverage",
+   "note": "负例：**成语**而非史书原文 —— 三顾茅庐的故事出自蜀書諸葛亮傳（「凡三往乃見」），该传不在库内，而成语本身史书不用。与 sz-person-01 对照：诸#葛亮本人有 59 段命中"
+  },
+  {
+   "id": "sz-neg-03",
+   "group": "negative",
+   "query": "桃園結義",
+   "must_hit": false,
+   "expect_class": "Coverage",
+   "note": "负例：**演义/民间叙事**的说法，正史里沒有桃园结义这一幕。与 sz-person-21（劉備 169 段）、sz-script-05（張飛 13 段）指向同一个「书里有这些人、但没这个说法」的分辨"
+  },
+  {
+   "id": "sz-neg-04",
+   "group": "negative",
+   "query": "魏志卷三十一",
+   "must_hit": false,
+   "expect_class": "Coverage",
+   "note": "负例：**截断边界的探针** —— 三國志目錄里卷三十一是蜀書第一（劉焉/劉璋），但转录止于魏書卷三十，所以库里没有。这条用例随上游补齐会**自动变红**，正好提醒改（不是删）"
+  },
+  {
+   "id": "sz-neg-05",
+   "group": "negative",
+   "query": "赤壁之戰",
+   "must_hit": false,
+   "expect_class": "Coverage",
+   "note": "负例：现代合成词「赤壁之战」；史书写「赤壁」而不用「之戰」。与 sz-war-02（赤壁 10 段）精确对照 —— 同一件事，加了「之戰」就查不到"
+  },
+  {
+   "id": "sz-neg-06",
+   "group": "negative",
+   "query": "姜維 陳壽",
+   "must_hit": false,
+   "expect_class": "Coverage",
+   "note": "负例：两个词各自都在库里（姜維 42 段、陳壽 5 段），但**没有一段同时写着两者** —— 空的归因是 Coverage（共现为 0），不是引擎坏了。这类负例证明 AND 检索不会因为两词都热门就乱返回"
+  },
+  {
+   "id": "sz-neg-07",
+   "group": "negative",
+   "query": "臥龍",
+   "must_hit": false,
+   "expect_class": "Coverage",
+   "book": "晉書",
+   "note": "**第六点三阶段第二批扩容后本条收窄到晉書**：原是全库负例（U+81E5「臥龍」9 部时代 0 段），扩容后梁書 有 1 段（「豈無臥龍之臣乎」），全库不再是 0；晉書 内 0 段。但同一本书里另有**另一种字形**：晉書 的「卧龍」（U+5367）有 1 段 —— 语料用字不统一（不同转录批次的异体字取向不同），而繁简转换器把「卧」「臥」都归到 U+81E5，于是语料里写 U+5367 的那 3 段（梁書1/晉書1/南史1）**两种写法都查不到**（实测：查 臥龍=1 段、查 卧龍 也是那同一段），写法差一个码位就丢。与 sz-script-14（荆州/荊州）同源，属本阶段「C 向字形收窄」已知缺口。"
+  }
+ ]
+}

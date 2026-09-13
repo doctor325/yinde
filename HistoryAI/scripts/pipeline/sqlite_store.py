@@ -24,6 +24,9 @@ from . import config
 # search.result_block 不反向依赖 scripts.pipeline，这个 import 不成环。
 from search.result_block import _src_paragraph
 
+# 第六点三阶段：section 溯源字段的兜底档与词表都取自 records（唯一真源）
+from .records import DEFAULT_SECTION_CONFIDENCE, DEFAULT_SECTION_METHOD
+
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS books (
   book_id    TEXT PRIMARY KEY,          -- KR2e0001
@@ -66,7 +69,14 @@ CREATE TABLE IF NOT EXISTS sections (
   label      TEXT,                      -- 篇/节题（堯典 / 五帝本紀 / 三代世表）
   division   TEXT,                      -- 史记类目 紀/表/書/世家/傳
   first_row  INTEGER,
-  status     TEXT
+  status     TEXT,
+  -- 第六点三阶段：这条 section 是怎么来的 + 它的区间右端。
+  -- last_row 是**冗余的**（= 下一条 section 的 first_row-1，末条 = 文件末行），
+  -- 存下来是为了能一眼看出区间有没有裂口/重叠，而不是每次现推。
+  detection_method TEXT,                -- header|title|first-occurrence|interval|metadata|override
+  confidence REAL,
+  last_row   INTEGER,
+  note       TEXT
 );
 CREATE TABLE IF NOT EXISTS passages (
   passage_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -144,12 +154,37 @@ _TABLES = ("kr_chars", "src_paragraphs", "source_references", "passages", "secti
            "juans", "editions", "files", "books", "import_runs")
 
 
+# 第六点三阶段加进 sections 的列。**必须在这里补**：SCHEMA 用的是
+# `CREATE TABLE IF NOT EXISTS`，对已存在的旧库它一句话都不执行——不加这几行，
+# 旧库会带着「没有 detection_method 的 sections」继续用，之后任何一句
+# `SELECT detection_method` 直接抛 `no such column`。ALTER 是 O(1) 且只加不改，
+# 旧行的新列是 NULL（＝未标注，读侧按未标注处理），不需要重跑管线。
+_SECTIONS_ADDED_COLUMNS = (
+    ("detection_method", "TEXT"),
+    ("confidence", "REAL"),
+    ("last_row", "INTEGER"),
+    ("note", "TEXT"),
+)
+
+
+def _migrate(conn: sqlite3.Connection) -> None:
+    """把旧库的表结构补齐到当前 SCHEMA（只加列，绝不改列/删列）。"""
+    have = {r["name"] for r in conn.execute("PRAGMA table_info(sections)")}
+    if not have:                     # 新库：executescript 已建好，无需补
+        return
+    for name, decl in _SECTIONS_ADDED_COLUMNS:
+        if name not in have:
+            conn.execute(f"ALTER TABLE sections ADD COLUMN {name} {decl}")
+    conn.commit()
+
+
 def connect(db_path: Path | None = None) -> sqlite3.Connection:
     p = Path(db_path) if db_path else config.DB_PATH
     p.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(str(p))
     conn.row_factory = sqlite3.Row
     conn.executescript(SCHEMA)
+    _migrate(conn)
     return conn
 
 
@@ -258,17 +293,28 @@ def rebuild(db_path: Path | None = None) -> dict:
 
     stats = {"books": 0, "files": 0, "records": 0, "passages": 0, "pending": 0,
              "kr_codes": 0, "kr_occurrences": 0, "src_refs": 0,
-             "juans": 0, "sections": 0, "src_paragraphs": 0}
+             "juans": 0, "sections": 0, "src_paragraphs": 0,
+             "sections_by_method": {}}
     book_ids: set[str] = set()
 
     cur_file_db_id: int | None = None
     cur_seq = 0
     cur_juan: str | None = None          # 已入库的最近 juan/section（供首现判断）
     cur_section: str | None = None
+    cur_section_id: int | None = None    # 当前这条 section 的行 id（用于回填 last_row）
+    cur_last_row = 0                     # 本文件见过的最大行号（区间右端）
     last_src = None                      # 未挂出的 src comment: (source_row_no, ref dict)
 
+    def close_section(end_row: int) -> None:
+        """给当前 section 回填区间右端 = 它下面最后一行（区间模型，见 manifest.py）。"""
+        nonlocal cur_section_id
+        if cur_section_id is not None:
+            cur.execute("UPDATE sections SET last_row=? WHERE section_id=?",
+                        (end_row, cur_section_id))
+            cur_section_id = None
+
     def close_file():
-        nonlocal cur_file_db_id, cur_seq, cur_juan, cur_section, last_src
+        nonlocal cur_file_db_id, cur_seq, cur_juan, cur_section, last_src, cur_last_row
         if last_src is not None:
             # 文件尾部注释没有后续正文：target 置 NULL，出处仍保留
             row, ref = last_src
@@ -278,7 +324,10 @@ def rebuild(db_path: Path | None = None) -> dict:
                 (cur_file_db_id, row, ref.get("raw"), ref.get("src_text"),
                  ref.get("prefix"), ref.get("section_ref")))
             last_src = None
+        # 本文件最后一条 section 覆盖到文件末行
+        close_section(cur_last_row)
         cur_file_db_id, cur_seq, cur_juan, cur_section = None, 0, None, None
+        cur_last_row = 0
 
     def ensure_file(book_id: str, book_dir: str, orig_file: str, meta: dict,
                     sha256: str, family: str | None = None,
@@ -327,6 +376,8 @@ def rebuild(db_path: Path | None = None) -> dict:
                                   row.get("edition"))
                 cur_seq += 1
                 rno = rec["row_no"]
+                if rno > cur_last_row:
+                    cur_last_row = rno
 
                 # juan/section 首现 → 记行（label 在同一文件内第一次出现时）
                 rj = rec.get("juan") or None
@@ -337,13 +388,22 @@ def rebuild(db_path: Path | None = None) -> dict:
                     stats["juans"] += 1
                     cur_juan = rj
                 if rs and rs != cur_section:
-                    cur.execute("INSERT INTO sections(book_id,file_id,label,division,"
-                                "first_row,status) VALUES(?,?,?,?,?,?)",
-                                (row["book_id"], fid, rs,
-                                 rec.get("division"), rno,
-                                 rec.get("status")))
+                    # 上一条 section 到此为止：右端 = 本行前一行
+                    close_section(rno - 1)
+                    method = rec.get("section_method") or DEFAULT_SECTION_METHOD
+                    conf = rec.get("section_confidence")
+                    cur.execute(
+                        "INSERT INTO sections(book_id,file_id,label,division,first_row,"
+                        "status,detection_method,confidence) VALUES(?,?,?,?,?,?,?,?)",
+                        (row["book_id"], fid, rs,
+                         rec.get("division"), rno, rec.get("status"), method,
+                         DEFAULT_SECTION_CONFIDENCE if conf is None else conf))
+                    cur_section_id = cur.lastrowid
                     stats["sections"] += 1
                     cur_section = rs
+                    stats.setdefault("sections_by_method", {})
+                    stats["sections_by_method"][method] = \
+                        stats["sections_by_method"].get(method, 0) + 1
 
                 pb = rec.get("pb") or {}
                 cur.execute(

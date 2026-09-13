@@ -11,9 +11,22 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from . import config
-from .kanripo_header import FileHeader, file_no_of, split_header
+from . import catalog, config
+from .kanripo_header import FileHeader, family_of, file_no_of, split_header
 from .records import Record
+from .title_patterns import (
+    GUOYU_HEAD_RE,
+    GUOYU_SECTION_RE,
+    PATTERNS,
+    WYG_JUAN_CONFIDENCE,
+    WYG_SIKU_RE,
+    ZHANGUOCE_CHAPTERS_RE,
+    ZHANGUOCE_JUAN_RE,
+    ZHANGUOCE_SECTION_RE,
+    ZHANGUOCE_STATES,
+    build_wyg_juan_re,
+    normalize_label,
+)
 from .structure import (
     classify_comment_line,
     clean_title,
@@ -29,74 +42,39 @@ from .structure import (
     zuozhuan_classify,
 )
 
-# 各书 “** N X” 的语义角色（经实际扫描确认，规则集中于此）：
-#   shiji   : X = 类目（紀/表/書/世家/傳）
-#   shangshu: X = 篇题《堯典》
-#   zuozhuan: X = 公名（隱公…哀公）
-H2_ROLE = {"shiji": "division", "shangshu": "section", "zuozhuan": "juan"}
+# 6.2 的**冻结快照**，只在 catalog 不可用时兜底（回滚路径，同 structure 那份）。
+# 真源是 corpus_catalog.json 各书的 h2_role / ab_system / title_handler —— 加新书
+# 请改 JSON，别在这里加行。
+BUILTIN_DISPATCH = {
+    # “** N X” 的语义角色（经实际扫描确认）：shiji X=类目、shangshu X=篇题、
+    # zuozhuan X=公名
+    "shiji": {"h2_role": "division"},
+    "shangshu": {"h2_role": "section"},
+    "zuozhuan": {"h2_role": "juan", "ab_system": "zuozhuan"},
+    "zhanguoce": {"title_handler": "zhanguoce"},
+}
+BUILTIN_TITLE_PATTERNS = {
+    "wyg": (PATTERNS["wyg_di_n"],),
+    "sbck": (PATTERNS["guoyu_head"], PATTERNS["guoyu_volume"],
+             PATTERNS["zhanguoce_juan"], PATTERNS["zhanguoce_state"]),
+    "tls": (PATTERNS["shiji_plain"],),
+}
+
+# section 溯源：只在**建立起一条新 section 的记录**上标注（后续继承上下文的记录
+# 留空，由 sqlite_store 首现时走兜底档）。取值与词表见 records.SECTION_METHODS；
+# 正则形态的置信度取自 title_patterns 里那条模式自己的声明，不在调用点另写一个数。
+def mark_section(rec: Record, method: str, confidence: float) -> Record:
+    rec.section_method = method
+    rec.section_confidence = confidence
+    return rec
+
 
 # 文件内分段（部分）段名 → 语义层。规则表在 structure.part_layer_of（那一层
 # 要给 file_layer_defaults 用，放这儿会绕成循环 import），此处只管调用。
 
-# SBCK 明文卷首题候选（確認度足够高的形态才给 ok；其余 pending_section）
-GUOYU_SECTION_RE = re.compile(r"^(周|魯|齊|晉|鄭|楚|吳|越)語(上|中|下)?第[一二三四五六七八九十]+")
-GUOYU_HEAD_RE = re.compile(r"^.{0,12}韋氏解")
-
-# 戰國策（SBCK 鮑彪校注本）的明文标题形态——逐文件扫描 000–010 得出：
-#
-#   卷首题  `戰國䇿西周卷第一¶`         国名写在题内（卷第十写三个：宋衛中山）
-#   国别题  `　　西周(漢志河南洛陽…)¶`   缩进两格，恰一个括号组，括号里是地理沿革注
-#   章數行  `　　　　　凡六章¶`          一国策的结束标记（鮑彪本统计章数）
-#   卷末题  `戰國䇿宋衛中山卷第十終¶`
-#
-# **不能只按「国名 + 括号」认国别题**：实测 11 条真国别题之外，还有 11 条正文行
-# 长得一模一样（`齊(彪謂臏非武流也…)¶`、`　秦(按此則懷王死…)¶`——都是鲍彪注被
-# 行内括号切出来的片段恰好停在行首）。区分靠语料自身的结构，不靠文本长相：
-#   ① 国名必须是**本卷卷首题声明过**的国名。file 001 是總目 + 西周卷第一正文，
-#      它的總目行 `　　東周(凡二十/二章)¶` 因此不会被误认（卷首题 `戰國䇿卷第一`
-#      没写国名，声明集为空）。
-#   ② 每卷声明**开一次门**：卷首先开，此后要等一行 `凡N章¶` 再开。实测 11 条真
-#      国别题全部落在门口，11 条伪标题全部在门外（最近的分界标记都在百行以外）。
-# 这两条都在 §13「规则集中、不散落单书分支」之下：形态与判据都写在这里，
-# `_emit_content` 只调用。
-ZHANGUOCE_STATES = "東周|西周|秦|齊|楚|趙|魏|韓|燕|宋|衛|中山"
-ZHANGUOCE_JUAN_RE = re.compile(
-    rf"^[　\s]*戰國.(?P<states>(?:{ZHANGUOCE_STATES})+){config.PARA_CHAR}?"
-    rf"卷第(?P<no>[一二三四五六七八九十百]+)(?P<end>終)?{config.PARA_CHAR}?\s*$"
-)
-ZHANGUOCE_SECTION_RE = re.compile(
-    rf"^[　\s]*(?P<state>{ZHANGUOCE_STATES})"
-    rf"(?P<gloss>[(（][^)）]*[)）])?{config.PARA_CHAR}?\s*$"
-)
-ZHANGUOCE_CHAPTERS_RE = re.compile(
-    rf"^[　\s]*凡[一二三四五六七八九十百]+章{config.PARA_CHAR}?\s*$"
-)
-
-# WYG（文淵閣四庫全書）明文标题形态——实测 前漢書 342 条卷题 / 後漢書 379 条：
-#   卷题   `　前漢書卷一上¶`   书名取自 TITLE 属性（不硬编码书名，§13），卷次汉字
-#   篇题   `　高帝紀第一上¶`   紀/志/表/列傳同形（`五行志第七上`、`鄭孔荀列傳第六十`）
-#   叢書題 `欽定四庫全書¶`      每文件首行的丛书题，结构行
-# **只在正文层认**（下见 _emit_content）：_000 是御製詩 + 敘例 + 目録 + 提要，
-# 目録里的 `　傳第七十上¶` 与篇题长得一模一样，光看长相分不开；一卷末尾的
-# 考證段（part_layer=appendix）里也有引篇名的写法。用「当前层是不是正文」把它们
-# 一起挡掉，比再加几条正则可靠。
-# 汉字字形类。**不能用 `[一-鿿]`**：那是 U+4E00–U+9FFF，只覆盖基本区，而四庫本
-# 的题名里夹着扩展区字形——`谷永杜鄴𫝊第五十五` 的 𫝊(U+2B74A)、`劉𤣥劉盆子列傳第一`
-# 的 𤣥(U+2F9E5)。基本区写法一碰到就整条不匹配，实测前漢書 11 个文件、後漢書 9 个
-# 文件因此一条 section 都没认出来（篇题没认出来 → 整卷正文没有篇名可归）。
-# 长度上限也给到 20：`嚴朱吾丘主父徐嚴終王賈傳` 就 11 字，`{1,8}` 装不下。
-# 正文行不会误中——判据要求「缩进 + 全是汉字 + 第N[上下]」占满整行，正文段落长得多。
-CJK_CHAR = r"[㐀-䶿一-鿿豈-﫿𠀀-𿿿]"
-# 篇题后面可以跟一段行内注——表/志尤其常见：
-#   `　古今人表第八(師古曰但次古人而不表/今人者其書未畢故也)¶`
-#   `　溝洫志第九(應劭曰溝廣四尺深四尺…師古曰洫音許域反)¶`
-# 不认这段注就漏掉 2 个文件（020 古今人表、029 溝洫志）的全部篇名。注单独用
-# name 组外的 (?:…) 吃掉，**篇名只从 name 组取**，否则 section 标签会拖上整段注。
-WYG_SECTION_RE = re.compile(
-    rf"^[　\s]{{1,8}}(?P<name>{CJK_CHAR}{{1,20}}第[一二三四五六七八九十百]+[上下]?)"
-    rf"(?:[(（][^)）]*[)）])?{config.PARA_CHAR}?\s*$"
-)
-WYG_SIKU_RE = re.compile(rf"^欽定四庫全書[　\s]*[^　\s]*{config.PARA_CHAR}?\s*$")
+# 标题形态与判据集中在 title_patterns.py（唯一注册处，见该模块头注释）：
+# 原先内联在这里的 GUOYU_* / ZHANGUOCE_* / WYG_* 正则与 CJK_CHAR 已原样搬过去，
+# 本文件与语料目录 corpus_catalog.json 引用的都是同一批模式名。
 
 
 def empty_line(line: str) -> bool:
@@ -115,15 +93,29 @@ class FileSegmenter:
         self.book_dir = book_dir
         self.file_no = file_no
         self.meta = header.metadata
-        self.family = ("sbck" if (header.metadata.get("BASEEDITION") or "").strip() == "SBCK"
-                       else "tls" if (header.metadata.get("BASEEDITION") or "").strip() == "tls"
-                       else "wyg" if (header.metadata.get("BASEEDITION") or "").strip() == "WYG"
-                       else None)
-        # WYG 卷题用 TITLE 属性拼（前漢書/後漢書各一条，不硬编码书名）
-        title = re.escape((self.meta.get("TITLE") or "").strip())
-        self.wyg_juan_re = re.compile(
-            rf"^[　\s]*{title}卷[一二三四五六七八九十百]+[上下]?"
-            rf"{config.PARA_CHAR}?\s*$") if title else None
+        self.family = family_of(header)   # 唯一判据在 kanripo_header（6.3 起）
+        # ---- 解析规则按书查表（6.3-C①）----
+        # 书在 catalog 里就照它的声明走；不在（或 catalog 不可用）→ 6.2 的冻结
+        # 快照，行为与扩容前一致。加一本新书＝加一条 JSON，不改这里的代码。
+        cat = catalog.try_load()
+        book = cat.by_dir(book_dir) if cat is not None else None
+        builtin = BUILTIN_DISPATCH.get(book_dir, {}) if book is None else {}
+        self.h2_role = (book.h2_role if book is not None else builtin.get("h2_role")) \
+            or "section"
+        self.ab_system = book.ab_system if book is not None else builtin.get("ab_system")
+        self.title_handler = (book.title_handler if book is not None
+                              else builtin.get("title_handler"))
+        self.title_res = (cat.patterns_for(book) if book is not None
+                          else BUILTIN_TITLE_PATTERNS.get(self.family, ()))
+        # 卷题是不是**篇名粒度**由书声明：三國志正文里没有篇题行（傳名只出现在卷首
+        # 的卷目行里），卷题就是它最细的篇名，不声明就整卷无 section。前漢書/後漢書
+        # 每卷跟着若干 `第N` 篇题，卷题只用来推进卷次，维持原行为（默认 False）。
+        self.juan_as_section = bool(book.juan_as_section) if book is not None else False
+        # WYG 卷题用 TITLE 属性拼（前漢書/後漢書各一条，不硬编码书名）；形态不同的
+        # 书在 catalog 的 juan_prefixes 里声明前缀（三國志写 `魏志卷一`/`蜀志卷一`）
+        self.book_title = (self.meta.get("TITLE") or "").strip()
+        self.wyg_juan_re = build_wyg_juan_re(
+            self.book_title, list(book.juan_prefixes) if book is not None else None)
         self.lines = text.splitlines()
         self.records: list[Record] = []
         self.cur_pb_raw = ""
@@ -139,6 +131,9 @@ class FileSegmenter:
         self.part_label: str | None = None
         self.juan: str | None = None
         self.section: str | None = None
+        # section 标签 → (method, confidence)：由首个携带该标签的记录认领。
+        # 只有 org 标题（h2/h3）走这条，见 _mark_for_section。
+        self.section_marks: dict[str, tuple[str, float]] = {}
         self.division: str | None = None
         self.zb_year: str | None = None      # 左传：当前公年份（如 '1.1'）
         self.ab: str | None = None           # 左传：A(經)/B(傳)
@@ -146,6 +141,15 @@ class FileSegmenter:
         # （卷首开一次，此后每见一行 `凡N章` 再开一次，认过就关）。
         self.zc_states: tuple[str, ...] = ()
         self.zc_open = True
+
+    def _mark_for_section(self, label: str, method: str, confidence: float) -> None:
+        """登记**这条 section** 的检测来源，交给首个携带它的记录（见 _base）。
+
+        org 标题是先改 `self.section`、再让下一条记录带上新标签，所以标注打不到
+        标题行自己身上——直接 `mark_section(标题行)` 会静默失效（6.3-C 实测：
+        尚書/史記 的 header 标注一条都没进库，全被记成 first-occurrence 0.5）。
+        """
+        self.section_marks[label] = (method, confidence)
 
     # ---- 通用记录构造 ----
     def _base(self, row_no: int, text_orig: str, kind: str, layer: str | None = None,
@@ -158,6 +162,15 @@ class FileSegmenter:
         rec.section = self.section
         rec.division = self.division
         rec.ab = self.ab
+        # section 溯源认领：首个携带该标签的记录就是 sqlite_store 建 sections 行时
+        # 那一条（判据同为 rs != cur_section），两处口径一致。认领即出队——只有**声明
+        # 该 section 的那一条**带标注，与其余分支 mark_section(标题行) 的粒度相同，
+        # 不给后续同 section 的正文行重复挂标（那会让 JSONL 白胖一圈）。
+        # 直接 mark_section 的调用点在本函数返回后覆盖这里，显式标注优先。
+        if rec.section:
+            mark = self.section_marks.pop(rec.section, None)
+            if mark:
+                rec.section_method, rec.section_confidence = mark
         # 页码：行内 pb 优先，否则继承前文最近 pb
         pbs = find_pb(text_orig)
         if pbs:
@@ -310,7 +323,8 @@ class FileSegmenter:
             return
 
         # 4b) 左传 A/B 体系（先于明文标题，避免 'A1.1《…》' 误入普通标题）
-        if self.book_dir == "zuozhuan":
+        # 是否 A/B 体系由目录声明（ab_system），不是书名分支
+        if self.ab_system == "zuozhuan":
             zk, zextra = zuozhuan_classify(line)
             if zk == "heading":
                 ab = zextra["ab"]
@@ -331,6 +345,7 @@ class FileSegmenter:
                 if title:
                     # 年份卷题下推为上下文：其下条目 sec=隱公元年經（便于核对归属）
                     self.section = rec.section
+                    mark_section(rec, "title", 0.9)
                 if ab == "A":
                     rec.notes.append("春秋經卷题")
                 else:
@@ -347,11 +362,15 @@ class FileSegmenter:
                 return
 
         # 4c) 明文篇题候选（史记 1.1《五帝本紀》 / *** 2.1　《三代世表》已走 org 分支；此处兼容无星标行）
-        for pat in title_candidates():
+        # 只对**目录里声明了该模式的书**生效：title_patterns 是「本书会出现哪些标题
+        # 形态」的声明；没声明却去匹配，认错的代价是那行不再进正文索引。
+        for pat in title_candidates(self.title_res):
             m = pat.match(line)
             if m:
                 rec = self._mk_heading(line, row_no)
                 rec.section = clean_title(m.group(2)) if m.lastindex and m.lastindex >= 2 else None
+                if rec.section:
+                    mark_section(rec, "title", 0.9)
                 rec.notes.append("明文篇题")
                 self._append(rec)
                 return
@@ -373,6 +392,8 @@ class FileSegmenter:
                 rec = self._mk_heading(line, row_no)
                 rec.section = rec.section or self._sbck_section_label(s)
                 rec.status = "ok"
+                if rec.section:
+                    mark_section(rec, "title", PATTERNS["guoyu_head"].confidence)
                 rec.notes.append("國語卷首题（韦昭解题署）")
                 self._append(rec)
                 return
@@ -381,10 +402,18 @@ class FileSegmenter:
                 rec.notes.append("國語卷末版心题（不声明 section）")
                 self._append(rec)
                 return
-            if self.book_dir == "zhanguoce" and self._zhanguoce_title(s, line, row_no):
+            # 戰國策专属形态由目录声明（title_handler），不是书名分支
+            if self.title_handler == "zhanguoce" and self._zhanguoce_title(s, line, row_no):
                 return
 
-        # 4d-WYG) 四庫系明文标题。只在正文层认（见 WYG_SECTION_RE 的注释）。
+        # 4d-WYG) 四庫系明文标题。**只在正文层认**：_000 是御製詩 + 敘例 + 目録 + 提要，
+        # 目録里的 `　傳第七十上¶` 与正文篇题长得一模一样，光看长相分不开；一卷末尾的
+        # 考證段（part_layer=appendix）里也有引篇名的写法。用「当前层是不是正文」把它们
+        # 一起挡掉，比再加几条正则可靠。
+        #
+        # 顺序约束（6.3 加 cjk_ming_paren 形态时必须守住）：标题分流在 4e 行内括号注
+        # 切分**之前**。三國志的傳名 `　武帝(操)` 若过了 4e，`(操)` 会被切成注候选、
+        # `武帝` 降级成正文，篇题永久丢失且事后无法还原。
         if (self.family == "wyg" and (self.part_layer or self.def_layer) == "main"
                 and self._wyg_title(line, row_no)):
             return
@@ -447,6 +476,7 @@ class FileSegmenter:
             rec = self._mk_heading(line, row_no)
             rec.section = self.section
             rec.status = "ok"
+            mark_section(rec, "title", PATTERNS["zhanguoce_state"].confidence)
             rec.notes.append("戰國策国别题（国名取自卷首题声明）")
             self._append(rec)
             return True
@@ -461,27 +491,49 @@ class FileSegmenter:
 
         顺序：卷题 → 篇题。卷题里不含 `第N`，两者不会互相截走，但卷题要先认，
         否则 `　前漢書卷一上` 会被当成正文（它确实不含第 N）。
+
+        篇题按**本书声明的 title_patterns 顺序**试（catalog.patterns_for）：没声明的
+        书用家族默认（WYG 族＝`wyg_di_n`，实测覆盖前漢書/後漢書/晉書）。顺序即优先级，
+        新形态必须排在末尾，免得把 `第N` 也有的书截走。
         """
-        if self.wyg_juan_re and self.wyg_juan_re.match(line):
+        m_juan = self.wyg_juan_re.match(line) if self.wyg_juan_re else None
+        if m_juan:
             rec = self._mk_heading(line, row_no)
-            # 卷次取去掉书名前缀的短形态，与 kanripo 自己的 JUAN 属性值一致
-            # （`卷一上`），便于两处对账；书名已在 files.book 上，不必重复。
-            self.juan = line.rstrip(config.PARA_CHAR).strip()[
-                len((self.meta.get("TITLE") or "").strip()):]
+            # 卷次由正则的 juan 组给（`卷一上`），与 kanripo 自己的 JUAN 属性值一致，
+            # 便于两处对账。前缀只在**不是本书书名**时保留：前漢書的卷题前缀就是书名
+            # （`前漢書卷一上`），按库内既有惯例记 `卷一上`（115 条 juan 全是这个形状）；
+            # 三國志写 `魏志卷一`，魏/蜀/吳 三志各自从卷一数起，去掉前缀就分不出哪个志。
+            juan = m_juan.group("juan")
+            prefix = m_juan.group("prefix")
+            if normalize_label(prefix) != normalize_label(self.book_title):
+                juan = prefix + juan
+            self.juan = normalize_label(juan)
             rec.juan = self.juan
-            self.section = None          # 上一卷的篇名不许漏到这一卷
-            rec.notes.append("WYG 卷题")
+            if self.juan_as_section:
+                # 该书以卷为篇名粒度：卷题本身声明 section（标签留整行卷题的写法，
+                # `魏志卷九` 比 `卷九` 更能说明是哪个志——三國志三国各志各自起卷）
+                self.section = normalize_label(line.rstrip(config.PARA_CHAR).strip())
+                rec.section = self.section
+                mark_section(rec, "title", WYG_JUAN_CONFIDENCE)
+            else:
+                self.section = None      # 上一卷的篇名不许漏到这一卷
+            rec.notes.append("WYG 卷题" + ("（篇名粒度）" if self.juan_as_section else ""))
             self._append(rec)
             return True
 
-        m = WYG_SECTION_RE.match(line)
-        if m:
-            # 篇名只取 name 组：行尾可能跟着一段行内注（见表头 WYG_SECTION_RE 注释），
-            # 整行当标签会把 `師古曰…` 一起拖进 section 表。
+        for pat in self.title_res:
+            if pat.method != "title":
+                continue     # 结构模式（四庫叢書題）由各自分支处理，不声明 section
+            m = pat.regex.match(line)
+            if not m:
+                continue
+            # 篇名只取 name 组：行尾可能跟着一段行内注（见 title_patterns.wyg_di_n
+            # 的注释），整行当标签会把 `師古曰…` 一起拖进 section 表。
             self.section = m.group("name")
             rec = self._mk_heading(line, row_no)
             rec.section = self.section
-            rec.notes.append("WYG 篇题")
+            mark_section(rec, pat.method, pat.confidence)
+            rec.notes.append(f"WYG 篇题（{pat.name}）")
             self._append(rec)
             return True
 
@@ -518,7 +570,7 @@ class FileSegmenter:
         rec = self._mk_heading(line, row_no)
         # 由 structure.is_org_heading 传回标题文字（去掉《》与空白）
         if lvl == "h2":
-            role = H2_ROLE.get(self.book_dir, "section")
+            role = self.h2_role
             m = re.match(r"^\*\*\s+(\d+)\s*(.*)$", line)
             text = clean_title(m.group(2)) if m else None
             if role == "division":
@@ -531,12 +583,15 @@ class FileSegmenter:
                 self.section = None
             else:
                 self.section = text or None
+                if self.section:
+                    self._mark_for_section(self.section, "header", 0.8)
         elif lvl == "h3":
             # *** 2.1　《三代世表》：code=2.1，标题在行内后续《…》里
             m = re.match(r"^\*\*\*\s*[0-9.]+\s*(.*)$", line)
             text = clean_title(m.group(1)) if m else None
             if text:
-                self.section = text or None
+                self.section = text
+                self._mark_for_section(self.section, "header", 0.8)
         rec.notes.append(f"org_{lvl}")
         self._append(rec)
 

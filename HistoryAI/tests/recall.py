@@ -41,8 +41,18 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from api import db                      # noqa: E402
+from search import diagnose             # noqa: E402
+from search import engine               # noqa: E402
 from search import result_block, zh     # noqa: E402
 from scripts.pipeline import config     # noqa: E402
+
+# 归因（八维分类）与三条地面真值查询的**唯一**实现在 search/diagnose.py：测试与
+# API 共用一份，页面上的说法和报告里的说法不会再各说各话（6.3-H）。下面三个名字
+# 保留下来只为少改本文件的调用点，行为一律以 diagnose 为准。
+_empty_class = diagnose.classify_empty
+corpus_count = diagnose.corpus_count
+_terms = diagnose.terms_of
+zh_works = diagnose.zh_works
 
 # 用例集是**一个目录**，按时代分文件（§21）。第六点二阶段之前是单个
 # search_cases.json，83 条全挤在一起；语料从 5 部先秦书扩到 7 部（含秦汉）之后，
@@ -51,8 +61,7 @@ from scripts.pipeline import config     # noqa: E402
 CASES_DIR = Path(__file__).resolve().parent / "search_cases"
 DEFAULT_REPORT = ROOT / "docs" / "phase6_recall.md"
 
-# 繁简探针：这几对在简繁下必然不同形。全对才算转换可用。
-ZH_PROBE = [("齐", "齊"), ("郑", "鄭"), ("苏", "蘇"), ("张", "張"), ("晋", "晉")]
+# 繁简探针（ZH_PROBE）随归因实现搬到了 search/diagnose.py。
 
 # 排名判定的默认窗口。答句排到第 30 个结果里，用户是看不到的——沿用
 # tests/test_phase4_questions.py 的 rank_of 思路，而不是「找得到就算过」。
@@ -74,36 +83,21 @@ DIMS = (COVERAGE, SEARCH, NORMALIZATION, RANKING, DISPLAY,
 # 块里必须能回答「这段从哪来」的字段（§18/§24）。缺一个，读者就无从回溯。
 PROV_KEYS = ("book_title", "file_name", "row_first", "row_last", "passage_ids")
 # 自检③用的探针词：它必须**真的不在库**。见 selftest() 里那段说明。
-SELFTEST_ABSENT = "坑儒"
+#
+# 这个位置已经红过三次，每次都是同一件事：语料长了，探针词被填上。
+#   董卓（先秦 5 部时代确实没有）→ 加 後漢書 后 157 段
+#   → 改「坑儒」→ 第六点三阶段加南北朝 10 部后 3 段（宋書/陳書/隋書 各 1）
+#   → 改「朱元璋」（明史，catalog 里排在最末的 planned 书）
+# 教训：探针要挑**路线图上最后一本尚未入库的书**里的词，而不是随手挑个「现在没有」的；
+# 守卫本身不能省 —— 它一红就说明有别的负例正被同一件事悄悄证伪，本阶段正是它先红，
+# 才顺藤查出 4 条负例（含 坑儒 自己）已被新书填上。
+SELFTEST_ABSENT = "朱元璋"
+# 自检③b 用的探针：**全库有、这本书没有**。用「坑儒 × 史記」——正是本次被填上的那个词，
+# 收窄到史記后仍是 0（史記 用「阬術士」，不用「坑儒」）。它守的是回归：
+# 带 book/edition 的用例若拿全库计数当地面真值，这种空会被误判成 Search（引擎故障）。
+SELFTEST_SCOPED = ("坑儒", "史記")
 # SQLite 的变量上限（老版本 999，新版 32766）。按 500 分批，两边都够安全。
 SQL_CHUNK = 500
-
-
-def zh_works() -> bool:
-    """繁简转换是否真的在工作（而非非 Windows 下的恒等回退）。
-
-    这是全局开关：一旦回退，整串查询不转换，简体输入会静默地全部搜不到。
-    scripts/site/check_engine.py 的 preflight 同样卡这一点。
-    """
-    return all(zh.to_traditional(s) == t for s, t in ZH_PROBE)
-
-
-def _terms(trad_q: str) -> list:
-    """检索词。engine.plan_query 就是按空白切的，这里保持一致。"""
-    return [t for t in trad_q.split() if t]
-
-
-def corpus_count(cur, terms) -> int:
-    """语料里**同时**含全部检索词的正文段数——这是「本该命中多少」的地面真值。
-
-    必须用转换后的繁体词：库里的 normalized_text 是繁体，拿简体裸查会把
-    「焚书」（0 段）误判成语料缺失，而实际库里有「焚書」6 段。
-    """
-    if not terms:
-        return 0
-    sql = ("SELECT COUNT(*) FROM passages WHERE kind='passage'"
-           + "".join(" AND instr(normalized_text, ?) > 0" for _ in terms))
-    return cur.execute(sql, tuple(terms)).fetchone()[0]
 
 
 def top_rank(res: dict, needle: str, top_n: int):
@@ -206,7 +200,17 @@ def classify(cur, case: dict, zh_ok: bool) -> dict:
     q = case["query"]
     trad = zh.to_traditional(q)
     terms = _terms(trad)
-    n_corpus = corpus_count(cur, terms)
+    # 地面真值必须与**这次检索的范围**一致：带 book/edition 的用例，语料计数也要
+    # 跟着过滤。否则「这本书里确实没有」会被判成 Search（引擎故障）——第六点三
+    # 阶段第二批收窄到单书的 4 条负例正是这么被全体判错的。解析器与检索侧同一份
+    # （engine.resolve_book / resolve_edition），不另立一套书名口径。
+    try:
+        bid = engine.resolve_book(cur, case.get("book"))
+        edi = (engine.resolve_edition(case["edition"])
+               if case.get("edition") else None)
+    except ValueError:
+        bid = edi = None            # 认不出的书名/版片：交给检索侧报同一个错
+    n_corpus = corpus_count(cur, terms, bid, edi)
     page, ps = case.get("page", 1), case.get("page_size", 20)
 
     out = {"query": q, "trad": trad, "corpus_hits": n_corpus,
@@ -242,7 +246,7 @@ def classify(cur, case: dict, zh_ok: bool) -> dict:
                            f"{res['total']} 块")
             return out
         want = case.get("expect_class")
-        klass = _empty_class(cur, q, terms, n_corpus, zh_ok)
+        klass = _empty_class(cur, q, n_corpus, zh_ok, bid, edi)
         out["klass"] = klass
         if want and klass != want:
             out.update(status="FAIL",
@@ -253,7 +257,7 @@ def classify(cur, case: dict, zh_ok: bool) -> dict:
 
     # must_hit = True
     if not hit:
-        klass = _empty_class(cur, q, terms, n_corpus, zh_ok)
+        klass = _empty_class(cur, q, n_corpus, zh_ok, bid, edi)
         out.update(status="FAIL", klass=klass,
                    why=f"应命中却返回 0；语料实有 {n_corpus} 段")
         return out
@@ -311,22 +315,6 @@ def _pack(audits) -> list:
     return [f"{dim}:{'通过' if not bad else f'{len(bad)} 处'}" for dim, bad in audits]
 
 
-def _empty_class(cur, q_raw, terms, n_corpus, zh_ok) -> str:
-    """0 命中时归因。判定顺序有讲究，见下面注释。"""
-    if not zh_ok:
-        # 转换回退时繁体形 == 简体形，无法区分「语料没有」与「繁简没转」。
-        # 硬塞进 Coverage 会把繁简故障伪装成语料缺失，所以如实报 UNKNOWN。
-        return UNKNOWN
-    if n_corpus == 0:
-        return COVERAGE                   # 原形与转换形都数不到 —— 语料确实没有
-    # 转换后的检索词在库里有命中，那就要看是「哪一步」丢了结果：
-    raw_terms = [t for t in q_raw.split() if t]
-    if corpus_count(cur, raw_terms) == 0:
-        # 原形查不到、只有转换形才有 —— 繁简转换是承重环节，问题在这一步
-        return NORMALIZATION
-    return SEARCH                         # 原形本来就查得到，是引擎没返回
-
-
 def _stub_result() -> dict:
     """一个形状合法但零命中的检索结果，用于自检时注入故障。"""
     return {"q": "", "q_traditional": "", "mode": "stub", "text_mode": "orig",
@@ -344,8 +332,9 @@ def selftest() -> int:
     「语料有、引擎找不到」判成 Search，把「只有转换后才查得到」判成
     Normalization，把「繁简回退」判成 UNKNOWN。
 
-    ①②④ 依赖的是「库里一定有齐桓公」，加多少书都不会失效；③ 依赖
-    「库里一定没有某个词」，而**语料是会长的**——所以它不能写死结论。
+    ①②④ 依赖的是「库里一定有齐桓公」，加多少书都不会失效；③ 与 ③b 依赖
+    「库里（或某本书里）一定没有某个词」，而**语料是会长的**——所以它不能写死结论，
+    当场数一遍再决定（见 SELFTEST_ABSENT 那段）。
     """
     orig_search = result_block.search_result_blocks
     orig_trad = zh.to_traditional
@@ -357,9 +346,9 @@ def selftest() -> int:
     n_absent = corpus_count(cur, [SELFTEST_ABSENT])
     cases = [
         # ① 原形（繁体）本身在库里有命中，引擎却返回 0 → 引擎问题
-        ("自我检测① 繁体原形有命中却返回 0", "齊桓公", True, "Search"),
+        ("自我检测① 繁体原形有命中却返回 0", "齊桓公", True, "Search", None),
         # ② 简体原形在库里数不到、转换后才数得到 → 繁简环节
-        ("自我检测② 只有转换形才有命中", "齐桓公", True, "Normalization"),
+        ("自我检测② 只有转换形才有命中", "齐桓公", True, "Normalization", None),
     ]
     bad = []
     if n_absent:
@@ -370,11 +359,32 @@ def selftest() -> int:
     else:
         # ③ 语料确实没有 → 覆盖问题（不能误报成引擎问题）
         cases.append((f"自我检测③ 语料确实没有（{SELFTEST_ABSENT}）",
-                      SELFTEST_ABSENT, True, "Coverage"))
+                      SELFTEST_ABSENT, True, "Coverage", None))
+    # ③b 带书过滤：全库有、这本书没有 → 同样是 Coverage，不能判成 Search。
+    # 判据当场数：全库计数必须 >0、该书计数必须 =0，否则这条探针本身失效。
+    q_sc, bk_sc = SELFTEST_SCOPED
+    try:
+        bid_sc = engine.resolve_book(cur, bk_sc)
+    except ValueError as e:
+        bid_sc = None
+        print(f"  [FAIL] 自检③b 的探针书「{bk_sc}」认不出来：{e}")
+        bad.append("自检③b 探针书不存在")
+    if bid_sc is not None:
+        n_all = corpus_count(cur, _terms(zh.to_traditional(q_sc)))
+        n_bk = corpus_count(cur, _terms(zh.to_traditional(q_sc)), bid_sc)
+        if n_all and not n_bk:
+            cases.append((f"自我检测③b 带书过滤（{q_sc} × {bk_sc}：全库 {n_all} 段、"
+                          f"该书 0 段）", q_sc, True, "Coverage", bk_sc))
+        else:
+            print(f"  [FAIL] 自检③b 的探针失效（{q_sc}：全库 {n_all} 段、{bk_sc} "
+                  f"{n_bk} 段）—— 需要「全库有、该书没有」的组合，请改 "
+                  f"SELFTEST_SCOPED")
+            bad.append("自检③b探针失效")
     try:
         result_block.search_result_blocks = lambda *a, **k: _stub_result()
-        for name, q, zh_ok, want in cases:
-            r = classify(cur, {"id": "self", "query": q, "must_hit": True}, zh_ok)
+        for name, q, zh_ok, want, book in cases:
+            r = classify(cur, {"id": "self", "query": q, "must_hit": True,
+                               "book": book}, zh_ok)
             ok = r["klass"] == want
             print(f"  [{'ok  ' if ok else 'FAIL'}] {name}：判为 {r['klass']}，"
                   f"期望 {want}")

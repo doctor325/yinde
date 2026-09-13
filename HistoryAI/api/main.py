@@ -24,6 +24,15 @@
   /api/blocks/<id>?direction=before|after|both&count=&before_passage_id=&after_passage_id=
       按需继续读真实相邻正文，用于「展开更多上下文」。
 
+第六点三阶段新增：
+  /api/diagnose?q=&book=&edition=&page=&page_size=
+      搜不到时的**逐层归因**（语料在册 → 库内正文 → 文本命中 → 索引可达 → 检索
+      返回 → 块组装），并给出八维分类与「尚未收录哪些书」。与 tests/recall.py
+      共用 search/diagnose.py 一份实现，页面上的说法与测试报告里的说法一致。
+  /api/catalog
+      语料收录进度（catalog × 库内实况的五态快照，供 #/coverage 的时代进度条）。
+      **只此一处**：静态演示模式没有这条路由，真实书单也就进不了发布产物。
+
 第四阶段新增：
   /api/search?q=<自然语言问题>&level=question&mode=standard&text=orig|simplified|both
       自然语言提问 → 问题分析 → 实体/意图识别 → 古代表达扩展 → 召回 → 排序
@@ -49,6 +58,7 @@ from scripts.pipeline import config  # noqa: E402
 from scripts.pipeline.kanripo_header import split_header  # noqa: E402
 from api import db as api_db  # noqa: E402
 from search import context as search_ctx  # noqa: E402
+from search import diagnose as search_diagnose  # noqa: E402
 from search import dual_text  # noqa: E402
 from search import engine as search_engine  # noqa: E402
 from search import retrieve as search_retrieve  # noqa: E402
@@ -59,6 +69,8 @@ ROUTE_RE = {
     "stats": re.compile(r"^/api/stats$"),
     "books": re.compile(r"^/api/books$"),
     "search": re.compile(r"^/api/search$"),
+    "diagnose": re.compile(r"^/api/diagnose$"),
+    "catalog": re.compile(r"^/api/catalog$"),
     "book_files": re.compile(r"^/api/books/([^/]+)/files$"),
     "file": re.compile(r"^/api/files/(\d+)$"),
     "passages": re.compile(r"^/api/files/(\d+)/passages$"),
@@ -89,6 +101,65 @@ def _raw_lines(file_id: int):
     lines = text.splitlines()
     _raw_cache[file_id] = (header_len, lines)
     return _raw_cache[file_id]
+
+
+# 语料目录快照缓存（按 manifest 文件的 mtime 失效）
+_catalog_cache: dict[str, tuple] = {}
+
+
+def _catalog_snapshot() -> dict:
+    """语料收录进度（6.3-I）：回放审计快照里的 catalog 段 + 每本书的五态。
+
+    **为什么不在这里重算五态**：判据在 `manifest.merge_catalog()`（coverage_status
+    × FTS 索引探针 × `recall_verified` 人工确认位），这里再算一遍就是第二套说法，
+    两处迟早不一致 —— 6.2 的教训是「同一件事只留一个实现」。所以本接口读的是
+    `data/metadata/corpus_manifest.json`，并把它的生成时间原样带出：页面自己说明
+    这份快照有多新，过期的责任落到看见的人头上，而不是被接口悄悄掩掉。
+
+    快照不存在（没跑过 manifest）时返回 `available: False` + 原因，前端只少画一块
+    进度条，不报错。
+    """
+    path = config.METADATA_DIR / "corpus_manifest.json"
+    try:
+        mtime = path.stat().st_mtime
+    except OSError:
+        return {"available": False,
+                "reason": "还没有审计快照 —— 先跑一次 "
+                          "python -m scripts.pipeline.manifest"}
+    hit = _catalog_cache.get("snap")
+    if hit and hit[0] == mtime:
+        return hit[1]
+    try:
+        d = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as e:
+        return {"available": False, "reason": f"审计快照读不出来：{e}"}
+    cat = d.get("catalog") or {}
+    # 只挑页面要用的字段：manifest 的整行里还有 gap_files 之类的明细，
+    # 原样回放会让每次翻页多传几十 KB 没人看的东西。
+    books = [{
+        "book_id": b.get("book_id"), "title": b.get("title"),
+        "era_group": b.get("era_group"), "dynasty": b.get("dynasty"),
+        "status": b.get("status"), "coverage_status": b.get("coverage_status"),
+        "section_coverage": b.get("section_coverage"),
+        "recall_verified": b.get("recall_verified", False),
+        "catalog_gap": b.get("catalog_gap", False),
+        "indexed": (b.get("indexed") or {}).get("ok"),
+    } for b in (d.get("books") or [])]
+    snap = {
+        "available": True,
+        "generated_at": d.get("generated_at"),
+        "catalog_version": cat.get("catalog_version"),
+        "counts": cat.get("counts") or {},
+        "in_library": len(books),
+        "by_era_group": cat.get("by_era_group") or {},
+        "planned": cat.get("planned") or [],
+        "not_in_catalog": cat.get("not_in_catalog") or [],
+        "on_disk_not_imported": cat.get("on_disk_not_imported") or [],
+        "uncatalogued_dirs": cat.get("uncatalogued_dirs") or [],
+        "books": books,
+    }
+    _catalog_cache["snap"] = (mtime, snap)
+    return snap
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -223,6 +294,25 @@ class Handler(BaseHTTPRequestHandler):
             return self._err(str(e), 400)
         self._json(out)
 
+    def _h_diagnose(self, _):
+        """搜不到时的逐层归因（6.3-H）。只读，与 tests/recall.py 共用一份实现。
+
+        代价：一次调用最多跑 3 次全表 `instr` 计数（每次本地实测 ~0.35s）。
+        这是**诊断**路径的代价 —— 它只在用户想知道「为什么没有」时才跑，
+        正常检索路径一行没改。
+        """
+        q = (self._q("q") or "").strip()
+        if not q:
+            return self._err("请提供搜索关键词 q", 400)
+        try:
+            out = self._with_cur(lambda c: search_diagnose.diagnose(
+                c.cursor(), q, book=self._q("book"), edition=self._q("edition"),
+                page=self._q("page", 1, int),
+                page_size=self._q("page_size", search_engine.PAGE_SIZE_DEFAULT, int)))
+        except ValueError as e:
+            return self._err(str(e), 400)
+        self._json(out)
+
     def _question(self, cur, mode: str, text_mode: str) -> dict:
         """自然语言提问（第四阶段）。**只检索，不生成答案**（§2.3）。
 
@@ -284,6 +374,10 @@ class Handler(BaseHTTPRequestHandler):
 
     def _h_books(self, _):
         self._json(self._with_cur(lambda c: api_db.list_books(c.cursor())))
+
+    def _h_catalog(self, _):
+        """语料收录进度（6.3-I）。只读审计快照，不碰数据库。"""
+        self._json(_catalog_snapshot())
 
     def _h_book_files(self, book_id):
         self._json(self._with_cur(lambda c: api_db.list_files(c.cursor(), book_id)))

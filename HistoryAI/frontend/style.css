@@ -117,6 +117,19 @@ footer { text-align: center; color: var(--ink2); font-size: 12px; padding: 18px 
 .card.blk.blk-side .blk-text { font-size: 16.5px; line-height: 1.95; }
 .empty { text-align: center; color: var(--ink2); padding: 50px 10px; }
 .empty b { color: var(--accent); }
+/* 空结果归因的逐层清单（第六点三阶段）：左对齐、行距松一点，六行要能一眼扫完。 */
+.diag { margin: 6px 0 0 18px; padding: 0; color: var(--ink2); font-size: 13.5px; line-height: 1.75; }
+.diag li { margin: 2px 0; }
+
+/* 收录进度（#/coverage 顶部，第六点三阶段）：一行一个时代。名字定宽，
+   进度条吃掉中间，数字与「未收录书目」在右 —— 扫下来能直接看出缺口在哪一段。 */
+.era-row { display: flex; align-items: center; gap: 10px; margin: 7px 0; flex-wrap: wrap; }
+.era-name { font-family: var(--serif); font-size: 16px; width: 3.6em; flex: none; }
+.era-bar { flex: 1 1 180px; height: 9px; border-radius: 5px; background: var(--paper2);
+  border: 1px solid var(--line); overflow: hidden; min-width: 120px; }
+.era-bar i { display: block; height: 100%; background: var(--accent-soft); }
+.era-num { color: var(--ink2); white-space: nowrap; }
+.era-pend { font-size: 12.5px; }
 
 /* ---------------- 记录/标记 ---------------- */
 mark.hl { background: #f3dc9a; }

@@ -1,0 +1,941 @@
+{
+ "version": 2,
+ "corpus": "19 部语料（先秦 5：尚書/春秋左傳/史記/國語/戰國策；秦汉 2：前漢書/後漢書；三国两晋 2：三國志/晉書；南北朝 10：宋書/南齊書/梁書/陳書/魏書/北齊書/周書/隋書/南史/北史），760380 条记录 / 669996 段可检索正文",
+ "era": "nanbeichao",
+ "note": [
+  "召回测试集，按时代分文件（第六点二阶段 §21）。本文件 = 南北朝（第六点三阶段第二批导入的 10 部，kanripo WYG 底本）。**隋書按计划书 §6.3-G 归在本文件**（它在 catalog 里的 era_group 是「隋唐」，但在册的正史里只有它挨着南北朝）。",
+  "**上游转录不全，五部书不是全本**（第六点三阶段实测，`python -m scripts.pipeline.check_repos --gaps` 可复现，不是我们漏导）：北齊書 36/50（缺卷 36…50）、隋書 50/85（缺卷 50…85）、北史 23/100（缺卷 23…100）；加上批一的三國志 31/65、晉書 34/130。缺的恰好都是**列传的后半**：北齊書文苑傳（卷 45）、北史卷 23 以后全部、隋書列傳 50–85 都不在库里。所以「只在本传里出现、没有旁及」的人物会 0 命中 —— 典型是顏之推（北齊書文苑傳/北史文苑傳，两处都在缺卷里，全库 1 段且是後漢書的误撞）。",
+  "**篇名（section）都建起来了**，检测方法全是 title / 置信 0.9：宋書 107、南齊書 60、梁書 56、陳書 36、魏書 126、北齊書 92、周書 50、隋書 136、南史 79、北史 124 个 section。篇题形态是「本紀第一」「帝紀第一」「志第一」「列傳第一」；南史/北史带朝代前缀（「宋本紀上第一」「魏本紀第一」）。注意 section 块里的 text 是**该篇的正文首行**，篇题本身存在 label 字段里 —— 所以纯篇名命中的 hit_total 是 0（见 nb-section-02）。",
+  "**异体字两条（实测，按语料原样记，不改引擎）**：① 周書/隋書里的韋孝寬写作「韋孝寛」（寛 U+5BDB，日韩字形）：查「韋孝寬」全库 0 段、「韋孝寛」64 段。② 南齊書 2/3/6 号文件把「本紀」写作「夲紀」（夲 U+5932）：同一本书里目録写「本紀第二」（1 段文本命中）、正文写「夲紀第二」（section 命中）—— nb-section-09/10 就是这一对。",
+  "**字形收窄：19 部重测后分三向**（sz 文件头那份「15 个字」是 9 部语料时的 A 向，已被这里取代；三向都是**字符映射的固有结果**，按计划书 §16 与用户「先测后议」**没有擅自改引擎**，报告里逐条报给用户决定）。① **A 向（27 个字符）**：语料原形出现 ≥20 次、而 to_traditional 转出的那一形不足原形 20% —— 内 10820→742、黄 6729→1158、别 4312→242、荆 3166→196（实测：输入「内」只拿 742 段，输入「內」也只有 742，因为查询一律被转成「內」）。② **B 向（131 个字符）**：语料用繁体字形、简体输入转不回去 —— 聖 4391→0（输入「圣」得 0）、餘 12522→918（输入「余」）、僕 4167→123、願 2987→80。③ **C 向（人工挑出 5 组，A/B 都抓不到）**：**两种字形在语料里并存、而转换器对两者都不映射**，查其一必丢其二 —— 髙 U+9AD9 11286 段 vs 高 U+9AD8 6724 段（nb-script-09/10：高祖 2080 / 髙祖 3492，谁也拿不到对方的）、䕶 U+4576 1856 vs 護 U+8B77 892、𫝊 U+2B74A 843 vs 傳 U+50B3 10877、夲 U+5932 382 vs 本 U+672C 11515（nb-section-09/10）、寛 U+5BDB 1587 vs 寬 U+5BEC 117。C 向要全网扫需要一张异体字表，**本阶段没做，列为已知缺口**；钉在明面上的用例：nb-script-05/06（高颎/高熲）、nb-script-07/08（韋孝寛/韋孝寬）、nb-script-09/10（高祖/髙祖）。",
+  "**别名/谥号是本批的主题词，本名反而稀疏** —— 这是正史的书写体例不是索引问题：帝号 6 个全部命中（宋武帝 129、梁武帝 241、陳武帝 103、齊神武 202、周文帝 49、隋文帝 137），而本名 陳霸先 在陳書里 0 段（陳書写「高祖」）、高歡 在北齊書里 1 段（北齊書写「神武」）、拓跋珪/高洋/高長恭 直接 0 段（魏書写「太祖」、北齊書写「顯祖」/「蘭陵王長恭」）。用例挑的都是**实测有过半命中落在本批新书里**的词。",
+  "**高频字是本阶段最大的性能项**（实测）：之 158417 段/40566 块、帝 34807/14003、州 30601/10171、元年 7673/4249；四条单次耗时 6–10 秒（一次全扫计数），见 docs/phase6_3_perf_after.json 与 perf_corpus.py 的 CONTROL 对照。按「先测后议」**未改检索行为**，作为已知问题上报。",
+  "**负例**：安祿山（舊唐書/新唐書）、趙匡胤/岳飛/王安石（宋史）、朱元璋（明史）、忽必烈（元史）全库 0 段，且对应的书都在 catalog 里标着 planned → 归因 Coverage（这正是 6.3-H 要区分的「书未收录」）；桃園結義 是演义词，任何正史都不会有。",
+  "**版片过滤对照**：本批 10 部全是 wyg 家族，而 search/engine.py 的 resolve_edition 只认 tls/sbck，其余一律返回 None＝不过滤 —— 所以 edition=\"WYG\" 是**空操作**，nb-edition-01/02 把它钉在明面上（135＝不过滤的 135、121＝不过滤的 121）。nb-edition-03（edition=tls）**故意不设 expect_class**：空得合理，但归因器只看全库计数会归成 Search，这是归因器的已知口径，不是失败。",
+  "baseline_hits / baseline_blocks 是 2026-09-13 在 19 部语料上实测的（本文件新建时同一批 rebaseline 也把 269 条旧用例的基线因扩容重写了，漂移逐条记在 docs/phase6_3_baseline_drift_b2.txt，报告里解释）。只用于报告漂移，不作为失败判据。",
+  "可选字段沿用既有约定：page / page_size / mode / book（书名）/ edition（家族）/ text_mode；check_pagination 跑末页可达性。`recall: \"section\"` 的条目判的是 match_type ∈ (section, both)，不看 hit_total。"
+ ],
+ "cases": [
+  {
+   "id": "nb-person-01",
+   "group": "person",
+   "query": "檀道濟",
+   "must_hit": true,
+   "baseline_hits": 103,
+   "baseline_blocks": 73,
+   "top_needle": "檀道濟",
+   "note": "宋書49/南史32/魏書16/南齊書3/北史3。宋書卷四十三本传在库内（宋書 100 卷齐全）——这是本批「本传能在库里查到」的样板；南史里的 32 段是同一传的简写本（南史 80 卷齐全）"
+  },
+  {
+   "id": "nb-person-02",
+   "group": "person",
+   "query": "沈約",
+   "must_hit": true,
+   "baseline_hits": 226,
+   "baseline_blocks": 184,
+   "top_needle": "沈約",
+   "note": "南史85/梁書60/隋書30/南齊書23/宋書10/前漢書9。梁書卷十三本传在库内；隋書那 30 段来自隋書的律曆/經籍志（沈約的著作被反复著录）"
+  },
+  {
+   "id": "nb-person-03",
+   "group": "person",
+   "query": "王琳",
+   "must_hit": true,
+   "baseline_hits": 262,
+   "baseline_blocks": 155,
+   "top_needle": "王琳",
+   "note": "陳書118/南史98/北齊書14/梁書12/周書9/北史5。陳書 36 卷齐全、南史 80 卷齐全；陳書里的 118 段散在 f1–f35（本紀与列傳都有，不是单一本传），北齊書/周書那 23 段是他梁亡之后的活动"
+  },
+  {
+   "id": "nb-person-04",
+   "group": "person",
+   "query": "崔浩",
+   "must_hit": true,
+   "baseline_hits": 135,
+   "baseline_blocks": 114,
+   "top_needle": "崔浩",
+   "note": "魏書96/北史21/隋書6/前漢書6/周書2/戰國策1。魏書卷三十五本传在库内（魏書 114 卷齐全，是本批最完整的一部）；北史只剩前 22 卷，所以北史那 21 段是魏本紀里的提及而非本传"
+  },
+  {
+   "id": "nb-person-05",
+   "group": "person",
+   "query": "楊愔",
+   "must_hit": true,
+   "baseline_hits": 87,
+   "baseline_blocks": 57,
+   "top_needle": "楊愔",
+   "note": "北齊書65/北史15/魏書4/隋書2/前漢書1。北齊書卷三十四本传在库内（北齊書缺的是卷 36–50，本传在缺卷之前）—— 同为北齐人物、传在卷 45 文苑傳的顏之推就 0 段，两条用例合看能说明「缺卷」这件事"
+  },
+  {
+   "id": "nb-person-06",
+   "group": "person",
+   "query": "蘇綽",
+   "must_hit": true,
+   "baseline_hits": 22,
+   "baseline_blocks": 19,
+   "top_needle": "蘇綽",
+   "note": "周書14/隋書5/北史3。周書卷二十三本传在库内（周書 50 卷齐全）；隋書里 5 段来自食貨志/百官志对「六条诏书」的追述"
+  },
+  {
+   "id": "nb-person-07",
+   "group": "person",
+   "query": "楊素",
+   "must_hit": true,
+   "baseline_hits": 121,
+   "baseline_blocks": 85,
+   "top_needle": "楊素",
+   "note": "隋書82/北史21/南史6/周書5/陳書3/後漢書2。隋書那 82 段横跨帝紀与志（本传在卷 48，**在缺卷 50–85 之前，所以本传在库内**）—— 隋書的缺卷从列傳中段开始，不是整块没有"
+  },
+  {
+   "id": "nb-person-08",
+   "group": "person",
+   "query": "宇文泰",
+   "must_hit": true,
+   "baseline_hits": 25,
+   "baseline_blocks": 13,
+   "top_needle": "宇文泰",
+   "note": "北史16/魏書4/南史3/周書2。**周書里只有 2 段** —— 周書通篇称他「太祖」，本名极少出现（周書帝紀第一的正文是「太祖文皇帝姓宇文氏諱泰」，拆成两段）。这是本批「本名稀疏」的标准样本"
+  },
+  {
+   "id": "nb-person-09",
+   "group": "person",
+   "query": "蕭子顯",
+   "must_hit": true,
+   "baseline_hits": 17,
+   "baseline_blocks": 16,
+   "top_needle": "蕭子顯",
+   "note": "南齊書6/隋書4/梁書3/南史3/晉書1。蕭子顯是南齊書的作者，南齊書那 6 段含卷端署名；梁書的 3 段在卷三本紀第三与卷四十七（**梁書卷三十五 = 0 段**）"
+  },
+  {
+   "id": "nb-person-10",
+   "group": "person",
+   "query": "侯景",
+   "must_hit": true,
+   "baseline_hits": 899,
+   "baseline_blocks": 556,
+   "top_needle": "侯景",
+   "note": "南史295/陳書153/梁書152/北齊書86/周書77/北史45 —— 本文件最大的正例，四部书的记载互相印证（侯景之乱横跨梁/陈/北齐/北周）。块数 556 远超一页，分页与组装上限都在这条上受检"
+  },
+  {
+   "id": "nb-person-11",
+   "group": "person",
+   "query": "祖沖之",
+   "must_hit": true,
+   "baseline_hits": 21,
+   "baseline_blocks": 17,
+   "top_needle": "祖沖之",
+   "note": "隋書11/南齊書3/南史3/宋書2/魏書1/陳書1。南齊書卷五十二本传在库内；隋書那 11 段全在律曆志（他的《大明曆》与圆周率被反复引用）—— 科技人物在正史里的分布与政治人物完全不同"
+  },
+  {
+   "id": "nb-person-12",
+   "group": "person",
+   "query": "斛律光",
+   "must_hit": true,
+   "baseline_hits": 43,
+   "baseline_blocks": 29,
+   "top_needle": "斛律光",
+   "note": "北齊書27/北史15/南史1。北齊書的 27 段散在帝紀（卷七/卷八）与列傳（卷十二/十六/十八…），**卷十七 0 段**（北齊書的 WYG 卷序与通行本不完全对应，见检查点②报告）；北史只剩前 22 卷。北周方面的书几乎不提他 —— 对照 nb-person-14 韋孝寛的分布正好相反"
+  },
+  {
+   "id": "nb-person-13",
+   "group": "person",
+   "query": "高熲",
+   "must_hit": true,
+   "baseline_hits": 13,
+   "baseline_blocks": 11,
+   "top_needle": "高熲",
+   "note": "隋書9/北史3/周書1。**这条用的是「高」（U+9AD8）**，只有 13 段；语料的主形是「髙」（U+9AD9）—— 隋書卷四十一本传（在库内，缺卷从 50 起）写的就是「髙熲」，共 84 段，见 nb-person-16。**两种字形在语料里并存、而转换器对两者都不映射**，查其一必丢其二"
+  },
+  {
+   "id": "nb-person-14",
+   "group": "person",
+   "query": "韋孝寛",
+   "must_hit": true,
+   "baseline_hits": 64,
+   "baseline_blocks": 59,
+   "top_needle": "韋孝寛",
+   "note": "周書23/隋書20/北史15/… （寛 U+5BDB，语料原形）。周書卷三十一本传在库内，玉壁之战的守将就是他（见 nb-war-01）。**通行繁体「韋孝寬」实测 0 段**（nb-script-08）——不是缺书，是字形不同"
+  },
+  {
+   "id": "nb-person-15",
+   "group": "person",
+   "query": "陳霸先",
+   "must_hit": true,
+   "baseline_hits": 21,
+   "baseline_blocks": 15,
+   "top_needle": "陳霸先",
+   "note": "南史12/梁書4/周書2/北齊書2/北史1 —— **陳書 0 段**！陈霸先是陳書的主角，而陳書通篇称「高祖」；他的本名只在别人的书里出现。与 nb-alias-03（陳武帝 103 段，其中南史 87）合看"
+  },
+  {
+   "id": "nb-person-16",
+   "group": "person",
+   "query": "髙熲",
+   "must_hit": true,
+   "baseline_hits": 84,
+   "baseline_blocks": 51,
+   "top_needle": "髙熲",
+   "note": "**「髙」（U+9AD9）形态**：隋書66/北史13/周書2/南史2/陳書1 —— 隋書卷四十一本传用的就是这个字形（实测该文件里 13 段）。与 nb-person-13（高熲 13 段）配对：同一人、两种字形，**转换器对两者都不映射**（to_traditional/to_simplified 都不动「髙」），所以查其一必丢其二。同类实测：髙 U+9AD9 全库 11286 段 vs 高 U+9AD8 6724 段（nb-script-09/10 是更大的样本）"
+  },
+  {
+   "id": "nb-alias-01",
+   "group": "alias",
+   "query": "宋武帝",
+   "must_hit": true,
+   "baseline_hits": 129,
+   "baseline_blocks": 116,
+   "top_needle": "宋武帝",
+   "note": "南史89/宋書20/隋書8/梁書4/周書3/北史3。刘裕的帝号：南史写「宋武帝」最多（南史是通史体例，开头就标朝代），宋書自己反而只写「高祖」"
+  },
+  {
+   "id": "nb-alias-02",
+   "group": "alias",
+   "query": "梁武帝",
+   "must_hit": true,
+   "baseline_hits": 241,
+   "baseline_blocks": 209,
+   "top_needle": "梁武帝",
+   "note": "南史120/隋書48/周書30/陳書25/北齊書8/魏書3。萧衍的帝号；本名「蕭衍」有 554 段但 532 段在魏書（北魏称他萧衍，南朝自称「高祖」）—— 本名与帝号的分布完全错开"
+  },
+  {
+   "id": "nb-alias-03",
+   "group": "alias",
+   "query": "陳武帝",
+   "must_hit": true,
+   "baseline_hits": 103,
+   "baseline_blocks": 83,
+   "top_needle": "陳武帝",
+   "note": "南史87/北齊書9/北史3/隋書2/周書2。与 nb-person-15（陳霸先 21 段、陳書 0）配对：陈霸先这个名字在陳書里一次都不出现，全靠帝号"
+  },
+  {
+   "id": "nb-alias-04",
+   "group": "alias",
+   "query": "齊神武",
+   "must_hit": true,
+   "baseline_hits": 202,
+   "baseline_blocks": 115,
+   "top_needle": "齊神武",
+   "note": "周書150/北史31/隋書15/北齊書4/梁書2。高欢的谥号；周書提他 150 次（东魏的对手），**北齊書自己只有 4 次**（北齊書称「高祖神武皇帝」，本名「高歡」在北齊書里只有 1 段）"
+  },
+  {
+   "id": "nb-alias-05",
+   "group": "alias",
+   "query": "隋文帝",
+   "must_hit": true,
+   "baseline_hits": 137,
+   "baseline_blocks": 82,
+   "top_needle": "隋文帝",
+   "note": "周書74/南史34/北史14/陳書9/後漢書2/前漢書2。杨坚的帝号；周書提他 74 次（北周的外戚），隋書自己只写「高祖」（本名「楊堅」隋書仅 2 段）—— 又一次本名/帝号错开"
+  },
+  {
+   "id": "nb-alias-06",
+   "group": "alias",
+   "query": "周文帝",
+   "must_hit": true,
+   "baseline_hits": 49,
+   "baseline_blocks": 43,
+   "top_needle": "周文帝",
+   "note": "北齊書34/北史13/隋書2。宇文泰的帝号；北齊書（敌对一方）写「周文帝」34 次 —— 与 nb-person-08（宇文泰 25 段，北史16/周書2）对照"
+  },
+  {
+   "id": "nb-alias-07",
+   "group": "alias",
+   "query": "梁元帝",
+   "must_hit": true,
+   "baseline_hits": 151,
+   "baseline_blocks": 113,
+   "top_needle": "梁元帝",
+   "note": "周書40/陳書38/南史33/隋書18/北齊書16/北史6。萧绎的帝号；他死在江陵陷落（nb-place-03 江陵 925 段里多处即此事），所以四部书都提"
+  },
+  {
+   "id": "nb-alias-08",
+   "group": "alias",
+   "query": "煬帝",
+   "must_hit": true,
+   "baseline_hits": 137,
+   "baseline_blocks": 118,
+   "top_needle": "煬帝",
+   "note": "隋書94/北史22/魏書6/南史5/陳書3/後漢書3。隋炀帝的谥号（本名「楊廣」）；隋書那 94 段全在帝紀第五与志里（隋書缺卷从列傳中段起，帝紀完整）"
+  },
+  {
+   "id": "nb-alias-09",
+   "group": "alias",
+   "query": "昭明太子",
+   "must_hit": true,
+   "baseline_hits": 58,
+   "baseline_blocks": 50,
+   "top_needle": "昭明太子",
+   "note": "南史26/梁書21/隋書5/陳書4/周書1/前漢書1。萧统的称号；梁書卷八本传在库内。**本名「蕭統」全库只有 1 段**（且是後漢書里的误撞）—— 称谓与本名的落差比帝号更大"
+  },
+  {
+   "id": "nb-alias-10",
+   "group": "alias",
+   "query": "蘭陵王",
+   "must_hit": true,
+   "baseline_hits": 30,
+   "baseline_blocks": 19,
+   "top_needle": "蘭陵王",
+   "note": "北齊書18/北史8/隋書2/周書1/史記1。高长恭的封号；北齊書卷十一在库内。**本名「高長恭」实测 0 段**，北齊書写「蘭陵王長恭」（「長恭」单查有 45 段：北齊書29/北史10/隋書4/周書1/南史1）"
+  },
+  {
+   "id": "nb-script-01",
+   "group": "script",
+   "query": "侯景之乱",
+   "must_hit": true,
+   "baseline_hits": 117,
+   "baseline_blocks": 111,
+   "top_needle": "侯景之亂",
+   "expect_same_as": "nb-script-02",
+   "note": "简体输入；乱→亂 转换正常，与 nb-script-02（繁体直输）同值 117。这是本批**转换工作正常**的代表（对照 nb-script-05/07 两条失败的）"
+  },
+  {
+   "id": "nb-script-02",
+   "group": "script",
+   "query": "侯景之亂",
+   "must_hit": true,
+   "baseline_hits": 117,
+   "baseline_blocks": 111,
+   "top_needle": "侯景之亂",
+   "note": "繁体直输；陳書55/南史53/隋書6/魏書1/梁書1/北史1。这个四字短语是史书原文（不是现代史学术语），所以 117 段全是正史原文命中"
+  },
+  {
+   "id": "nb-script-03",
+   "group": "script",
+   "query": "陈庆之",
+   "must_hit": true,
+   "baseline_hits": 31,
+   "baseline_blocks": 28,
+   "top_needle": "陳慶之",
+   "expect_same_as": "nb-script-04",
+   "note": "简体输入；與 nb-script-04 同值。陳慶之（梁書卷三十二本传，北朝称「陈庆之」）在魏書/北齊書里也有记载"
+  },
+  {
+   "id": "nb-script-04",
+   "group": "script",
+   "query": "陳慶之",
+   "must_hit": true,
+   "baseline_hits": 31,
+   "baseline_blocks": 28,
+   "top_needle": "陳慶之",
+   "note": "繁体直输；梁書12/南史10/魏書4/北齊書2/宋書1/周書1。梁書本传在库内"
+  },
+  {
+   "id": "nb-script-05",
+   "group": "script",
+   "query": "高颎",
+   "must_hit": false,
+   "expect_class": "Coverage",
+   "note": "**已知收窄（B 向，待用户决定是否修）**：简体「颎」（U+988E）→ 转换器不动它，于是查询串是「高颎」，而语料写的是「髙熲」（U+9AD9+U+71B2，主形，84 段）与「高熲」（13 段）→ 用户拿 0。这不是缺书（隋書卷四十一本传在库内），是**字没转过去**。同源问题全库 131 个字符，见文件头 note 第 5 条；对照 nb-script-06 与 nb-person-13/16"
+  },
+  {
+   "id": "nb-script-06",
+   "group": "script",
+   "query": "高熲",
+   "must_hit": true,
+   "baseline_hits": 13,
+   "baseline_blocks": 11,
+   "top_needle": "高熲",
+   "note": "语料原形输入（熲 U+71B2）：隋書9/北史3/周書1。与 nb-script-05 是同一个人、同一个问题的一对，两者差 13 段"
+  },
+  {
+   "id": "nb-script-07",
+   "group": "script",
+   "query": "韋孝寛",
+   "must_hit": true,
+   "baseline_hits": 64,
+   "baseline_blocks": 59,
+   "top_needle": "韋孝寛",
+   "note": "语料原形输入（寛 U+5BDB）：周書23/隋書20/北史15/…。与 nb-script-08 是一对"
+  },
+  {
+   "id": "nb-script-08",
+   "group": "script",
+   "query": "韋孝寬",
+   "must_hit": false,
+   "expect_class": "Coverage",
+   "note": "**已知收窄（异体字，待用户决定是否修）**：港台通行繁体写「寬」（U+5BEC），而语料（WYG，日韩字形）写「寛」（U+5BDB）64 段 → 查「韋孝寬」全库 0 段。简体输入「韦孝宽」同样 0（宽→寬 转得对，但语料里没有 寬）。不是缺书：周書卷三十一本传在库内，见 nb-person-14"
+  },
+  {
+   "id": "nb-script-09",
+   "group": "script",
+   "query": "高祖",
+   "must_hit": true,
+   "baseline_hits": 2080,
+   "baseline_blocks": 997,
+   "top_needle": "高祖",
+   "note": "**「高」（U+9AD8）形态**：魏書465/宋書327/史記299/梁書227/前漢書198。史記（tls 家族）只写「高祖」—— 与 nb-script-10 的分布对照（那边没有史記）。这是本文件最有份量的一对：正史里「高祖」是最常用的帝号词之一"
+  },
+  {
+   "id": "nb-script-10",
+   "group": "script",
+   "query": "髙祖",
+   "must_hit": true,
+   "baseline_hits": 3492,
+   "baseline_blocks": 1522,
+   "top_needle": "髙祖",
+   "note": "**「髙」（U+9AD9）形态**：魏書779/梁書596/北齊書452/隋書423/宋書412。全库两种字形并存（髙 11286 段 vs 高 6724 段），而**转换器对两者都不映射**（to_traditional/to_simplified 都不动「髙」）—— 查「高祖」拿 2080 段、查「髙祖」拿 3492 段，谁也拿不到对方的。这不是简繁问题（「髙」既非简体也非繁体，是日韩字形），A/B 两向的字级扫描都抓不到它（见文件头 note 第 5 条的 C 向），靠人工挑出来"
+  },
+  {
+   "id": "nb-section-01",
+   "group": "section",
+   "query": "宋本紀上第一",
+   "must_hit": true,
+   "baseline_hits": 1,
+   "baseline_blocks": 2,
+   "top_needle": "宋本紀上第一",
+   "recall": "section",
+   "note": "篇名检索（南史）：南史 79 个篇题都带朝代前缀，所以「宋本紀上第一」是**南史独有**的串，不用 book 过滤也不会混进别家。两块 = 南史目録行（text）+ 本紀的正文首行（section）"
+  },
+  {
+   "id": "nb-section-02",
+   "group": "section",
+   "query": "魏本紀第一",
+   "must_hit": true,
+   "baseline_hits": 0,
+   "baseline_blocks": 1,
+   "recall": "section",
+   "note": "**纯篇名命中**：hit_total=0（正文里没有「魏本紀第一」这个串），一块 match_type=section（北史魏本紀的正文首行「魏之先岀自黄帝軒轅氏…」）。这条专门证明「命中段数=0 不等于没结果」，所以不设 top_needle（篇题在 label 字段里，不在块 text 里）"
+  },
+  {
+   "id": "nb-section-03",
+   "group": "section",
+   "query": "志第一",
+   "must_hit": true,
+   "baseline_hits": 0,
+   "baseline_blocks": 2,
+   "book": "隋書",
+   "recall": "section",
+   "note": "隋書篇名（志第一 = 禮儀一）：2 块都是 section —— 一块在 KR2a0023_000（目録，label 取自目録里的「禮儀一」），一块在 _006（正文）。**隋書 136 个 section 多于 50 个文件**就是这种「一文件多志」的体例"
+  },
+  {
+   "id": "nb-section-04",
+   "group": "section",
+   "query": "帝紀第一",
+   "must_hit": true,
+   "baseline_hits": 1,
+   "baseline_blocks": 2,
+   "top_needle": "帝紀第一",
+   "book": "魏書",
+   "recall": "section",
+   "note": "魏書篇名：section 块的正文首行是「序紀」（魏書的帝紀第一叫序紀，追述拓跋先世）—— 篇题与内容名不一致，正是必须靠 label 而不能靠正文找篇名的原因。1 段文本命中来自魏書目録行"
+  },
+  {
+   "id": "nb-section-05",
+   "group": "section",
+   "query": "帝紀第一",
+   "must_hit": true,
+   "baseline_hits": 0,
+   "baseline_blocks": 1,
+   "book": "周書",
+   "recall": "section",
+   "note": "周書篇名（帝紀第一 = 文帝上）：纯篇名命中，正文首行「文帝上¶太祖文皇帝姓宇文氏諱泰…」"
+  },
+  {
+   "id": "nb-section-06",
+   "group": "section",
+   "query": "列傳第一",
+   "must_hit": true,
+   "baseline_hits": 1,
+   "baseline_blocks": 2,
+   "top_needle": "列傳第一",
+   "book": "梁書",
+   "recall": "section",
+   "note": "梁書篇名（列傳第一 = 皇后传）：section 块正文首行是后妃名单。1 段文本命中是梁書目録行（目録里把「列傳第一」与篇名并排）"
+  },
+  {
+   "id": "nb-section-07",
+   "group": "section",
+   "query": "本紀第六",
+   "must_hit": true,
+   "baseline_hits": 1,
+   "baseline_blocks": 2,
+   "top_needle": "本紀第六",
+   "book": "陳書",
+   "recall": "section",
+   "note": "陳書篇名（本紀第六 = 後主）：陳書只有 6 卷帝紀，本紀第六是最后一卷（KR2a0019_006）。注意陳書目録里这一卷写作「本紀第六¶　　後主」——**没有「諱」字**，与 001 的「高祖上(姓陳氏諱覇先/)」不同"
+  },
+  {
+   "id": "nb-section-08",
+   "group": "section",
+   "query": "本紀第一",
+   "must_hit": true,
+   "baseline_hits": 0,
+   "baseline_blocks": 1,
+   "book": "宋書",
+   "recall": "section",
+   "note": "宋書篇名（本紀第一 = 武帝上）：宋書 107 个 section 全部由 title 模式建立（置信 0.9）"
+  },
+  {
+   "id": "nb-section-09",
+   "group": "section",
+   "query": "夲紀第二",
+   "must_hit": true,
+   "baseline_hits": 0,
+   "baseline_blocks": 1,
+   "book": "南齊書",
+   "recall": "section",
+   "note": "**语料里的异体字**：「本」写作「夲」（U+5932），南齊書 2/3/6 号文件的篇题就是「夲紀第二」。section 建得起来（label 就是 夲紀第二），且能按原样查到。与 nb-section-10 是一对"
+  },
+  {
+   "id": "nb-section-10",
+   "group": "section",
+   "query": "本紀第二",
+   "must_hit": true,
+   "baseline_hits": 1,
+   "baseline_blocks": 1,
+   "top_needle": "本紀第二",
+   "book": "南齊書",
+   "note": "同一本书的**目録**里写作正常的「本紀第二」（1 段文本命中，无 section 块）—— 与 nb-section-09（正文写 夲紀第二）对照，说明异体字只出现在正文层。这条的判据是 hit_total>0（正文命中），不是 section"
+  },
+  {
+   "id": "nb-single-01",
+   "group": "single",
+   "query": "之",
+   "must_hit": true,
+   "baseline_hits": 158417,
+   "baseline_blocks": 40566,
+   "top_needle": "之",
+   "note": "**本阶段最大的单条查询**：158417 段 / 40566 块，单字走 LIKE 全扫，实测单次 6–10 秒（机器降频时取上界）。语料从 9 部涨到 19 部后命中数翻了约一倍（9 部时约 7.6 万段）。按「先测后议」未改检索行为，已知问题上报；对照见 docs/phase6_3_perf_after.json"
+  },
+  {
+   "id": "nb-single-02",
+   "group": "single",
+   "query": "帝",
+   "must_hit": true,
+   "baseline_hits": 34807,
+   "baseline_blocks": 14003,
+   "top_needle": "帝",
+   "note": "高频单字（正史里「帝」是最高频的称谓字之一）：34807 段 / 14003 块。分页用例 nb-page-02 用的是同量级的「尚書令」，两条一起把大结果集的两条路（组装、翻页）都跑过"
+  },
+  {
+   "id": "nb-single-03",
+   "group": "single",
+   "query": "州",
+   "must_hit": true,
+   "baseline_hits": 30601,
+   "baseline_blocks": 10171,
+   "top_needle": "州",
+   "note": "高频单字：30601 段 / 10171 块。魏晋南北朝的行政区划是「州—郡—县」，所以本批 10 部书贡献的比例比 9 部时高得多"
+  },
+  {
+   "id": "nb-single-04",
+   "group": "single",
+   "query": "元年",
+   "must_hit": true,
+   "baseline_hits": 7673,
+   "baseline_blocks": 4249,
+   "top_needle": "元年",
+   "note": "最常见的时间词（每部史书每个年号都有元年）：7673 段 / 4249 块。它是本文件里**块数最多但不属于单字**的查询，用来量「双字高频词」的代价"
+  },
+  {
+   "id": "nb-multi-01",
+   "group": "multi",
+   "query": "侯景 王僧辯",
+   "must_hit": true,
+   "baseline_hits": 25,
+   "baseline_blocks": 24,
+   "top_needle": "王僧辯",
+   "note": "多词 AND 语义（同一段要同时含两词）：25 段。两人是平侯景之乱的主将与被杀者，同段出现集中在陳書/梁書的纪事里 —— 单查侯景 899 段、单查王僧辯 221 段，AND 后只剩 25 段，说明语义确实是「同段共现」"
+  },
+  {
+   "id": "nb-multi-02",
+   "group": "multi",
+   "query": "宇文泰 高歡",
+   "must_hit": true,
+   "baseline_hits": 1,
+   "baseline_blocks": 1,
+   "top_needle": "宇文泰",
+   "note": "多词 AND 的极端：两位东西魏主政者同段只有 1 段 —— 因为双方史书各自称「太祖」「神武」，本名同时出现极罕见（对照 nb-person-08 与 nb-alias-04）"
+  },
+  {
+   "id": "nb-book-01",
+   "group": "book",
+   "query": "崔浩",
+   "must_hit": true,
+   "baseline_hits": 96,
+   "baseline_blocks": 79,
+   "top_needle": "崔浩",
+   "book": "魏書",
+   "note": "书名过滤（§10 第七类）：不过滤时 135 段（魏書96/北史21/隋書6/前漢書6/周書2/戰國策1），过滤后恰好 96 —— 过滤真在起作用"
+  },
+  {
+   "id": "nb-book-02",
+   "group": "book",
+   "query": "楊愔",
+   "must_hit": true,
+   "baseline_hits": 65,
+   "baseline_blocks": 39,
+   "top_needle": "楊愔",
+   "book": "北齊書",
+   "note": "书名过滤：不过滤 87（北齊書65/北史15/魏書4/隋書2/前漢書1）→ 过滤后 65"
+  },
+  {
+   "id": "nb-book-03",
+   "group": "book",
+   "query": "楊素",
+   "must_hit": true,
+   "baseline_hits": 82,
+   "baseline_blocks": 54,
+   "top_needle": "楊素",
+   "book": "隋書",
+   "note": "书名过滤：不过滤 121（隋書82/北史21/南史6/周書5/陳書3/後漢書2）→ 过滤后 82"
+  },
+  {
+   "id": "nb-book-04",
+   "group": "book",
+   "query": "宇文泰",
+   "must_hit": true,
+   "baseline_hits": 16,
+   "baseline_blocks": 6,
+   "top_needle": "宇文泰",
+   "book": "北史",
+   "note": "书名过滤：北史只剩前 22 卷（缺 23–100），所以本名命中 16 段而非更多。**块数 6 < 段数 16**：北史每段都很短（残本里多为目録式短行），相邻段被合并成块"
+  },
+  {
+   "id": "nb-book-05",
+   "group": "book",
+   "query": "侯景",
+   "must_hit": true,
+   "baseline_hits": 295,
+   "baseline_blocks": 171,
+   "top_needle": "侯景",
+   "book": "南史",
+   "note": "书名过滤：不过滤 899 段里南史占 295（南史是本文件里单书贡献最大的一本：80 卷齐全且是通史体例，梁陈两代的事都写）"
+  },
+  {
+   "id": "nb-book-06",
+   "group": "book",
+   "query": "侯景",
+   "must_hit": true,
+   "baseline_hits": 153,
+   "baseline_blocks": 98,
+   "top_needle": "侯景",
+   "book": "陳書",
+   "note": "书名过滤：陳書 153 段（陳書只有 36 卷但在库内完整，侯景之乱是它的开篇大事）。同一条查询在 nb-book-05 是南史 295、nb-book-07 是梁書 152 —— **三部书各有自己的记载**，过滤把「哪本书说了什么」变得可比"
+  },
+  {
+   "id": "nb-book-07",
+   "group": "book",
+   "query": "沈約",
+   "must_hit": true,
+   "baseline_hits": 60,
+   "baseline_blocks": 45,
+   "top_needle": "沈約",
+   "book": "梁書",
+   "note": "书名过滤：不过滤 226（南史85/梁書60/隋書30/南齊書23/宋書10/前漢書9）→ 过滤后 60。南史比梁書还多，是通史体例的直接后果"
+  },
+  {
+   "id": "nb-book-08",
+   "group": "book",
+   "query": "檀道濟",
+   "must_hit": true,
+   "baseline_hits": 49,
+   "baseline_blocks": 35,
+   "top_needle": "檀道濟",
+   "book": "宋書",
+   "note": "书名过滤：不过滤 103（宋書49/南史32/魏書16/南齊書3/北史3）→ 过滤后 49。魏書那 16 段是北魏对刘宋将领的记载 —— 过滤让「同一件事在敌对双方史书里各说各话」可以对照阅读"
+  },
+  {
+   "id": "nb-edition-01",
+   "group": "edition",
+   "query": "崔浩",
+   "must_hit": true,
+   "baseline_hits": 135,
+   "baseline_blocks": 114,
+   "top_needle": "崔浩",
+   "edition": "WYG",
+   "note": "版片过滤（§10 第七类）：**空的**。本批 10 部全是 wyg，而 search/engine.py 的 resolve_edition 只认 tls/sbck（其余返回 None＝不过滤），所以 edition=\"WYG\" 得到的就是不过滤的 135 —— 与 nb-edition-03（edition=tls 得 0）合看，正好说明「能过滤的只有 tls/sbck，WYG 这本书的家族标了但过滤不住」"
+  },
+  {
+   "id": "nb-edition-02",
+   "group": "edition",
+   "query": "楊素",
+   "must_hit": true,
+   "baseline_hits": 121,
+   "baseline_blocks": 85,
+   "top_needle": "楊素",
+   "edition": "WYG",
+   "note": "同上：121 = 不过滤的 121（见 nb-person-07）。这条是第二个证人，免得单条是巧合"
+  },
+  {
+   "id": "nb-edition-03",
+   "group": "edition",
+   "query": "崔浩",
+   "must_hit": false,
+   "edition": "tls",
+   "expect_class": "Coverage",
+   "note": "edition=tls 在 19 部语料上必然 0：tls 家族只有 尚書/史記/春秋左傳 三个，崔浩的 135 段一段都不在其中，空得合理 —— 期望归因 **Coverage**。写这条时归因器还只看全库计数（135）而看不见 edition 参数，会误判成 Search，所以当初故意不设期望值；第六点三阶段把 `book`/`edition` 传进 `diagnose.corpus_count` / `classify_empty` 之后（同一处修复也治好了 4 条被扩容证伪后收窄到单书的负例），地面真值与检索范围一致了，这条也就有了确定的期望值，并在 `tests/recall.py --selftest` 里由 ③b 守着不再回退。"
+  },
+  {
+   "id": "nb-place-01",
+   "group": "place",
+   "query": "建康",
+   "must_hit": true,
+   "baseline_hits": 387,
+   "baseline_blocks": 334,
+   "top_needle": "建康",
+   "note": "南朝都城：南史123/宋書67/梁書65/南齊書33/隋書28/魏書20。**只在南朝系统的书里密集**，前漢書/後漢書/史記 0 段（那时还没有建康这个都城名）—— 地名能当「时代指纹」用"
+  },
+  {
+   "id": "nb-place-02",
+   "group": "place",
+   "query": "平城",
+   "must_hit": true,
+   "baseline_hits": 311,
+   "baseline_blocks": 266,
+   "top_needle": "平城",
+   "note": "北魏旧都：魏書121/後漢書47/前漢書38/北史35/史記26/宋書11。魏書占三分之一以上；前漢書里的「平城」是汉初白登之围的那个平城（同名异地），**同名地名的跨时代混淆**是这类用例要盯的"
+  },
+  {
+   "id": "nb-place-03",
+   "group": "place",
+   "query": "江陵",
+   "must_hit": true,
+   "baseline_hits": 925,
+   "baseline_blocks": 624,
+   "top_needle": "江陵",
+   "note": "长江中游重镇：南史246/宋書177/周書111/梁書77/陳書55/南齊書43。梁元帝在此被西魏攻灭（承圣三年），所以周書/北史里的记载与南朝史书互为仇敌视角"
+  },
+  {
+   "id": "nb-place-04",
+   "group": "place",
+   "query": "鄴城",
+   "must_hit": true,
+   "baseline_hits": 109,
+   "baseline_blocks": 99,
+   "top_needle": "鄴城",
+   "note": "北齐都城：北齊書28/魏書22/北史17/隋書11/三國志8/周書7。三國志那 8 段是曹魏的邺（曹操封魏王都邺）—— 同一个城在两个时代都当都城"
+  },
+  {
+   "id": "nb-place-05",
+   "group": "place",
+   "query": "鍾離",
+   "must_hit": true,
+   "baseline_hits": 257,
+   "baseline_blocks": 199,
+   "top_needle": "鍾離",
+   "note": "淮河前线：魏書66/南齊書27/史記26/後漢書25/南史25/宋書19。**「鍾離之戰」这个现代叫法实测 0 段**（史书写「戰于鍾離」），所以地名才是可用探针"
+  },
+  {
+   "id": "nb-place-06",
+   "group": "place",
+   "query": "廣陵",
+   "must_hit": true,
+   "baseline_hits": 774,
+   "baseline_blocks": 608,
+   "top_needle": "廣陵",
+   "note": "扬州古名：宋書159/南史101/魏書95/後漢書72/南齊書72/前漢書54。跨先秦到南北朝都用的地名，跨度大、分布散，适合当回归探针"
+  },
+  {
+   "id": "nb-war-01",
+   "group": "war",
+   "query": "玉壁",
+   "must_hit": true,
+   "baseline_hits": 54,
+   "baseline_blocks": 43,
+   "top_needle": "玉壁",
+   "note": "玉壁之战（546/547，韦孝宽守城）：周書32/北齊書15/北史3/魏書2/隋書2。**「玉壁之戰」实测 0 段** —— 史书只写地名，战役名是现代史学叫法。与 nb-person-14（韋孝寛）、nb-person-14（韋孝寛 64 段）交叉"
+  },
+  {
+   "id": "nb-war-02",
+   "group": "war",
+   "query": "沙苑",
+   "must_hit": true,
+   "baseline_hits": 105,
+   "baseline_blocks": 94,
+   "top_needle": "沙苑",
+   "note": "沙苑之战（537，东西魏）：周書76/北齊書13/北史9/隋書5/魏書2。周書占七成 —— 胜方的记载远多于败方，同类现象见 nb-war-01"
+  },
+  {
+   "id": "nb-war-03",
+   "group": "war",
+   "query": "邙山",
+   "must_hit": true,
+   "baseline_hits": 85,
+   "baseline_blocks": 73,
+   "top_needle": "邙山",
+   "note": "邙山之战（543）：周書51/北齊書19/魏書10/隋書2/陳書1/宋書1。洛阳北面的战场，也是北魏帝陵所在；同一条查询把「战场」与「陵墓」两种语境都带出来"
+  },
+  {
+   "id": "nb-office-01",
+   "group": "office",
+   "query": "尚書令",
+   "must_hit": true,
+   "baseline_hits": 1282,
+   "baseline_blocks": 1052,
+   "top_needle": "尚書令",
+   "note": "职官：魏書198/南史183/北史137/宋書126/後漢書119/南齊書107。本批 10 部全部进了前六 —— 新书对高频职官词的贡献最大。1052 块，是分页用例 nb-page-02 的载体"
+  },
+  {
+   "id": "nb-office-02",
+   "group": "office",
+   "query": "中書監",
+   "must_hit": true,
+   "baseline_hits": 358,
+   "baseline_blocks": 304,
+   "top_needle": "中書監",
+   "note": "职官：魏書76/宋書61/南史52/梁書30/北史29/晉書26。南北朝的中书监是清要之职（常由宗室或重臣领），所以分布集中在南朝与北魏史"
+  },
+  {
+   "id": "nb-office-03",
+   "group": "office",
+   "query": "領軍將軍",
+   "must_hit": true,
+   "baseline_hits": 245,
+   "baseline_blocks": 211,
+   "top_needle": "領軍將軍",
+   "note": "职官：宋書65/南史44/梁書35/陳書27/魏書23/北齊書14。南朝禁军长官，本批 10 部里 6 部上榜"
+  },
+  {
+   "id": "nb-office-04",
+   "group": "office",
+   "query": "都督中外諸軍事",
+   "must_hit": true,
+   "baseline_hits": 88,
+   "baseline_blocks": 86,
+   "top_needle": "都督中外諸軍事",
+   "note": "职官（六字，本文件最长的实词）：魏書20/南史17/晉書12/北史9/梁書7/宋書6。块数≈段数（86/88）说明这类长串几乎不跨段重复。**长词检索的性能与短词完全相反**（索引路径不同）"
+  },
+  {
+   "id": "nb-event-01",
+   "group": "event",
+   "query": "河陰",
+   "must_hit": true,
+   "baseline_hits": 29,
+   "baseline_blocks": 26,
+   "top_needle": "河陰",
+   "note": "河阴之变（528，尔朱荣沉胡太后于河）：魏書16/周書4/隋書2/晉書2/北史2/後漢書1。**「河陰之變」实测 0 段**（史书只写地名或「河陰之事」），又一次「现代事件名 vs 史书原文」的差；晉書那 2 段是西晉的河阴（同名异地）"
+  },
+  {
+   "id": "nb-event-02",
+   "group": "event",
+   "query": "元嘉",
+   "must_hit": true,
+   "baseline_hits": 1104,
+   "baseline_blocks": 645,
+   "top_needle": "元嘉",
+   "note": "年号（宋文帝，424–453）：宋書758/南史203/南齊書65/隋書34/後漢書21/梁書13。年号词在史书里同时是纪年标记，所以宋書占三分之二。块数 645 与段数 1104 差得多，说明同一年号在同一段里反复出现"
+  },
+  {
+   "id": "nb-event-03",
+   "group": "event",
+   "query": "開皇",
+   "must_hit": true,
+   "baseline_hits": 1171,
+   "baseline_blocks": 1089,
+   "top_needle": "開皇",
+   "note": "年号（隋文帝，581–600）：隋書1051/周書40/北齊書34/北史21/陳書9/南史9。**单书集中度最高的用例**（1051/1171 全在隋書）——隋書的志里大量以「開皇」纪年"
+  },
+  {
+   "id": "nb-event-04",
+   "group": "event",
+   "query": "大業",
+   "must_hit": true,
+   "baseline_hits": 920,
+   "baseline_blocks": 834,
+   "top_needle": "大業",
+   "note": "年号（隋炀帝，605–618）：隋書628/南史55/陳書40/後漢書36/魏書27/宋書24。**同名普通词**：前漢書/後漢書里的「大業」多是「帝王之大业」的意思（非年号）—— 这是年号用例必须看分布、不能只看命中数的理由"
+  },
+  {
+   "id": "nb-page-01",
+   "group": "pagination",
+   "query": "沈約",
+   "must_hit": true,
+   "baseline_hits": 226,
+   "baseline_blocks": 184,
+   "top_needle": "沈約",
+   "page_size": 100,
+   "check_pagination": true,
+   "note": "分页：page_size=100、184 块 → 2 页；recall.py 会翻到第 2 页确认真的还有内容（不是只看 has_more 自洽）"
+  },
+  {
+   "id": "nb-page-02",
+   "group": "pagination",
+   "query": "尚書令",
+   "must_hit": true,
+   "baseline_hits": 1282,
+   "baseline_blocks": 1052,
+   "top_needle": "尚書令",
+   "page_size": 100,
+   "check_pagination": true,
+   "note": "分页：page_size=100、1052 块 → 11 页。这是本文件的第二大结果集（仅次于单字），11 页末页可达性在这里受检 —— 第六点二阶段的「total 说有 4454 块而末页返回 0 块」就是这一类问题"
+  },
+  {
+   "id": "nb-passage-01",
+   "group": "passage",
+   "query": "檀道濟",
+   "must_hit": true,
+   "baseline_hits": 103,
+   "baseline_blocks": 62,
+   "top_needle": "檀道濟",
+   "mode": "long",
+   "note": "完整 Passage 模式（mode=long）：同一查询 standard 下 73 块、long 下 62 块 —— 长片段模式合并相邻块，块少而每块更长"
+  },
+  {
+   "id": "nb-passage-02",
+   "group": "passage",
+   "query": "崔浩",
+   "must_hit": true,
+   "baseline_hits": 135,
+   "baseline_blocks": 102,
+   "top_needle": "崔浩",
+   "mode": "long",
+   "note": "同上（standard 114 块 → long 102 块）。passage/provenance 审计对每条用例都跑：块的 text 必须逐字等于其 passage_ids 对应行的 text_orig 相接"
+  },
+  {
+   "id": "nb-neg-01",
+   "group": "negative",
+   "query": "安祿山",
+   "must_hit": false,
+   "expect_class": "Coverage",
+   "note": "负例标杆（与 sz-neg-01 同一个词，这里是**扩容后**的复核）：南北朝 10 部 + 隋書（止于 618）都写不到他，全库 0 段；对应的舊唐書/新唐書在 catalog 里是 planned。这是「书未收录」这一类 Coverage 的标准探针"
+  },
+  {
+   "id": "nb-neg-02",
+   "group": "negative",
+   "query": "趙匡胤",
+   "must_hit": false,
+   "expect_class": "Coverage",
+   "note": "宋史（planned，尚未下载）的人物，全库 0 段。归因应当是 Coverage 且能报到《宋史》这本书 —— 6.3-H 诊断链要区分「书未收录」与「文本确无此串」"
+  },
+  {
+   "id": "nb-neg-03",
+   "group": "negative",
+   "query": "岳飛",
+   "must_hit": false,
+   "expect_class": "Coverage",
+   "note": "宋史（planned）人物，全库 0 段"
+  },
+  {
+   "id": "nb-neg-04",
+   "group": "negative",
+   "query": "王安石",
+   "must_hit": false,
+   "expect_class": "Coverage",
+   "note": "宋史（planned）人物，全库 0 段。**注意别与 貞觀 混用**：实测「貞觀」在 19 部里有 41 段（梁書7/後漢書5/宋書5/隋書4/魏書3/陳書3…）——唐代年号会经唐人所修的注/考證漏进南北朝各书，所以它**不能**当负例"
+  },
+  {
+   "id": "nb-neg-05",
+   "group": "negative",
+   "query": "朱元璋",
+   "must_hit": false,
+   "expect_class": "Coverage",
+   "note": "明史（planned）人物，全库 0 段"
+  },
+  {
+   "id": "nb-neg-06",
+   "group": "negative",
+   "query": "忽必烈",
+   "must_hit": false,
+   "expect_class": "Coverage",
+   "note": "元史（planned）人物，全库 0 段"
+  },
+  {
+   "id": "nb-neg-07",
+   "group": "negative",
+   "query": "桃園結義",
+   "must_hit": false,
+   "expect_class": "Coverage",
+   "note": "演义（三國演義）情节，任何正史都没有，全库 0 段 —— 这条证明负例归因不看「像是史书里的词」，只看语料实际有没有"
+  }
+ ]
+}

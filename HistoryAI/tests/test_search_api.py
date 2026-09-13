@@ -41,20 +41,23 @@ class TestSearchEngineOnDb(unittest.TestCase):
     # 第六点二阶段加 前漢書/後漢書 后全体重测：命中数是**语料的函数**，
     # 加书必然涨（齐桓公 96 → 151）。这条路径（run_search）的 total 是
     # 原始命中 passage 数，不是结果块数。
+    # 第六点三阶段再加 南北朝 10 部（9 部 → 19 部）后重测：齐桓公 151 → 159、
+    # 管仲 189 → 219、城濮 35 → 40、长勺 7 → 8 —— 涨的全是新书里的段落，
+    # 没有一条已有 Passage 被改写（同 test_result_block_real.py 的 ④ 注释）。
     def test_qihuangong_fts(self):
         d = self._run("齐桓公")
         self.assertEqual(d["q_traditional"], "齊桓公")
         self.assertEqual(d["mode"], "fts")
-        self.assertEqual(d["total"], 151)
+        self.assertEqual(d["total"], 159)
 
     def test_two_char_words_bigram_mode(self):
         # 2 字词走 bigram 快路，命中集合须与 LIKE 语义一致（含转繁体后）
         d = self._run("管仲")
         self.assertEqual(d["mode"], "bigram")
         self.assertEqual(d["q_traditional"], "管仲")
-        self.assertEqual(d["total"], 189)
-        self.assertEqual(self._run("城濮")["total"], 35)
-        self.assertEqual(self._run("长勺")["total"], 7)
+        self.assertEqual(d["total"], 219)
+        self.assertEqual(self._run("城濮")["total"], 40)
+        self.assertEqual(self._run("长勺")["total"], 8)
         for it in self._run("管仲", page_size=100)["items"]:
             self.assertIn("管仲", it["text_orig"])
 
@@ -209,20 +212,22 @@ class TestSearchApiContract(unittest.TestCase):
         # 第三阶段契约：默认返回史料片段（Result Block）。
         # total = 片段数（翻页依据），hit_total = 原始命中 passage 数。
         # 第六点二阶段：151 条命中合并为 126 段（扩容前是 96 → 74）。
+        # 第六点三阶段：159 条命中合并为 133 段（块比命中涨得慢：新书里的这类
+        # 名字多是分散提及，凑不满一个长片段）。
         q = urllib.parse.quote("齐桓公")
         d = self.get(f"/api/search?q={q}")
         self.assertEqual(d["page_size"], 20)
         self.assertEqual(d["mode"], "standard")      # 显示长度默认「标准」
         self.assertEqual(len(d["results"]), 20)
         self.assertNotIn("items", d)                 # 顶层不再有逐条命中
-        self.assertEqual(d["total"], 126)            # 151 条命中合并为 126 段
-        self.assertEqual(d["hit_total"], 151)
+        self.assertEqual(d["total"], 133)            # 159 条命中合并为 133 段
+        self.assertEqual(d["hit_total"], 159)
 
     def test_search_page_size_choice_capped(self):
         q = urllib.parse.quote("齐桓公")
         d = self.get(f"/api/search?q={q}&page_size=500")
         self.assertEqual(d["page_size"], 100)        # 服务端封顶 100
-        # 封顶后一页装不下 126 段：满页返回 100 条，剩下的靠翻页。
+        # 封顶后一页装不下 133 段：满页返回 100 条，剩下的靠翻页。
         # （扩容前只有 74 段，这条断言写的是「一页装得下」——语料一涨就不成立了。）
         self.assertGreater(d["total"], d["page_size"])
         self.assertEqual(len(d["results"]), d["page_size"])
@@ -231,7 +236,7 @@ class TestSearchApiContract(unittest.TestCase):
         # 第二阶段「逐条命中」契约保留（任务书 §十七）：level=passage 仍是老结构
         q = urllib.parse.quote("齐桓公")
         d = self.get(f"/api/search?q={q}&level=passage")
-        self.assertEqual(d["total"], 151)
+        self.assertEqual(d["total"], 159)
         self.assertEqual(len(d["items"]), 20)
         self.assertNotIn("results", d)
 

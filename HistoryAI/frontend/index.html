@@ -23,7 +23,10 @@
 <div id="modeBanner" class="modebanner" hidden></div>
 <main id="view"><div class="load">正在加载…</div></main>
 <footer>
-  尚書 · 春秋左傳 · 史記 · 國語 · 戰國策 · 前漢書 · 後漢書　|　原文以 HistoryLibrary 原始文件为准，本页数据库为派生产物
+  <!-- 书目由 app.js 的 footBooks() 在本地 API 模式填（第六点三阶段）。这里**故意
+       不写死任何书名**：写死的名单每加一本书就变成假话，而且真实书名跟着产物
+       发布出去（演示模式的页脚由 boot.js 换成声明）。 -->
+  <span id="footBooks"></span>原文以 HistoryLibrary 原始文件为准，本页数据库为派生产物
 </footer>
 <!-- 检索引擎：search/ 的 JS 移植，经典脚本（挂 window.HistoryAIEngine，无打包器）。
      顺序即依赖序，与 scripts/site/loader.mjs 的 ENGINE_FILES 必须一致 ——

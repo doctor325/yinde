@@ -2,7 +2,7 @@
 
 产物目录是**本地完整版**的静态数据，含真实语料正文：已被 .gitignore 排除，
 永不入库，也永不进入 GitHub Pages 发布产物（发布产物 = git 跟踪的 frontend/ 文件集，
-见 scripts/site/lint_publish.py）。公开站用的是 frontend/data-demo/（自制演示数据）。
+见 scripts/site/check_publish.py）。公开站用的是 frontend/data-demo/（自制演示数据）。
 
 ## 产物
 
@@ -144,7 +144,7 @@ def scrub(obj, where: str):
     """递归检查：产物里不得出现本机绝对路径或语料目录名。发现即中止。
 
     这是最后一道网。上游还有两道：.gitignore 排除 frontend/data/，
-    以及 lint_publish.py 检查 git 跟踪文件集。
+    以及 check_publish.py 检查 git 跟踪文件集。
     """
     if isinstance(obj, dict):
         for k, v in obj.items():

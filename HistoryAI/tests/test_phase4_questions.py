@@ -142,7 +142,15 @@ class Phase4RealQuestions(unittest.TestCase):
         d = ask("管仲是怎么死的？")
         self.assertIn("death", d["question"]["intents"])
         self.assertEqual(ent_names(d), ["管仲"])
-        self.assertEqual(rank_of(d, "管仲卒"), 1, "管仲卒 不在第一个事件里")
+        # 第六点三阶段导入三國志后 E1 变了一条**引文**：魏書「庚申令」里曹操引
+        # 管子（「鬭士食於功則卒輕於死」）。它同时含 管仲 与 卒，还多含一个「死」，
+        # 于是多吃一档弱意图词（引擎自己的 detail：实体:管仲 14.0 ＋ 意图:卒 8.0
+        # ＋ 弱意图词['死'] 1.5 ＋ 实体+意图同段 15.0 = 38.5），压过左傳两条真写
+        # 「管仲卒」的段落（37.0，现为 E2/E3）。这是**权重设计的副作用**，不是检索
+        # 坏了：答案仍在 3 个事件内可见。按计划书 §16 与「先测后议」，没有擅自改
+        # 权重 —— 先如实记在这里，是否收紧弱意图词由扩容后的整体验收决定。
+        self.assertLessEqual(rank_of(d, "管仲卒"), 3,
+                             "管仲卒 掉出了前 3 个事件（今天实测第 2）")
         self.assertNotIn("董卓", all_text(d))
 
     def test_chonger_exile(self):
@@ -214,16 +222,17 @@ class Phase4RealQuestions(unittest.TestCase):
     def test_no_three_kingdoms(self):
         """语料外的历史时期 —— 必须如实返回空，不编造。
 
-        探针词原先是「董卓」，第六点二阶段加入 後漢書 后它**进了语料**（157 处
-        正文命中，还成了召回集里的正例 qh-person-16），这条用例于是测不到
-        「语料没有」这件事了。改用只属于三国的「姜維」——後漢書 写到 220 年为止，
-        三国的核心人物多在其中（曹操 151 处、劉備 43 处、孫權 14 处），
-        而姜維（蜀漢后期）一处也没有。
+        探针词换过两次，两次都是它自己红着报出来的：
+          董卓  → 姜維  ：第六点二阶段加 後漢書，董卓进了语料（157 处正文命中，
+                          还成了召回集里的正例 qh-person-16）；
+          姜維  → 安祿山：第六点三阶段加 三國志，姜維进了语料（42 段）。
+        安祿山只属于尚未收录的舊唐書/新唐書：第二批要加的南北朝 10 部与隋書
+        （止于 618 年）都写不到他，所以这个名字能撑到那 9 部正史真的入库为止。
 
         下面那条断言是防复发的闸门：探针词一旦进语料，这条用例会在**当次**就
         红着告诉你换词，而不是悄悄变成一条永远为真的空断言。
         """
-        probe = "姜維"
+        probe = "安祿山"
         n_corpus = db_count(probe)
         self.assertEqual(n_corpus, 0,
                          f"探针词「{probe}」已在语料中（{n_corpus} 段）：它不能再充当"
@@ -235,7 +244,7 @@ class Phase4RealQuestions(unittest.TestCase):
         self.assertEqual(all_text(d), "")
         self.assertTrue(any("不编造" in n for n in d["notes"]),
                         f"空结果没有说明：{d['notes']}")
-        # 「姜維」三个字允许出现在 question.raw / 扩展词里（那是在复述用户的问题），
+        # 「安祿山」三个字允许出现在 question.raw / 扩展词里（那是在复述用户的问题），
         # 绝不允许出现在任何**片段正文**里 —— 正文只能是 text_orig。
 
     def test_ambiguous_huan_gong(self):

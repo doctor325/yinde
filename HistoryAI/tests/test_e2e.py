@@ -80,14 +80,37 @@ class TestDbLoader(unittest.TestCase):
 
 @unittest.skipUnless(HAS_OUTPUTS, "需先运行管线")
 class TestValidate(unittest.TestCase):
+    # 已知的上游语料例外：这三处的 <pb:> 页标记少了「文件号-」一段
+    # （源文件写的是 <pb:KR2a0012_WYG_1a>，规范形是 <pb:KR2a0012_WYG_000-1a>）。
+    # 第六点三阶段第二批入库后暴露，**不是处理坏了**：这三条记录 kind=page、
+    # layer=structure，字符守恒（body_ok）通过，前端 rich() 用宽容正则隐藏
+    # <pb:…> 也不会漏字。其余任何一处 pb 写法不合规都必须让本用例失败，
+    # 所以这里点名到「文件 + 字面值」，不是把 pb_bad 的阈值放宽。
+    KNOWN_BAD_PB = {
+        # 值 = 逐次出现（晉書那处同一字面值出现两次，故列两项）
+        "KR2a0012_000.txt": ["<pb:KR2a0012_WYG_1a>"],
+        "KR2a0015_000.txt": ["<pb:KR2a0015_WYG_1a>", "<pb:KR2a0015_WYG_1a>"],
+    }
+
     def test_full_validation_passes(self):
         v = run_validation(quiet=True)
         self.assertEqual(v["files"], N_FILES)
-        self.assertEqual(v["files_ok"], N_FILES, "有文件未通过字符守恒对账")
         self.assertEqual(v["sha256_ok"], N_FILES)
         self.assertEqual(v["body_ok"], N_FILES)
         self.assertEqual(v["meta_ok"], N_FILES)
-        self.assertEqual(v["pb_bad"], 0)
+        self.assertEqual(v["kr_bad"], 0)
+
+        # files_ok / pb_bad 的判据：除上述例外外，一部文件都不能掉队
+        bad = {r["file"]: r for r in v["bad_files"]}
+        self.assertEqual(sorted(bad), sorted(self.KNOWN_BAD_PB), "坏的必须是且只是这些已知例外")
+        for fn, markers in self.KNOWN_BAD_PB.items():
+            r = bad[fn]
+            self.assertEqual(r["pb_bad"], len(markers), f"{fn} 的 pb 异常条数变了")
+            self.assertEqual(r["kr_bad"], 0)
+            self.assertTrue(r["body_ok"], f"{fn} 字符守恒失败（这不是上游例外，是处理坏了）")
+            self.assertTrue(r["sha256_ok"] and r["meta_ok"], fn)
+        self.assertEqual(v["files_ok"], N_FILES - len(self.KNOWN_BAD_PB))
+        self.assertEqual(v["pb_bad"], sum(len(m) for m in self.KNOWN_BAD_PB.values()))
         self.assertEqual(v["kr_bad"], 0)
 
 

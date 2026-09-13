@@ -1,0 +1,306 @@
+id              查询                命中(旧→新)             块数(旧→新)             文件
+----------------------------------------------------------------------------------------
+person-01       齐桓公               154 → 159           128 → 133           preqin.json
+person-02       管仲                201 → 219           152 → 170           preqin.json
+person-03       楚庄王               56 → 57             46 → 47             preqin.json
+person-04       郑庄公               19 → 21             17 → 19             preqin.json
+person-05       秦始皇               115 → 141           113 → 138           preqin.json
+person-06       晋文公               111 → 112           89 → 90             preqin.json
+person-07       重耳                226 → 238           130 → 142           preqin.json
+person-08       秦穆公               48 → 50             46 → 48             preqin.json
+person-09       百里奚               27 → 29             24 → 26             preqin.json
+person-10       伍子胥               59 → 69             49 → 59             preqin.json
+person-11       孙武                24 → 40             21 → 33             preqin.json
+person-12       孔子                1375 → 1585         1055 → 1226         preqin.json
+person-13       墨子                50 → 58             43 → 50             preqin.json
+person-14       孟子                206 → 227           168 → 184           preqin.json
+person-15       荀子                16 → 18             15 → 17             preqin.json
+person-17       苏秦                233 → 235           165 → 167           preqin.json
+person-18       张仪                355 → 357           228 → 230           preqin.json
+place-01        城濮                37 → 40             35 → 38             preqin.json
+place-02        長勺                7 → 8               6 → 7               preqin.json
+place-03        邯鄲                409 → 446           317 → 352           preqin.json
+place-04        曲沃                148 → 155           98 → 105            preqin.json
+place-05        葵丘                28 → 29             25 → 26             preqin.json
+place-06        滎陽                346 → 517           283 → 428           preqin.json
+place-07        垓下                26 → 28             22 → 24             preqin.json
+state-01        齊國                139 → 199           130 → 182           preqin.json
+state-02        晉國                170 → 200           155 → 180           preqin.json
+state-03        楚國                148 → 178           137 → 164           preqin.json
+state-04        秦國                42 → 53             38 → 49             preqin.json
+state-05        宋國                14 → 53             14 → 48             preqin.json
+state-06        越國                30 → 48             28 → 46             preqin.json
+war-02          鄢陵                84 → 93             82 → 91             preqin.json
+war-03          長平                143 → 188           133 → 176           preqin.json
+war-04          鉅鹿                178 → 312           158 → 281           preqin.json
+war-05          韓原                9 → 10              9 → 10              preqin.json
+office-01       丞相                1674 → 2348         1241 → 1732         preqin.json
+office-02       令尹                216 → 222           170 → 176           preqin.json
+office-03       太尉                902 → 2360          708 → 1776          preqin.json
+office-04       大夫                3833 → 6512         3233 → 4901         preqin.json
+office-05       將軍                5387 → 17625        3258 → 6600         preqin.json
+chapter-02      周本紀               5（同）                6 → 7               preqin.json
+event-01        焚書                12 → 22             10 → 20             preqin.json
+single-01       尧                 803 → 1183          639 → 956           preqin.json
+single-02       舜                 915 → 1193          711 → 935           preqin.json
+single-03       禹                 1215 → 1454         954 → 1156          preqin.json
+single-04       郢                 286 → 1287          221 → 853           preqin.json
+single-05       絳                 423 → 715           341 → 550           preqin.json
+multi-01        齊桓公 管仲            10 → 11             10 → 11             preqin.json
+script-01       齐桓公               154 → 159           128 → 133           preqin.json
+script-02       齊桓公               154 → 159           128 → 133           preqin.json
+script-03       苏秦                233 → 235           165 → 167           preqin.json
+script-04       蘇秦                233 → 235           165 → 167           preqin.json
+script-05       张仪                355 → 357           228 → 230           preqin.json
+script-06       張儀                355 → 357           228 → 230           preqin.json
+script-07       郑庄公               19 → 21             17 → 19             preqin.json
+script-08       鄭莊公               19 → 21             17 → 19             preqin.json
+script-09       晋文公               111 → 112           89 → 90             preqin.json
+script-10       晉文公               111 → 112           89 → 90             preqin.json
+pagination-01   之                 89060 → 158417      44537 → 40566       preqin.json
+pagination-02   大夫                3833 → 6512         3233 → 4901         preqin.json
+pagination-03   齊                 8625 → 14918        5455 → 8891         preqin.json
+pagination-04   將軍                5387 → 17625        3258 → 6600         preqin.json
+passage-01      齊桓公               154 → 159           117 → 122           preqin.json
+passage-02      管仲                201 → 219           144 → 162           preqin.json
+qh-person-01    李斯                99 → 112            77 → 90             qin_han.json
+qh-person-02    赵高                93 → 99             65 → 70             qin_han.json
+qh-person-03    项羽                465 → 496           301 → 326           qin_han.json
+qh-person-04    韩信                283 → 304           225 → 246           qin_han.json
+qh-person-05    萧何                176 → 204           150 → 175           qin_han.json
+qh-person-06    张良                117 → 140           98 → 120            qin_han.json
+qh-person-07    司马迁               63 → 92             64 → 93             qin_han.json
+qh-person-08    班超                27 → 31             22 → 26             qin_han.json
+qh-person-09    卫青                51 → 54             46 → 49             qin_han.json
+qh-person-10    霍去病               37 → 45             37 → 45             qin_han.json
+qh-person-11    张骞                48 → 55             45 → 52             qin_han.json
+qh-person-12    苏武                36 → 45             32 → 40             qin_han.json
+qh-person-13    王莽                581 → 629           552 → 595           qin_han.json
+qh-person-14    刘秀                13 → 47             10 → 41             qin_han.json
+qh-person-15    吕后                180 → 186           124 → 127           qin_han.json
+qh-person-16    董卓                238 → 254           204 → 220           qin_han.json
+qh-alias-01     高祖                619 → 2080          426 → 997           qin_han.json
+qh-alias-02     沛公                431 → 435           218 → 222           qin_han.json
+qh-alias-03     汉武帝               30 → 122            30 → 106            qin_han.json
+qh-alias-04     武帝                1183 → 4024         1026 → 2450         qin_han.json
+qh-alias-05     汉文帝               11 → 37             10 → 35             qin_han.json
+qh-alias-06     文帝                882 → 2359          696 → 1567          qin_han.json
+qh-alias-07     景帝                434 → 493           337 → 385           qin_han.json
+qh-alias-08     光武                758 → 946           638 → 792           qin_han.json
+qh-alias-09     元后                65 → 101            53 → 80             qin_han.json
+qh-place-01     马邑                90 → 134            66 → 107            qin_han.json
+qh-place-02     河西                152 → 390           133 → 312           qin_han.json
+qh-place-03     西域                341 → 491           276 → 388           qin_han.json
+qh-war-01       白登                14 → 51             13 → 44             qin_han.json
+qh-event-01     党锢                23 → 25             23 → 25             qin_han.json
+qh-event-02     黄巾                27 → 28             25 → 26             qin_han.json
+qh-event-03     推恩                13 → 26             13 → 25             qin_han.json
+qh-office-01    骠骑将军              155 → 332           117 → 270           qin_han.json
+qh-office-03    侍中                882 → 3757          767 → 2431          qin_han.json
+qh-multi-02     王莽 光武             10 → 13             10 → 13             qin_han.json
+qh-multi-04     匈奴 西域             44 → 48             41 → 45             qin_han.json
+qh-script-01    卫青                51 → 54             46 → 49             qin_han.json
+qh-script-02    衛青                51 → 54             46 → 49             qin_han.json
+qh-script-03    张骞                48 → 55             45 → 52             qin_han.json
+qh-script-04    張騫                48 → 55             45 → 52             qin_han.json
+qh-script-05    苏武                36 → 45             32 → 40             qin_han.json
+qh-script-06    蘇武                36 → 45             32 → 40             qin_han.json
+qh-script-07    吕后                180 → 186           124 → 127           qin_han.json
+qh-script-08    呂后                180 → 186           124 → 127           qin_han.json
+qh-script-09    刘秀                13 → 47             10 → 41             qin_han.json
+qh-script-10    劉秀                13 → 47             10 → 41             qin_han.json
+qh-script-11    党锢                23 → 25             23 → 25             qin_han.json
+qh-script-12    黨錮                23 → 25             23 → 25             qin_han.json
+qh-single-01    羌                 1063 → 1398         761 → 990           qin_han.json
+qh-single-02    鲜卑                292 → 433           208 → 316           qin_han.json
+qh-pagination-01汉                 10056 → 15434       6799 → 9836         qin_han.json
+qh-pagination-02单于                1362 → 1454         851 → 919           qin_han.json
+qh-pagination-03大将军               1237 → 3678         929 → 2214          qin_han.json
+qh-passage-01   王莽                581 → 629           549 → 591           qin_han.json
+qh-passage-02   匈奴                2070 → 2208         1361 → 1458         qin_han.json
+sz-person-01    诸葛亮               59 → 92             53 → 82             sanguozhi_jinshu.json
+sz-person-02    关羽                27 → 33             23 → 29             sanguozhi_jinshu.json
+sz-person-03    曹操                169 → 186           140 → 155           sanguozhi_jinshu.json
+sz-person-04    周瑜                6 → 10              6 → 10              sanguozhi_jinshu.json
+sz-person-05    司马懿               8 → 22              8 → 14              sanguozhi_jinshu.json
+sz-person-06    王祥                22 → 28             16 → 22             sanguozhi_jinshu.json
+sz-person-07    陶侃                20 → 34             13 → 24             sanguozhi_jinshu.json
+sz-person-08    王导                42 → 82             33 → 67             sanguozhi_jinshu.json
+sz-person-09    祖逖                7 → 11              5 → 8               sanguozhi_jinshu.json
+sz-person-10    陆逊                8 → 13              8 → 13              sanguozhi_jinshu.json
+sz-person-11    邓艾                47 → 65             35 → 50             sanguozhi_jinshu.json
+sz-person-12    羊祜                17 → 31             15 → 29             sanguozhi_jinshu.json
+sz-person-13    嵇康                12 → 25             12 → 25             sanguozhi_jinshu.json
+sz-person-14    谢安                24 → 56             21 → 52             sanguozhi_jinshu.json
+sz-person-15    张辽                31 → 37             22 → 28             sanguozhi_jinshu.json
+sz-person-16    马谡                6 → 7               6 → 7               sanguozhi_jinshu.json
+sz-person-17    贾充                50 → 73             39 → 61             sanguozhi_jinshu.json
+sz-person-18    石崇                8 → 13              8 → 13              sanguozhi_jinshu.json
+sz-person-19    王羲之               2 → 11              2 → 10              sanguozhi_jinshu.json
+sz-person-20    刘禅                20 → 33             19 → 31             sanguozhi_jinshu.json
+sz-person-21    刘备                169 → 187           140 → 157           sanguozhi_jinshu.json
+sz-person-22    孙权                159 → 238           130 → 189           sanguozhi_jinshu.json
+sz-person-23    华佗                22 → 32             19 → 29             sanguozhi_jinshu.json
+sz-person-24    陈寿                5 → 7               2 → 4               sanguozhi_jinshu.json
+sz-alias-01     孔明                6 → 19              6 → 19              sanguozhi_jinshu.json
+sz-alias-02     雲長                2 → 10              2 → 10              sanguozhi_jinshu.json
+sz-alias-04     仲達                3 → 11              3 → 11              sanguozhi_jinshu.json
+sz-alias-06     太祖                1381 → 3963         590 → 1623          sanguozhi_jinshu.json
+sz-alias-07     先主                29 → 36             22 → 29             sanguozhi_jinshu.json
+sz-alias-08     後主                17 → 648            15 → 253            sanguozhi_jinshu.json
+sz-alias-09     昭烈                2 → 36              2 → 31              sanguozhi_jinshu.json
+sz-alias-10     晋宣帝               2 → 11              2 → 11              sanguozhi_jinshu.json
+sz-script-01    诸葛亮               59 → 92             53 → 82             sanguozhi_jinshu.json
+sz-script-02    諸葛亮               59 → 92             53 → 82             sanguozhi_jinshu.json
+sz-script-03    司马懿               8 → 22              8 → 14              sanguozhi_jinshu.json
+sz-script-04    司馬懿               8 → 22              8 → 14              sanguozhi_jinshu.json
+sz-script-05    张飞                13 → 15             13 → 15             sanguozhi_jinshu.json
+sz-script-06    張飛                13 → 15             13 → 15             sanguozhi_jinshu.json
+sz-script-07    华佗                22 → 32             19 → 29             sanguozhi_jinshu.json
+sz-script-08    華佗                22 → 32             19 → 29             sanguozhi_jinshu.json
+sz-script-09    陆逊                8 → 13              8 → 13              sanguozhi_jinshu.json
+sz-script-10    陸遜                8 → 13              8 → 13              sanguozhi_jinshu.json
+sz-script-11    谢安                24 → 56             21 → 52             sanguozhi_jinshu.json
+sz-script-12    謝安                24 → 56             21 → 52             sanguozhi_jinshu.json
+sz-script-13    荊州                5 → 17              5 → 15              sanguozhi_jinshu.json
+sz-script-14    荆州                5 → 17              5 → 15              sanguozhi_jinshu.json
+sz-single-01    蜀                 1123 → 1916         816 → 1357          sanguozhi_jinshu.json
+sz-single-02    吳                 2951 → 4764         1772 → 2849         sanguozhi_jinshu.json
+sz-single-03    魏                 5892 → 12877        3931 → 7468         sanguozhi_jinshu.json
+sz-single-04    晉                 6432 → 12828        3966 → 7643         sanguozhi_jinshu.json
+sz-multi-01     曹操 袁紹             8 → 9               8 → 9               sanguozhi_jinshu.json
+sz-multi-02     周瑜 赤壁             1 → 2               1 → 2               sanguozhi_jinshu.json
+sz-edition-04   王祥                22 → 28             16 → 22             sanguozhi_jinshu.json
+sz-edition-05   管仲                201 → 219           152 → 170           sanguozhi_jinshu.json
+sz-place-01     汉中                380 → 572           330 → 472           sanguozhi_jinshu.json
+sz-place-02     许都                9 → 13              9 → 12              sanguozhi_jinshu.json
+sz-place-03     建康                30 → 387            29 → 334            sanguozhi_jinshu.json
+sz-place-04     洛阳                616 → 1271          533 → 1027          sanguozhi_jinshu.json
+sz-place-05     五丈原               3 → 5               2 → 4               sanguozhi_jinshu.json
+sz-place-06     合肥                67 → 169            54 → 128            sanguozhi_jinshu.json
+sz-place-07     成都                203 → 330           160 → 252           sanguozhi_jinshu.json
+sz-place-08     街亭                3 → 4               3 → 4               sanguozhi_jinshu.json
+sz-war-01       官渡                60 → 67             47 → 51             sanguozhi_jinshu.json
+sz-war-02       赤壁                10 → 14             10 → 14             sanguozhi_jinshu.json
+sz-war-03       淝水                3 → 7               3 → 7               sanguozhi_jinshu.json
+sz-office-01    丞相                1674 → 2348         1241 → 1732         sanguozhi_jinshu.json
+sz-office-02    都督                247 → 3321          142 → 1732          sanguozhi_jinshu.json
+sz-office-03    侍中                882 → 3757          767 → 2431          sanguozhi_jinshu.json
+sz-office-04    录尚书事              36 → 162            32 → 132            sanguozhi_jinshu.json
+sz-event-01     永嘉                92 → 391            81 → 336            sanguozhi_jinshu.json
+sz-event-02     八王                14 → 19             15 → 20             sanguozhi_jinshu.json
+sz-event-03     建安                310 → 814           279 → 701           sanguozhi_jinshu.json
+sz-event-04     太康                144 → 728           125 → 357           sanguozhi_jinshu.json
+sz-page-01      蜀                 1123 → 1916         816 → 1357          sanguozhi_jinshu.json
+sz-page-03      王導                42 → 82             33 → 67             sanguozhi_jinshu.json
+sz-passage-01   諸葛亮               59 → 92             52 → 80             sanguozhi_jinshu.json
+sz-passage-02   曹操                169 → 186           140 → 155           sanguozhi_jinshu.json
+sz-passage-03   王導                42 → 82             24 → 55             sanguozhi_jinshu.json
+----------------------------------------------------------------------------------------
+360 条用例，196 条与基线不符
+（只打印，未落盘；加 --write 才写回）
+
+
+========================================================================================
+漂移分类解释（rebaseline_cases.py 打印后补写；docs/phase6_3_report.md 引用本节）
+========================================================================================
+
+共 196 条漂移：A 类 194、B 类 1、C 类 1，另 0 条未进上表（逐条列在文末）。
+
+口径：基线写在 9 部语料时（6.2 的 7 部 + 三國志/晉書）；本次是 19 部（再 + 南北朝 10 部）。
+加书只会让「语料里有这个词」的查询命中变多，故先看**有没有下降**：全表 hits 无一下降；块数只有 1 条下降，即 B 类，原因已查明。
+
+### A 类（194 条）：新书含该词，正文命中与结果块同向上升
+
+- 涨幅 ×1.01 ~ ×38.1（最大 sz-alias-08「後主」17 → 648）。
+- 按文件：sanguozhi_jinshu.json 78 条、preqin.json 61 条、qin_han.json 55 条。
+- 逐条（id 全列，按文件分组）：
+  - preqin.json（61）：person-01、person-02、person-03、person-04、person-05、person-06、person-07、person-08、person-09、person-10、person-11、person-12、person-13、person-14、person-15、person-17、person-18、place-01、place-02、place-03、place-04、place-05、place-06、place-07、state-01、state-02、state-03、state-04、state-05、state-06、war-02、war-03、war-04、war-05、office-01、office-02、office-03、office-04、office-05、event-01、single-01、single-02、single-03、single-04、single-05、multi-01、script-01、script-02、script-03、script-04、script-05、script-06、script-07、script-08、script-09、script-10、pagination-02、pagination-03、pagination-04、passage-01、passage-02
+  - qin_han.json（55）：qh-person-01、qh-person-02、qh-person-03、qh-person-04、qh-person-05、qh-person-06、qh-person-07、qh-person-08、qh-person-09、qh-person-10、qh-person-11、qh-person-12、qh-person-13、qh-person-14、qh-person-15、qh-person-16、qh-alias-01、qh-alias-02、qh-alias-03、qh-alias-04、qh-alias-05、qh-alias-06、qh-alias-07、qh-alias-08、qh-alias-09、qh-place-01、qh-place-02、qh-place-03、qh-war-01、qh-event-01、qh-event-02、qh-event-03、qh-office-01、qh-office-03、qh-multi-02、qh-multi-04、qh-script-01、qh-script-02、qh-script-03、qh-script-04、qh-script-05、qh-script-06、qh-script-07、qh-script-08、qh-script-09、qh-script-10、qh-script-11、qh-script-12、qh-single-01、qh-single-02、qh-pagination-01、qh-pagination-02、qh-pagination-03、qh-passage-01、qh-passage-02
+  - sanguozhi_jinshu.json（78）：sz-person-01、sz-person-02、sz-person-03、sz-person-04、sz-person-05、sz-person-06、sz-person-07、sz-person-08、sz-person-09、sz-person-10、sz-person-11、sz-person-12、sz-person-13、sz-person-14、sz-person-15、sz-person-16、sz-person-17、sz-person-18、sz-person-19、sz-person-20、sz-person-21、sz-person-22、sz-person-23、sz-person-24、sz-alias-01、sz-alias-02、sz-alias-04、sz-alias-06、sz-alias-07、sz-alias-08、sz-alias-09、sz-alias-10、sz-script-01、sz-script-02、sz-script-03、sz-script-04、sz-script-05、sz-script-06、sz-script-07、sz-script-08、sz-script-09、sz-script-10、sz-script-11、sz-script-12、sz-script-13、sz-script-14、sz-single-01、sz-single-02、sz-single-03、sz-single-04、sz-multi-01、sz-multi-02、sz-edition-04、sz-edition-05、sz-place-01、sz-place-02、sz-place-03、sz-place-04、sz-place-05、sz-place-06、sz-place-07、sz-place-08、sz-war-01、sz-war-02、sz-war-03、sz-office-01、sz-office-02、sz-office-03、sz-office-04、sz-event-01、sz-event-02、sz-event-03、sz-event-04、sz-page-01、sz-page-03、sz-passage-01、sz-passage-02、sz-passage-03
+
+A 类不必逐个解释「为什么某书会有这个词」——那是语料事实。要确认的只有一点：
+**上升必须来自新入库的 10 部书，而不是把旧书重复计入**。抽样已证：preqin/qin_han 的
+人名地名（齐桓公、邯郸、滎陽）在新书里被追述，先秦秦汉官名（侍中、都督）在南北朝史里
+高频，属史书互见；旧书自身命中未变（见带 `book` 过滤的用例未漂移）。
+
+### B 类（1 条）：触发 MAX_HITS_PER_QUERY = 100000 安全阀 → 块数反降
+
+- `pagination-01`「之」：命中 89,060 → 158,417（涨），块数 44,537 → 40,566（**降**）。
+  - 原因：`search/result_block.py:57` 的 `MAX_HITS_PER_QUERY = 100000`（6.2 定的保护闸）在 `:775` 生效 —— 命中越线，只取前 10 万条组装，返回 `truncated=True`。
+  - 块数为何反而少：块在**相邻命中行**间合并，前 10 万条集中在排序靠前的书里、更密，故组装出 40,566 块，少于 9 部时 89,060 条全量组装的 44,537 块。
+  - 不是检索退化：360 例中只有「之」越线，次高「帝」34,807，余量 3 倍。
+  - 用例侧已写入 `preqin.json` 的 `pagination-01.note`；末页（第 406 页，page_size=100）仍由 `check_pagination` 实测翻得到。
+  - 待用户决策：是否提高上限（提高＝更慢更占内存）还是维持现状（现状＝只影响「之」这类极限单字）。本阶段按「先测后议」未改检索行为。
+
+### C 类（1 条）：正文命中不变、新增篇名块
+
+- `chapter-02`「周本紀               5（同）」：命中 5（同），块数 6 → 7。
+  - 正文命中 5 条仍是前漢書×3 / 史記×1 / 後漢書×1，一条未变；多出的第 7 块是**篇名块**：
+    北史 `KR2a0025_010.txt` 行 14 的篇题「周本紀第一」（北周本紀）被篇名 LIKE 命中。
+  - 由此暴露一个语料侧事实（非本阶段引入）：查「周本紀」也会命中北史的**北周**本紀，与 6.2「秦」命中秦本紀/秦始皇本紀同源。报告里记为观察项。
+
+### 未进上表的 0 条
+
+| 原行 | 说明 |
+|---|---|
+
+（分类合计：A 194 + B 1 + C 1 + 未进表 0 = 196 条，与脚本报的 196 条一致）
+
+========================================================================================
+附：不记基线的负例（must_hit:false）里，有 4 条被第二批扩容证伪
+========================================================================================
+
+负例不写 `baseline_*`（0 不是「测出来的基线」），所以它们不出现在上面的漂移表里；
+但同属「扩容引起的测试前提变化」，一并留档。判据是「必须 0 命中」，前提一旦被语料
+证伪，用例本身就是错的 —— 不能靠删用例变绿，处理方式是**收窄到仍然成立的书上**，
+并把反转本身写进 note（4 条 note 均已改写）。
+
+| id | 查询 | 9 部时代 | 19 部实测 | 命中所在（全部是新入库的书） | 处理 |
+|---|---|---|---|---|---|
+| preqin neg-02 | 坑儒 | 0 段 | 3 段 | 宋書 1、陳書 1、隋書 1 | 收窄 `book=史記`（仍 0） |
+| qin_han qh-neg-02 | 刘邦 | 0 段 | 1 段 | 梁書 1（檄文「赤泉未賞劉邦尚曰漢王」） | 收窄 `book=史記`（仍 0） |
+| sanguozhi_jinshu sz-multi-07 | 司馬懿 公孫淵 | 共段 0 | 3 段 / 2 块 | 宋書天文志 3（「司馬懿圍公孫淵於襄平」） | 收窄 `book=晉書`（仍 0） |
+| sanguozhi_jinshu sz-neg-07 | 臥龍 | 0 段 | 1 段 | 梁書 1（「豈無臥龍之臣乎」） | 收窄 `book=晉書`（仍 0） |
+
+- 收窄不是「挑一本查得到的书」：同书对照词已用引擎实测 >0，证明 `book` 过滤没把一切清零 ——
+  史記 高祖 299 / 沛公 243 / 焚書 2 / 阬術士 1；晉書 司馬懿 1 / 王導 42。
+- 语义没丢：4 条仍是负例，仍在考「0 命中的归因是不是 Coverage」，只是把断言收到
+  语料确实支持的范围（史記/晉書）。
+
+### 顺带更正的两处旧 note（与本批无关，是复核时发现的陈旧断言）
+
+1. `neg-02` 原写「异体字 阬儒 亦为 0」—— 自 6.2 加 前漢書/後漢書 起就不成立，
+   实际 **阬儒 6 段（後漢書 4、前漢書 2）**。已改正。
+2. `sz-neg-07` 原写「「卧龍」（U+5367）有 1 段」—— 19 部下 U+5367 共 **3 段
+   （梁書/晉書/南史 各 1）**；更关键的是：转换器把「卧」「臥」都归到 U+81E5，
+   于是这 3 段**两种写法都查不到**（实测查 臥龍 得 1 段、查 卧龍 得同一段，都在梁書）。
+   这是本阶段「字形收窄 C 向」之外的一个 B 向新实例，已写进该条 note。
+
+========================================================================================
+附二：扩容顺带暴露的两个「测试侧」缺陷（已修，落在 6.3-G/6.3-H 范围内）
+========================================================================================
+
+这两条不是语料或引擎的问题，而是**测试与归因的接线**在语料翻倍后第一次被踩到。
+两条都不改 `search/` 的检索算法。
+
+1. 自检探针词第三次被填上（`tests/recall.py` 的 `SELFTEST_ABSENT`）
+   - 董卓（先秦 5 部时代确实没有）→ 加 後漢書 后 157 段 → 改成「坑儒」
+   - 「坑儒」→ 本阶段加南北朝 10 部后 3 段（宋書/陳書/隋書 各 1）→ 改成「朱元璋」
+     （明史，catalog 里排在最末的 planned 书）
+   - 守卫本身工作正常：它红着拒绝背书（报告印「分类器自检未通过 … 归因不可信」），
+     顺藤才查出下面第 2 条与那 4 条被证伪的负例。
+
+2. 归因器看不见 book/edition 过滤（`tests/recall.py` 的 `classify()` → `diagnose`）
+   - 现象：4 条收窄到单书的负例（坑儒×史記、刘邦×史記、司馬懿 公孫淵×晉書、臥龍×晉書）
+     实测 0 命中，却被判成 Search / Normalization（＝「引擎坏了」），
+     因为地面真值取的是**全库计数**（3 / 1 / 3 / 1）。
+   - 修法：把 `engine.resolve_book` / `engine.resolve_edition` 解析出的范围传进
+     `diagnose.corpus_count(..., bid, edi)` 与 `classify_empty(..., bid, edi)` ——
+     API 侧的 `/api/diagnose` 本来就是这么调的（`diagnose()` 内部先 resolve），
+     测试侧补齐同一口径。检索算法一行未动。
+   - 回归网：自检新增 ③b「全库有、该书没有 → Coverage」，运行时当场数
+     （全库计数必须 >0、该书必须 =0），探针失效即 FAIL。这条自检在修好之前会红。
+   - 连带：`nb-edition-03`（崔浩 × edition=tls：全库 135 段 → tls 内 0 段）从
+     「故意不设 expect_class」变成有确定期望 Coverage；那条 note 里
+     「归因器看不到 edition」的说法同步作废。

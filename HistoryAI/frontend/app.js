@@ -32,6 +32,28 @@ async function api(path) {
 const qs = obj => { const u = new URLSearchParams(); for (const k in obj)
   if (obj[k] !== "" && obj[k] != null) u.set(k, obj[k]); return u.toString(); };
 
+/* 空结果的归因（第六点三阶段）。**只在本地 API 模式下问**：静态模式（公开演示与
+ * 本地静态导出）没有 Python 进程，回答不了「语料里到底有没有这个串」——那要全表
+ * 计数。那边保持原有文案与横幅（boot.js），本函数返回 null，调用方什么都不做。
+ * 出错一律吞掉：归因是锦上添花，不能让它把「没有结果」变成「检索失败」。 */
+async function tryDiagnose(q) {
+  const boot = window.HistoryAIBoot ? await window.HistoryAIBoot : { mode: "api" };
+  if (boot.mode !== "api" || !q) return null;
+  try { return await api(`/api/diagnose?${qs({ q })}`); } catch (e) { return null; }
+}
+
+/* 语料收录进度（第六点三阶段）。同样是**只在本地 API 模式问**：真实书单不能进
+ * 发布产物（发布闸门判据②），演示站上根本没有这条路由。返回 null 时调用方少画
+ * 一块，不报错。快照过期与否由页面自己标注生成时间。 */
+async function tryCatalog() {
+  const boot = window.HistoryAIBoot ? await window.HistoryAIBoot : { mode: "api" };
+  if (boot.mode !== "api") return null;
+  try {
+    const c = await api("/api/catalog");
+    return c && c.available ? c : null;
+  } catch (e) { return null; }
+}
+
 /* ---------- 会话缓存（stats 60 秒；books 列表本会话内） ---------- */
 let statsCache = { t: 0, v: null };
 async function getStats() {
@@ -175,7 +197,7 @@ async function homeView() {
   const [st, books] = await Promise.all([getStats(), getBooks()]);
   let html = `<div class="hero">
     <h1>先秦史料查询</h1>
-    <div class="sub">尚書 · 春秋左傳 · 史記 · 國語 · 戰國策 — 检索人物、事件、地名或原文词句</div>
+    <div class="sub">已收录 ${books.length} 部史书 · ${num(st.passages).toLocaleString()} 条正文 — 检索人物、事件、地名或原文词句</div>
     <div class="searchline">
       <input id="q" placeholder="输入关键词，如：齐桓公　城濮之战　孔子" autocomplete="off">
       <button class="btn primary" onclick="homeSearch()">搜索</button>
@@ -189,7 +211,7 @@ async function homeView() {
     </div>
   </div>
   <div class="home-books">
-    <h2>五部史书</h2><div class="book-grid">`;
+    <h2>${books.length} 部史书</h2><div class="book-grid">`;
   for (const b of books) {
     html += `<a class="book-card" href="#/book/${encodeURIComponent(b.book_id)}">
       <div class="t">《${esc(b.title)}》</div>
@@ -319,6 +341,7 @@ function renderResults(res) {
   if (!res.results || !res.results.length) {
     box.innerHTML = `<div class="empty"><b>没有找到相关史料</b><br>
       换个写法（如「殽之战」→「殽」）、缩短关键词，或先选「全部史书」再搜</div>`;
+    renderDiagnosis(box, res);
     return;
   }
   const scope = [];
@@ -341,6 +364,29 @@ function renderResults(res) {
   html += `<p class="quiet">每段正文由数据库原始记录（<span class="mono">text_orig</span>）依序相接，
     不改写、不补标点；相邻原文只按同一文件内的真实次序读取，不作任何推测。
     简体输入自动转繁体匹配（齐桓公 → 齊桓公）。</p>`;
+  box.innerHTML = html;
+}
+
+/* 空结果的逐层归因（第六点三阶段 6.3-H）。判据与测试报告同源（search/diagnose.py），
+ * 所以页面上说「语料尚未收录」时，`tests/recall.py` 的报告里也是同一句话。
+ * 只在本地 API 模式下拿得到（见 tryDiagnose）；拿不到就保持上面那句通用提示。 */
+async function renderDiagnosis(box, res) {
+  const d = await tryDiagnose(res.q || searchState.q);
+  // 竞态：等回来时用户可能已经搜了别的 —— 那一格已经被覆盖，别再写回去。
+  if (!d || !d.summary || searchState.lastRes !== res) return;
+  const mark = ok => (ok === true ? "✓" : (ok === false ? "✗" : "–"));
+  let html = `<div class="empty"><b>没有找到相关史料</b><br>${esc(d.summary)}</div>`;
+  if ((d.layers || []).length) {
+    html += `<div class="card"><b>逐层排查</b>
+      <div class="quiet">从「语料在册」到「块组装」，每层给结论与证据：</div>
+      <ul class="diag">${d.layers.map(l =>
+        `<li><span class="mono">${mark(l.ok)} ${esc(l.title)}</span> ${esc(l.detail)}</li>`
+      ).join("")}</ul></div>`;
+  }
+  if ((d.suggestions || []).length) {
+    html += `<div class="card"><b>可以试试</b><ul class="diag">${d.suggestions
+      .map(s => `<li>${esc(s)}</li>`).join("")}</ul></div>`;
+  }
   box.innerHTML = html;
 }
 
@@ -550,7 +596,7 @@ async function booksView() {
   const view = $("#view");
   const books = await getBooks();
   let html = `<a class="backlink" href="#/">← 首页</a>
-    <h3>数据检查 · 五部史书</h3>
+    <h3>数据检查 · ${books.length} 部史书</h3>
     <p class="quiet">原始文件解析入库的忠实度检查；普通阅读请用顶部「全文检索」。</p>
     <div class="overflow"><table class="dev"><tr>
       <th>书名</th><th>书号</th><th>版本</th><th>文件</th><th>正文</th>
@@ -568,6 +614,62 @@ async function booksView() {
   view.innerHTML = html;
 }
 
+/* -------- 收录进度（#/coverage 顶部，6.3-I）--------
+ * 「这一页只讲已经入库的书有没有归篇」不够 —— 用户真正会问的是「《宋書》为什么
+ * 搜不到」。所以顶部先回答覆盖：按时代分组，每组「已收录 / 在册总数」。
+ *
+ * 三个状态是**算出来的，不是标的**：该时代在册的书写全在库里＝已收录；一部都没
+ * 入库＝未开始；两头都不占＝部分。数据来自 /api/catalog（即 manifest 的五态快照，
+ * 判据只有一份），cat 为 null 时整块不画。 */
+const STATUS_CN = { verified: "已核验", imported: "已入库", warning: "有告警",
+                    failed: "失败", planned: "未开始" };
+function eraProgress(cat) {
+  if (!cat) return "";
+  const groups = cat.by_era_group || {};
+  const names = Object.keys(groups);
+  if (!names.length) return "";
+  const planned = cat.planned || [];
+  const rows = names.map(name => {
+    const g = groups[name] || {};
+    const inLib = num(g.in_library), plan = num(g.planned);
+    const total = inLib + plan;
+    const pct = total ? inLib / total * 100 : 0;
+    const [txt, cls] = plan === 0 ? ["已收录", "main"]
+      : (inLib === 0 ? ["未开始", ""] : ["部分", "warn"]);
+    const pend = planned.filter(p => (p.era_group || "未分组") === name);
+    const pendHtml = pend.map(p =>
+      `《${esc(p.title)}》${p.on_disk ? "（已下载）" : ""}`).join("");
+    const tip = pend.length ? `尚未收录：${pend.map(p => p.title).join("、")}`
+      : "该书系的在册书目都在库里";
+    return `<div class="era-row">
+      <span class="era-name">${esc(name)}</span>
+      <span class="era-bar" title="${esc(tip)}"><i style="width:${pct.toFixed(1)}%"></i></span>
+      <span class="era-num mono">${inLib} / ${total} 部</span>
+      ${chip(txt, cls)}
+      <span class="era-pend quiet">${pendHtml}</span></div>`;
+  }).join("");
+  const counts = cat.counts || {};
+  const five = ["verified", "imported", "warning", "failed"]
+    .filter(k => num(counts[k]))
+    .map(k => `${STATUS_CN[k] || k} ${num(counts[k])}`).join("、");
+  const stamp = String(cat.generated_at || "").slice(0, 16).replace("T", " ");
+  let warn = "";
+  if ((cat.not_in_catalog || []).length)
+    warn += `<p class="quiet">库里有、语料目录未登记：${cat.not_in_catalog.map(t => `《${esc(t)}》`).join("")}
+      —— 补进 corpus_catalog.json，否则它的状态永远停在「已入库」。</p>`;
+  if ((cat.uncatalogued_dirs || []).length)
+    warn += `<p class="quiet">磁盘上有未登记的书目录：<span class="mono">${cat.uncatalogued_dirs.map(esc).join("、")}</span></p>`;
+  return `<div class="card">
+    <b>收录进度（按时代）</b>
+    <span class="quiet">${five ? `库内 ${cat.in_library} 部：${five}；` : ""}在册
+      ${cat.in_library + planned.length} 部（语料目录 v${cat.catalog_version}）。
+      快照 ${esc(stamp)} UTC —— 这是审计脚本跑出来的结果，不是实时查询。</span>
+    ${rows}
+    <p class="quiet">「部分」＝该时代还有在册未入库的书；进度条填的是已入库的比例。
+      未入库的书任何检索都搜不到 —— 搜不到某个词时，先看它属不属于哪个「未开始」的时代。</p>
+    ${warn}</div>`;
+}
+
 /* -------- 篇名覆盖（#/coverage）：Section Coverage Audit 的页面版 --------
  * 数据全部来自 /api/books（静态演示模式下是 data-demo/books.json）——**不新增
  * 任何发布文件、不动 check_publish 白名单**。字段与 scripts/pipeline/manifest.py
@@ -581,6 +683,7 @@ async function booksView() {
 async function coverageView() {
   const view = $("#view");
   const books = await getBooks();
+  const cat = await tryCatalog();
   const body = books.reduce((s, b) => s + num(b.body_rows), 0);
   const covered = books.reduce((s, b) => s + num(b.covered_rows), 0);
   const secs = books.reduce((s, b) => s + num(b.sections), 0);
@@ -588,6 +691,7 @@ async function coverageView() {
     (a === null || num(b.section_coverage) < num(a.section_coverage)) ? b : a, null);
   let html = `<a class="backlink" href="#/books">← 数据检查</a>
     <h3>篇名覆盖审计 · ${books.length} 部史书</h3>
+    ${eraProgress(cat)}
     <p class="quiet">这一页回答的是「每卷正文有没有一个篇名可归」。归了篇，篇名检索
       与「定位到命中句」才知道自己在哪一篇里；没归篇的正文照样能全文检索，只是没有篇名。</p>
     <div class="overflow"><table class="dev"><tr>
@@ -972,7 +1076,8 @@ async function aboutView() {
     <td>${num(b.src_blocks).toLocaleString()}</td></tr>`).join("");
   view.innerHTML = `<h3>项目说明</h3>
     <div class="card"><h3>这套系统是什么</h3>
-      <p>对五部先秦及秦汉间史料（尚書、春秋左傳、史記、國語、戰國策，共 118 个原始文件）做忠实
+      <p>对已收录的 ${books.length} 部史料（${books.map(b => b.title).join("、")}，共
+      ${books.reduce((s, b) => s + (b.files || 0), 0).toLocaleString()} 个原始文件）做忠实
       解析、存库与检索的本地工具。定位：找到真正古籍原文，并说清「出自哪本书哪一卷哪一行」。</p>
       <p>原则：<b>原始史料 &gt; 解析 &gt; 数据库 &gt; 检索 &gt; AI</b>。检索与上下文来自数据库真实记录，
       不接入任何模型，不做猜测性改写；拿不准就标待确认。</p>
@@ -1178,5 +1283,20 @@ async function headerStats() {
     if (el) el.textContent = `${st.books} 部书 · ${st.files} 文件 · ${num(st.records).toLocaleString()} 记录`;
   } catch (e) { /* 服务器未就绪时静默 */ }
 }
+
+/* 页脚书目（6.3-I）：原先写死 7 个书名，每加一本书它就说一次假话。改成按数据填。
+ * **只在本地 API 模式填**：演示模式的页脚由 boot.js 换成「本站不含真实史料」的
+ * 声明（那里一个真实书名都不许出现），静态导出同理 —— 两处都不填，页脚只剩
+ * 那句通用说明，宁可不列书名，也不列一份错的。 */
+async function footBooks() {
+  const boot = window.HistoryAIBoot ? await window.HistoryAIBoot : { mode: "api" };
+  const el = $("#footBooks");
+  if (!el || boot.mode !== "api") return;
+  try {
+    const books = await getBooks();
+    el.textContent = books.map(b => b.title).join(" · ") + "　|　";
+  } catch (e) { /* 取不到就留空，通用说明那句话还在 */ }
+}
 route();
 headerStats();
+footBooks();

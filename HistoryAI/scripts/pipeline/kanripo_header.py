@@ -79,11 +79,22 @@ def file_no_of(name: str) -> Optional[int]:
     return int(m.group(1)) if m else None
 
 
+# BASEEDITION 字面值 → 家族名。WYG 是 6.3 补的（6.2 的陈旧平行实现漏了它）：新增的
+# 12 部正史全是文淵閣四庫全書本，漏判会让整族文件 family=None → 层默认 unknown、
+# 标题模式一条都不匹配，整本书 0 section。
+FAMILY_BY_EDITION = {"tls": "tls", "SBCK": "sbck", "WYG": "wyg"}
+
+
+def family_of_edition(edition: Optional[str]) -> Optional[str]:
+    """BASEEDITION 字面值 → 家族名；未知一律 None（不猜）。
+
+    只保留这一处映射。6.3 之前这段 if/else 抄了三份（inventory / segmentation /
+    family_of），其中 family_of 那份漏了 WYG —— 加一本四庫全書本正史时，只要有人
+    用了错的那份，整本书的层默认与标题模式就全部落空。
+    """
+    return FAMILY_BY_EDITION.get((edition or "").strip())
+
+
 def family_of(header: FileHeader) -> Optional[str]:
-    """按 BASEEDITION 判断文本家族：'tls' | 'sbck' | None(未知，不猜)。"""
-    ed = (header.metadata.get("BASEEDITION") or "").strip()
-    if ed == "tls":
-        return "tls"
-    if ed == "SBCK":
-        return "sbck"
-    return None
+    """按文件头判断文本家族：'tls' | 'sbck' | 'wyg' | None(未知，不猜)。"""
+    return family_of_edition(header.metadata.get("BASEEDITION"))

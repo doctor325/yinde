@@ -1,0 +1,252 @@
+{
+  "version": 1,
+  "note": [
+    "语料目录（Corpus Catalog）—— 第六点三阶段 6.3-A/B。人工维护，机器可读。",
+    "它是**书目骨架**，不是语料：只写「有哪些书、编号是什么、该长成什么样」，不含任何正文。",
+    "同时承载 6.3-C 的解析规则选择（h2_role / ab_system / title_handler / title_patterns /",
+    "juan_prefixes / file_overrides），这样「加一本书」= 在这里加一条，而不是去改 segmentation.py。",
+    "键 = kanripo 书的 ID（与 books.book_id 同源）；kanripo_id 字段与键重复是为了让对账检查能",
+    "发现复制粘贴错误，不是冗余。",
+    "status 不在这里 —— 可用状态是**算出来的**（scripts/pipeline/manifest.py 按库与磁盘证据推导），",
+    "这里只有 recall_verified 这个人工确认位：某书有专属召回用例且全过，才置 true。",
+    "dynasty = 成书朝代（kanripo 自己的书目描述口径）；era_group = 所记史事的时代分组，供前端",
+    "按时代显示收录进度。family_expected = 文件头 BASEEDITION，24 部正史全部实测过（皆为 WYG）。",
+    "本阶段（6.3）导入 12 部：三國志/晉書（第一批）+ 南北朝 10 部（第二批）。其余 9 部正史",
+    "只登记骨架，未下载。",
+    "第六点三阶段末：本阶段入库的 12 部（三國志/晉書 + 南北朝 10 部）recall_verified 已置 true —— 召回 360 例 0 失败，且每部至少 1 条带 book 过滤的专属用例；隋書 归 南北朝组用例文件（其史事止于隋）。"
+  ],
+  "books": {
+    "KR1b0001": {
+      "dir": "shangshu", "title": "尚書", "dynasty": "先秦", "era_group": "先秦",
+      "category": "先秦文獻", "kanripo_id": "KR1b0001", "family_expected": "tls",
+      "repo": "https://github.com/kanripo/KR1b0001.git", "branch": "master",
+      "recall_verified": true, "h2_role": "section",
+      "file_overrides": {
+        "59": {"layer": "appendix", "status": "ok", "note": "尚書逸篇附集(Readme 目次 59.x)，人工复核过"}
+      }
+    },
+    "KR1e0001": {
+      "dir": "zuozhuan", "title": "春秋左傳", "dynasty": "先秦", "era_group": "先秦",
+      "category": "先秦文獻", "kanripo_id": "KR1e0001", "family_expected": "tls",
+      "repo": "https://github.com/kanripo/KR1e0001.git", "branch": "master",
+      "recall_verified": true, "h2_role": "juan", "ab_system": "zuozhuan"
+    },
+    "KR2e0001": {
+      "dir": "guoyu", "title": "國語", "dynasty": "先秦", "era_group": "先秦",
+      "category": "先秦文獻", "kanripo_id": "KR2e0001", "family_expected": "sbck",
+      "repo": "https://github.com/kanripo/KR2e0001.git", "branch": "master",
+      "recall_verified": true,
+      "file_overrides": {
+        "0": {"layer": "preface", "status": "ok", "note": "《國語解敘》韋昭序"}
+      }
+    },
+    "KR2e0003": {
+      "dir": "zhanguoce", "title": "戰國策", "dynasty": "先秦", "era_group": "先秦",
+      "category": "先秦文獻", "kanripo_id": "KR2e0003", "family_expected": "sbck",
+      "repo": "https://github.com/kanripo/KR2e0003.git", "branch": "master",
+      "recall_verified": true, "title_handler": "zhanguoce",
+      "file_overrides": {
+        "0": {"layer": "preface", "status": "ok", "note": "劉向《戰國策序》及奏言"}
+      }
+    },
+
+    "KR2a0001": {
+      "dir": "shiji", "title": "史記", "dynasty": "西漢", "era_group": "秦汉",
+      "category": "正史", "kanripo_id": "KR2a0001", "family_expected": "tls",
+      "repo": "https://github.com/kanripo/KR2a0001.git", "branch": "master",
+      "recall_verified": true, "h2_role": "division"
+    },
+    "KR2a0007": {
+      "dir": "qianhanshu", "title": "前漢書", "dynasty": "東漢", "era_group": "秦汉",
+      "category": "正史", "kanripo_id": "KR2a0007", "family_expected": "wyg",
+      "repo": "https://github.com/kanripo/KR2a0007.git", "branch": "master",
+      "recall_verified": true
+    },
+    "KR2a0009": {
+      "dir": "houhanshu", "title": "後漢書", "dynasty": "南朝宋", "era_group": "秦汉",
+      "category": "正史", "kanripo_id": "KR2a0009", "family_expected": "wyg",
+      "repo": "https://github.com/kanripo/KR2a0009.git", "branch": "master",
+      "recall_verified": true
+    },
+    "KR2a0012": {
+      "dir": "sanguozhi", "title": "三國志", "dynasty": "西晉", "era_group": "三国",
+      "category": "正史", "kanripo_id": "KR2a0012", "family_expected": "wyg",
+      "repo": "https://github.com/kanripo/KR2a0012.git", "branch": "master",
+      "recall_verified": true,
+      "juan_as_section": true,
+      "juan_prefixes": ["三國志", "魏志", "蜀志", "吳志"],
+      "note": "正文里没有篇题行（不像前漢書/後漢書有 `第N` 篇题）：卷首的卷目行把该卷傳名并列一行（`呂布　張邈(陳登)　臧洪(陳容)¶`，带不带缩进两种都有），傳正文直接从 `夏侯惇字元讓沛國譙人…` 起 —— 实测全书正文层没有一行能成 section。真实的篇名粒度就是**卷**，故用卷题当 section（juan_as_section）。卷题写法 卷(U+5377)/巻(U+5DFB) 混用（卷首用 卷、卷末考證题用 巻），由 title_patterns 的变体展开吸收，不改原文。",
+      "file_overrides": {
+        "0": {"layer": "toc", "status": "pending_section",
+              "note": "御製詩/目録/提要/目録考證，JUAN 属性写作 `0` 认不出层；按占比最大的目録记 toc"}
+      }
+    },
+    "KR2a0015": {
+      "dir": "jinshu", "title": "晉書", "dynasty": "唐", "era_group": "两晋",
+      "category": "正史", "kanripo_id": "KR2a0015", "family_expected": "wyg",
+      "repo": "https://github.com/kanripo/KR2a0015.git", "branch": "master",
+      "recall_verified": true,
+      "note": "与前漢書/後漢書同形：正文有 `　帝紀第N` / `　志第N` / `　列傳第N` 篇题行（实测 34 文件里 31 个都有），走家族默认的 wyg_di_n 即可 —— 因此**不用** juan_as_section：卷题（`晉書巻一`，卷/巻混用）只记 juan 不声明 section，篇名粒度保持与前漢書一致。每文件可能含上一卷尾与下一卷头（如 006 同时有 帝紀第六/第七），由卷题清 section 分开。",
+      "file_overrides": {
+        "0": {"layer": "toc", "status": "pending_section",
+              "note": "御製詩/目録/提要/目録考證，JUAN 属性写作 `0` 认不出层；按占比最大的目録记 toc"}
+      }
+    },
+    "KR2a0016": {
+      "dir": "songshu", "title": "宋書", "dynasty": "南朝梁", "era_group": "南北朝",
+      "category": "正史", "kanripo_id": "KR2a0016", "family_expected": "wyg",
+      "repo": "https://github.com/kanripo/KR2a0016.git", "branch": "master",
+      "recall_verified": true
+    },
+    "KR2a0017": {
+      "dir": "nanqishu", "title": "南齊書", "dynasty": "南朝梁", "era_group": "南北朝",
+      "category": "正史", "kanripo_id": "KR2a0017", "family_expected": "wyg",
+      "repo": "https://github.com/kanripo/KR2a0017.git", "branch": "master",
+      "recall_verified": true
+    },
+    "KR2a0018": {
+      "dir": "liangshu", "title": "梁書", "dynasty": "唐", "era_group": "南北朝",
+      "category": "正史", "kanripo_id": "KR2a0018", "family_expected": "wyg",
+      "repo": "https://github.com/kanripo/KR2a0018.git", "branch": "master",
+      "recall_verified": true
+    },
+    "KR2a0019": {
+      "dir": "chenshu", "title": "陳書", "dynasty": "唐", "era_group": "南北朝",
+      "category": "正史", "kanripo_id": "KR2a0019", "family_expected": "wyg",
+      "repo": "https://github.com/kanripo/KR2a0019.git", "branch": "master",
+      "recall_verified": true
+    },
+    "KR2a0020": {
+      "dir": "weishu", "title": "魏書", "dynasty": "北齊", "era_group": "南北朝",
+      "category": "正史", "kanripo_id": "KR2a0020", "family_expected": "wyg",
+      "repo": "https://github.com/kanripo/KR2a0020.git", "branch": "master",
+      "recall_verified": true
+    },
+    "KR2a0021": {
+      "dir": "beiqishu", "title": "北齊書", "dynasty": "唐", "era_group": "南北朝",
+      "category": "正史", "kanripo_id": "KR2a0021", "family_expected": "wyg",
+      "repo": "https://github.com/kanripo/KR2a0021.git", "branch": "master",
+      "recall_verified": true
+    },
+    "KR2a0022": {
+      "dir": "zhoushu", "title": "周書", "dynasty": "唐", "era_group": "南北朝",
+      "category": "正史", "kanripo_id": "KR2a0022", "family_expected": "wyg",
+      "repo": "https://github.com/kanripo/KR2a0022.git", "branch": "master",
+      "recall_verified": true
+    },
+    "KR2a0023": {
+      "dir": "suishu", "title": "隋書", "dynasty": "唐", "era_group": "隋唐",
+      "category": "正史", "kanripo_id": "KR2a0023", "family_expected": "wyg",
+      "repo": "https://github.com/kanripo/KR2a0023.git", "branch": "master",
+      "recall_verified": true
+    },
+    "KR2a0024": {
+      "dir": "nanshi", "title": "南史", "dynasty": "唐", "era_group": "南北朝",
+      "category": "正史", "kanripo_id": "KR2a0024", "family_expected": "wyg",
+      "repo": "https://github.com/kanripo/KR2a0024.git", "branch": "master",
+      "recall_verified": true
+    },
+    "KR2a0025": {
+      "dir": "beishi", "title": "北史", "dynasty": "唐", "era_group": "南北朝",
+      "category": "正史", "kanripo_id": "KR2a0025", "family_expected": "wyg",
+      "repo": "https://github.com/kanripo/KR2a0025.git", "branch": "master",
+      "recall_verified": true
+    },
+    "KR2a0026": {
+      "dir": "jiutangshu", "title": "舊唐書", "dynasty": "後晉", "era_group": "隋唐",
+      "category": "正史", "kanripo_id": "KR2a0026", "family_expected": "wyg",
+      "repo": "https://github.com/kanripo/KR2a0026.git", "branch": "master",
+      "recall_verified": false
+    },
+    "KR2a0027": {
+      "dir": "xintangshu", "title": "新唐書", "dynasty": "北宋", "era_group": "隋唐",
+      "category": "正史", "kanripo_id": "KR2a0027", "family_expected": "wyg",
+      "repo": "https://github.com/kanripo/KR2a0027.git", "branch": "master",
+      "recall_verified": false
+    },
+    "KR2a0029": {
+      "dir": "jiuwudaishi", "title": "舊五代史", "dynasty": "北宋", "era_group": "五代",
+      "category": "正史", "kanripo_id": "KR2a0029", "family_expected": "wyg",
+      "repo": "https://github.com/kanripo/KR2a0029.git", "branch": "master",
+      "recall_verified": false,
+      "note": "首文件 JUAN 为「目錄上」（toc 层），不是卷正文 —— 导入时先核对 section 归层"
+    },
+    "KR2a0030": {
+      "dir": "xinwudaishi", "title": "新五代史", "dynasty": "北宋", "era_group": "五代",
+      "category": "正史", "kanripo_id": "KR2a0030", "family_expected": "wyg",
+      "repo": "https://github.com/kanripo/KR2a0030.git", "branch": "master",
+      "recall_verified": false
+    },
+    "KR2a0032": {
+      "dir": "songshi", "title": "宋史", "dynasty": "元", "era_group": "宋",
+      "category": "正史", "kanripo_id": "KR2a0032", "family_expected": "wyg",
+      "repo": "https://github.com/kanripo/KR2a0032.git", "branch": "master",
+      "recall_verified": false
+    },
+    "KR2a0033": {
+      "dir": "liaoshi", "title": "遼史", "dynasty": "元", "era_group": "宋",
+      "category": "正史", "kanripo_id": "KR2a0033", "family_expected": "wyg",
+      "repo": "https://github.com/kanripo/KR2a0033.git", "branch": "master",
+      "recall_verified": false
+    },
+    "KR2a0035": {
+      "dir": "jinshi", "title": "金史", "dynasty": "元", "era_group": "宋",
+      "category": "正史", "kanripo_id": "KR2a0035", "family_expected": "wyg",
+      "repo": "https://github.com/kanripo/KR2a0035.git", "branch": "master",
+      "recall_verified": false
+    },
+    "KR2a0036": {
+      "dir": "yuanshi", "title": "元史", "dynasty": "明", "era_group": "元",
+      "category": "正史", "kanripo_id": "KR2a0036", "family_expected": "wyg",
+      "repo": "https://github.com/kanripo/KR2a0036.git", "branch": "master",
+      "recall_verified": false
+    },
+    "KR2a0038": {
+      "dir": "mingshi", "title": "明史", "dynasty": "清", "era_group": "明",
+      "category": "正史", "kanripo_id": "KR2a0038", "family_expected": "wyg",
+      "repo": "https://github.com/kanripo/KR2a0038.git", "branch": "master",
+      "recall_verified": false,
+      "note": "实测文件头 JUAN 用阿拉伯数字（`JUAN 1`），与其余 WYG 书的汉字卷次不同 —— 导入前先核对卷题正则"
+    }
+  },
+  "families": {
+    "wyg": {
+      "title_patterns": ["wyg_di_n"],
+      "layer_defaults": [
+        {"when": "juan_part", "resolver": "part_layer_of", "status": "ok",
+         "note": "WYG 首段名「{JUAN}」"},
+        {"layer": "main", "status": "ok", "note": "WYG 卷正文"}
+      ],
+      "note": "文淵閣四庫全書系；卷题 `　X卷N`、篇题 `　YYY第N`、行内颜师古/章怀太子注。层默认看首段名（#+PROPERTY: JUAN）：御製詩/提要/自序→preface，考證跋語/箚子→appendix，`卷N`→正文——实测 227 个文件全部据此判对，无需逐本登记"
+    },
+    "sbck": {
+      "title_patterns": ["guoyu_head", "guoyu_volume", "zhanguoce_juan", "zhanguoce_state"],
+      "layer_defaults": [
+        {"when": "file_zero", "layer": "preface", "status": "pending_section",
+         "note": "SBCK 首文件疑为序（未在例外表确认）"},
+        {"layer": "main", "status": "ok", "note": "正文"}
+      ],
+      "note": "四部叢刊系；整行连排 + 行内圆括号注"
+    },
+    "tls": {
+      "title_patterns": ["shiji_plain"],
+      "layer_defaults": [
+        {"layer": "main", "status": "ok", "note": "正文"}
+      ],
+      "note": "tls 系；org 标题（** / ***），句行 + ¶"
+    }
+  },
+  "layer_note": [
+    "layer_defaults 按**声明顺序**取第一条命中的规则；when 三选一：`always`（缺省）、",
+    "`file_zero`（文件号 0）、`juan_part`（首段名能判出层，用 resolver 指定的函数算）。",
+    "层默认的执行者是 structure.file_layer_defaults（签名不变）；按 (书, 文件号) 的",
+    "人工特例放该书的 file_overrides，优先于这里的家族规则。"
+  ],
+  "pattern_note": [
+    "title_patterns 里引用的是**代码里注册的模式名**（scripts/pipeline/title_patterns.py 的 PATTERNS），",
+    "不是把正则写进 JSON：正则依赖 CJK_CHAR / PARA_CHAR / config 里的常量，散进 JSON 会变成第二份真源。",
+    "加一本形态已知的书（如另一部 WYG 正史）＝ 只加 books 一条，引用已有模式名，代码零改动。",
+    "加一种**新形态**才需要往 title_patterns.py 里加一个具名模式（并在此处登记），这符合计划书",
+    "「Parser + 结构规则 + 语料元数据」三层，而不是 if book == ... 的书名分支。"
+  ]
+}
