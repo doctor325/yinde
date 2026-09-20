@@ -299,4 +299,4 @@
   function cmpStr(a, b) { return a < b ? -1 : a > b ? 1 : 0; }
 
   NS.aggregate = { TOP_FOR_BLOCKS, CLUSTER_GAP, structKey, cluster, dedupe, aggregate };
-})(window.HistoryAIEngine = window.HistoryAIEngine || {});
+})(window.YindeEngine = window.YindeEngine || {});

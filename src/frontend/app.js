@@ -1,4 +1,4 @@
-/* 先秦史料查询 —— 中文史料全文检索 + 人工检查台（vanilla，无依赖）
+/* 引得 —— 中文史料全文检索 + 人工检查台（vanilla，无依赖）
  * 路由：#/ home · #/search?q=… · #/p/{id} · #/books · #/book/{id} · #/file/{id} ·
  *       #/read/{id}?row=N（读全文） · #/pending · #/about
  * 文案中文；代码英文。所有列表分页，不一次取全库。
@@ -19,7 +19,7 @@ const fam = f => (f === "sbck" ? "四部丛刊（SBCK）" : (f || "tls"));
  *     scripts/site/check_engine.py 的 static-api 检查）。
  * 模式由 boot.js 探测一次，此后不再逐请求回退 —— 详见 boot.js 的说明。 */
 async function api(path) {
-  const boot = window.HistoryAIBoot ? await window.HistoryAIBoot : { mode: "api" };
+  const boot = window.YindeBoot ? await window.YindeBoot : { mode: "api" };
   if (boot.mode === "api") {
     const r = await fetch(path);
     const j = await r.json().catch(() => ({ error: `响应非 JSON（HTTP ${r.status}）` }));
@@ -37,7 +37,7 @@ const qs = obj => { const u = new URLSearchParams(); for (const k in obj)
  * 计数。那边保持原有文案与横幅（boot.js），本函数返回 null，调用方什么都不做。
  * 出错一律吞掉：归因是锦上添花，不能让它把「没有结果」变成「检索失败」。 */
 async function tryDiagnose(q, book, edition) {
-  const boot = window.HistoryAIBoot ? await window.HistoryAIBoot : { mode: "api" };
+  const boot = window.YindeBoot ? await window.YindeBoot : { mode: "api" };
   if (boot.mode !== "api" || !q) return null;
   // book/edition 必须一起传：归因的「收录范围」是**按这次检索的范围**算的。
   // 只传 q 会让「在《北齊書》里搜不到」被答成「全库 19 部里没有」——
@@ -50,7 +50,7 @@ async function tryDiagnose(q, book, edition) {
  * 发布产物（发布闸门判据②），演示站上根本没有这条路由。返回 null 时调用方少画
  * 一块，不报错。快照过期与否由页面自己标注生成时间。 */
 async function tryCatalog() {
-  const boot = window.HistoryAIBoot ? await window.HistoryAIBoot : { mode: "api" };
+  const boot = window.YindeBoot ? await window.YindeBoot : { mode: "api" };
   if (boot.mode !== "api") return null;
   try {
     const c = await api("/api/catalog");
@@ -200,7 +200,7 @@ async function homeView() {
   const view = $("#view");
   const [st, books] = await Promise.all([getStats(), getBooks()]);
   let html = `<div class="hero">
-    <h1>先秦史料查询</h1>
+    <h1>引得</h1>
     <div class="sub">已收录 ${books.length} 部史书 · ${num(st.passages).toLocaleString()} 条正文 — 检索人物、事件、地名或原文词句</div>
     <div class="searchline">
       <input id="q" placeholder="输入关键词，如：齐桓公　城濮之战　孔子" autocomplete="off">
@@ -1506,7 +1506,7 @@ async function headerStats() {
  * 声明（那里一个真实书名都不许出现），静态导出同理 —— 两处都不填，页脚只剩
  * 那句通用说明，宁可不列书名，也不列一份错的。 */
 async function footBooks() {
-  const boot = window.HistoryAIBoot ? await window.HistoryAIBoot : { mode: "api" };
+  const boot = window.YindeBoot ? await window.YindeBoot : { mode: "api" };
   const el = $("#footBooks");
   if (!el || boot.mode !== "api") return;
   try {

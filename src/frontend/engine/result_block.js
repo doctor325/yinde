@@ -1093,4 +1093,4 @@
     fetchHits, execMode, fileMeta, searchResultBlocks, expandBlock,
     publicBlock, sectionIndex, sectionAt, sectionEnd, sectionHits, rankKey,
   };
-})(window.HistoryAIEngine = window.HistoryAIEngine || {});
+})(window.YindeEngine = window.YindeEngine || {});

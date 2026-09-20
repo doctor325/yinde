@@ -54,4 +54,4 @@
     // 供自检使用：表里有多少条
     size: () => ({ s2t: Object.keys(S2T).length, t2s: Object.keys(T2S).length }),
   };
-})(window.HistoryAIEngine = window.HistoryAIEngine || {});
+})(window.YindeEngine = window.YindeEngine || {});

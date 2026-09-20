@@ -497,4 +497,4 @@
   }
 
   NS.staticApi = { Site, DB_COLUMNS, ROUTES, parseQuery, pyInt, likeHit };
-})(window.HistoryAIEngine = window.HistoryAIEngine || {});
+})(window.YindeEngine = window.YindeEngine || {});

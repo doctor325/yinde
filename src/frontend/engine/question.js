@@ -390,4 +390,4 @@
     triggered, RE_REIGN_YEAR, RE_BC, RE_RELATION_SPLIT, pyFloat,
   };
   NS.pyFloat = pyFloat;          // 后续模块（排序/聚合）也要按 Python 的浮点写法输出
-})(window.HistoryAIEngine = window.HistoryAIEngine || {});
+})(window.YindeEngine = window.YindeEngine || {});

@@ -17,7 +17,7 @@ SCRIPTS_DIR = PIPELINE_DIR.parent
 HISTORY_AI_DIR = SCRIPTS_DIR.parent          # HistoryProject/HistoryAI
 PROJECT_ROOT = HISTORY_AI_DIR.parent         # HistoryProject
 
-LIBRARY_DIR = Path(os.environ.get("HISTORY_LIBRARY", PROJECT_ROOT / "HistoryLibrary" / "kanripo")).resolve()
+LIBRARY_DIR = Path(os.environ.get("HISTORY_LIBRARY", PROJECT_ROOT / "corpus" / "kanripo")).resolve()
 DATA_DIR = Path(os.environ.get("HISTORY_DATA", HISTORY_AI_DIR / "data")).resolve()
 
 METADATA_DIR = DATA_DIR / "metadata"

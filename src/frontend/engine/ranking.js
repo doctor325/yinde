@@ -299,4 +299,4 @@
     WEIGHTS, Candidate, hasForm, scoreCandidate, rank,
     pyReprStr, pyReprList, pyRound2, RE_YEAR_COUNT,
   };
-})(window.HistoryAIEngine = window.HistoryAIEngine || {});
+})(window.YindeEngine = window.YindeEngine || {});

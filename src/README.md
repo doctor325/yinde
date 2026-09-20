@@ -1,4 +1,4 @@
-# HistoryAI — 典籍解析管线 + 全文检索查询台
+# src — 典籍解析管线 + 全文检索查询台
 
 第一阶段把 Kanripo 五部先秦典籍的原始 txt 解析为**可人工检查的结构化数据**并提供
 逐条核对前端（原始史料 → Parser → 数据库）；第二阶段在其上加**先秦史料全文检索 +
@@ -9,7 +9,7 @@
 并证明「书越加越多也不会失控」：跨篇界块归零、篇名覆盖审计、召回用例按时代分文件、
 扩容前后性能同表对比。
 
-公开站：**https://doctor325.github.io/HistoryProject/**（演示数据；见下）
+公开站：**https://doctor325.github.io/yinde/**（演示数据；见下）
 
 原则（贯穿全部代码）：
 
@@ -19,8 +19,8 @@
 ## 目录
 
 ```
-HistoryProject/
-├── HistoryLibrary/kanripo/      ← 原始史料（只读！任何阶段绝不写它）
+yinde/
+├── corpus/kanripo/      ← 原始史料（只读！任何阶段绝不写它）
 │   ├── shangshu/    尚書    KR1b0001  tls    59 txt
 │   ├── zuozhuan/    春秋左傳 KR1e0001  tls    12 txt
 │   ├── shiji/       史記    KR2a0001  tls    14 txt
@@ -42,7 +42,7 @@ HistoryProject/
 │   └── zhanguoce/   戰國策  KR2e0003  SBCK   11 txt
 │       ↑ 共 19 部 = 先秦 4 + 正史 15（第六点三阶段扩到这里）；另有 9 部正史
 │         登记在册未导入，见「语料完整性」一节
-└── HistoryAI/
+└── src/
     ├── scripts/pipeline/       解析管线（本阶段实现）
     │   ├── config.py           路径/正则集中定义（不硬编码书名）
     │   ├── kanripo_header.py   文件头 org 元数据解析
@@ -60,7 +60,7 @@ HistoryProject/
     │   ├── context.py          同文件真实相邻记录（上下文端点）
     │   └── zh.py               简体↔繁体（系统 LCMapStringEx，零依赖，失败恒等回退）
     ├── api/                    stdlib http.server 只读 API + 静态前端
-    ├── frontend/               先秦史料查询台（纯 vanilla，零依赖，中文界面）
+    ├── frontend/               引得台（纯 vanilla，零依赖，中文界面）
     │   ├── app.js              界面；**只改过 api() 一处**接缝（第五阶段）
     │   ├── boot.js             模式判定（API / 静态）+ 数据装载（第五阶段）
     │   ├── engine/             search/ 的 JS 移植，13 个经典脚本（第五阶段）
@@ -306,8 +306,8 @@ pending_commentary，系统不自动归属韦昭/高诱）；`#/about` 项目说
    用字而非缺陷；界面零结果提示会引导改用短词。
 2. **1 字查询（如「桓」「卒」）仍走 LIKE 全扫 ~350ms**：没有能覆盖 1 字词的索引；该类
    查询多为文献学提问式（桓→桓公 430 处），可接受并已记录。
-3. **data/raw/pre_qin/**：早期下载的冗余原始副本（与 HistoryLibrary 有交集但不在其目录），
-   按阶段一结论**不删不盖**，仅此标注；库只认 HistoryLibrary。
+3. **data/raw/pre_qin/**：早期下载的冗余原始副本（与 corpus 有交集但不在其目录），
+   按阶段一结论**不删不盖**，仅此标注；库只认 corpus。
 4. `passages_bg`/`passages_fts` 为派生表：删除 data/ 后 run_all 全量重建即复原；
    library 与 data/raw 零写入。
 5. `stats.fts.docs` 为正文文档数（当前 292,206）口径；external-content FTS 的 count(*) 会读
@@ -399,26 +399,26 @@ pending_commentary，系统不自动归属韦昭/高诱）；`#/about` 项目说
 
 ## 数据来源与再分发（发布前必读）
 
-`HistoryLibrary/kanripo/` 是 Kanripo 项目的原始 txt（七部书，345 个文件，共约
+`corpus/kanripo/` 是 Kanripo 项目的原始 txt（七部书，345 个文件，共约
 14.5MB）。仓库里**没有**随附 README/LICENSE/版权声明，文件头只有书目元数据，
 **无法确认可否再分发** —— 因此按任务书 §23：
 
-- `HistoryProject/.gitignore` 已忽略 `HistoryLibrary/kanripo/`，本仓库**不含**原始语料；
-- 需要语料请自行从 Kanripo 获取，放回 `HistoryLibrary/kanripo/<书>/`（目录名见上表）；
-- `HistoryAI/data/`（数据库/日志/缓存，实测 314MB）同为派生产物，一并忽略。
+- `yinde/.gitignore` 已忽略 `corpus/kanripo/`，本仓库**不含**原始语料；
+- 需要语料请自行从 Kanripo 获取，放回 `corpus/kanripo/<书>/`（目录名见上表）；
+- `src/data/`（数据库/日志/缓存，实测 314MB）同为派生产物，一并忽略。
 
 细节、以及「为什么不能凭『古籍是公版』就推断整理版也是公版」，见
 [`docs/data_sources.md`](docs/data_sources.md)。
 
 ## 许可
 
-本仓库自身的内容（`HistoryAI/` 的代码、前端、测试、文档，以及本 README 与配置文件）
+本仓库自身的内容（`src/` 的代码、前端、测试、文档，以及本 README 与配置文件）
 以 **MIT** 许可发布，全文见仓库根的 [`LICENSE`](../LICENSE)。
 
-`HistoryAI/frontend/data-demo/` 下的**演示数据集同样是 MIT** —— 它是本项目自撰的
+`src/frontend/data-demo/` 下的**演示数据集同样是 MIT** —— 它是本项目自撰的
 （见 `scripts/site/make_demo_data.py`），不含任何第三方语料的文字。
 
-**MIT 不覆盖 `HistoryLibrary/kanripo/` 下的原始典籍文本** —— 那部分未随本仓库分发
+**MIT 不覆盖 `corpus/kanripo/` 下的原始典籍文本** —— 那部分未随本仓库分发
 （已在 `.gitignore` 中排除），授权状况未能确认，所以不在此处作任何授权声明。
 换句话说：MIT 许可的是这个项目的**代码与自撰演示数据**，不是它读取的**语料**。
 
@@ -426,7 +426,7 @@ pending_commentary，系统不自动归属韦昭/高诱）；`#/about` 项目说
 
 # 第五阶段：零成本公开网站化 + GitHub Pages
 
-公开站：**https://doctor325.github.io/HistoryProject/**
+公开站：**https://doctor325.github.io/yinde/**
 
 交付状态 **PARTIAL**：公开 Demo 前端已经完成，本地完整版搜索保持正常，
 完整在线史料搜索需要未来重新确定可公开的数据来源或部署方案。详见
@@ -434,7 +434,7 @@ pending_commentary，系统不自动归属韦昭/高诱）；`#/about` 项目说
 
 ## 一个前端，两种模式，零构建
 
-`HistoryAI/frontend/` 既是本地 API 的 docroot，**也是** GitHub Pages 的发布产物 ——
+`src/frontend/` 既是本地 API 的 docroot，**也是** GitHub Pages 的发布产物 ——
 没有站点生成器、没有打包器、没有需要同步的构建产物。线上和本地是同一份文件。
 
 | 模式 | 何时进入 | 说明 |
@@ -456,7 +456,7 @@ pending_commentary，系统不自动归属韦昭/高诱）；`#/about` 项目说
 ## 在本地跑完整版（三种方式）
 
 ```bash
-cd HistoryAI
+cd src
 
 # ① 动态 API（第一到第四阶段的完整检索，推荐）
 python -m api.main                      # → http://127.0.0.1:8600/
@@ -496,7 +496,7 @@ python -m scripts.site.build_artifact _site      # 装配 + 过闸门，一步�
 （`frontend/engine/`）。两者必须给出同一个答案：
 
 ```bash
-cd HistoryAI
+cd src
 PYTHONPATH=. PYTHONIOENCODING=utf-8 python -m scripts.site.check_engine \
     --report docs/phase5_consistency.md
 ```
@@ -509,7 +509,7 @@ PYTHONPATH=. PYTHONIOENCODING=utf-8 python -m scripts.site.check_engine \
 ## 召回可观测性
 
 ```bash
-cd HistoryAI
+cd src
 PYTHONPATH=. PYTHONIOENCODING=utf-8 python tests/recall.py     # 写 docs/phase6_recall.md
 PYTHONPATH=. PYTHONIOENCODING=utf-8 python tests/recall.py --selftest   # 只验分类器
 ```
@@ -573,7 +573,7 @@ PYTHONPATH=. PYTHONIOENCODING=utf-8 python tests/recall.py --selftest   # 只验
 ## 重建演示数据
 
 ```bash
-cd HistoryAI
+cd src
 PYTHONPATH=. PYTHONIOENCODING=utf-8 python -m scripts.site.make_demo_data
 ```
 

@@ -65,4 +65,4 @@
   }
 
   NS.dualText = { MODES, DEFAULT_MODE, simplify, attach };
-})(window.HistoryAIEngine = window.HistoryAIEngine || {});
+})(window.YindeEngine = window.YindeEngine || {});

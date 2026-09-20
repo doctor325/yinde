@@ -452,4 +452,4 @@
     Entities, STATES, STATES_EXTRA, CURATED, SHORT_MIN_BARE,
     curated, aliasesOf, ambiguousHeads, isAmbiguous,
   };
-})(window.HistoryAIEngine = window.HistoryAIEngine || {});
+})(window.YindeEngine = window.YindeEngine || {});

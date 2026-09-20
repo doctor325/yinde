@@ -46,7 +46,7 @@ const { volCells, volChip, volumeTotalsCard, scopeCard, partialBanner,
         renderNotImported, isPlannedBook } = await import("./app.module.mjs");
 
 /* ---- §25 情况四：在册未入库的书 ------------------------------------------
- * `api()` 在 API 模式下走 fetch（`window.HistoryAIBoot` 是空的，默认就是 API
+ * `api()` 在 API 模式下走 fetch（`window.YindeBoot` 是空的，默认就是 API
  * 模式），所以一个 fetch 桩就足以把这段端到端跑起来 —— 不需要 DOM：
  * `renderDiagnosis` 只往 `box.innerHTML` 写，传个空对象进去即可。
  *

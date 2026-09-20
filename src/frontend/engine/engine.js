@@ -451,4 +451,4 @@
     // 所以那三条路径的零件单独导出，由 result_block 自己拼一遍。
     bm25, bigramDf, scanBgTokens,
   };
-})(window.HistoryAIEngine = window.HistoryAIEngine || {});
+})(window.YindeEngine = window.YindeEngine || {});

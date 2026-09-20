@@ -186,8 +186,8 @@ def render_js(s2t: dict[str, str], t2s: dict[str, str], stats: list) -> str:
  * 判长度请数码位（[...s].length），不要用 .length。
  */
 "use strict";
-window.HistoryAIEngine = window.HistoryAIEngine || {{}};
-window.HistoryAIEngine.zhTable = {{
+window.YindeEngine = window.YindeEngine || {{}};
+window.YindeEngine.zhTable = {{
 {table("s2t", s2t)},
 {table("t2s", t2s)}
 }};

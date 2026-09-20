@@ -266,4 +266,4 @@
     TermGroup, Expanded, expand, termRoles, sharedAliases, topicTerms,
     splitHan, STOPWORDS, STOP_PHRASES, TAIL_NOISE, RE_YEAR_COUNT,
   };
-})(window.HistoryAIEngine = window.HistoryAIEngine || {});
+})(window.YindeEngine = window.YindeEngine || {});

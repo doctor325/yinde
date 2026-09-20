@@ -1,15 +1,15 @@
 # ---------------------------------------------------------------- 原始语料
-# HistoryLibrary/kanripo/ 是 Kanripo 项目的原始 txt。仓库里**没有**随附
+# corpus/kanripo/ 是 Kanripo 项目的原始 txt。仓库里**没有**随附
 # README/LICENSE/版权声明，只有文件头里的 org 元数据（ID / BASEEDITION / WITNESS），
 # 无法据此确认可否再分发 —— 按任务书 §23，「如果无法确认：不要上传原始 corpus」。
 # 需要语料的人请自行从 Kanripo 获取，再按 README「数据来源与再分发」一节放回原位。
-HistoryLibrary/kanripo/
+corpus/kanripo/
 
 # ---------------------------------------------------------------- 派生产物
 # 数据库、日志、缓存都能由「原始语料 + scripts/pipeline」一键重建，
 # 体积又大（data/ 实测 314MB），不适合入库（§23）。
-HistoryAI/data/
-HistoryAI/database/*.db
+src/data/
+src/database/*.db
 *.db
 *.sqlite
 *.sqlite3

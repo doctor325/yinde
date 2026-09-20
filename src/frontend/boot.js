@@ -7,7 +7,7 @@
  *   · **静态模式**：`/api/*` 不可用（GitHub Pages 上就是 404）→ 读导出好的
  *     静态 JSON，由 frontend/engine/static_api.js 在浏览器里重放同一组接口。
  *
- * 判定只做一次（探测 `/api/stats`），结果挂在 window.HistoryAIBoot 上：
+ * 判定只做一次（探测 `/api/stats`），结果挂在 window.YindeBoot 上：
  * app.js 的 api() 等这个 promise，之后按 mode 决定走哪条路。**不做「先试后降级」**
  * 的逐请求回退 —— 那会让每个请求都先撞一次 404，而且把「真 API 报错」和
  * 「没有 API」混为一谈（本地 API 对非法参数返回 400，那是真错误，不该降级）。
@@ -22,7 +22,7 @@
 (function () {
   "use strict";
 
-  const NS = window.HistoryAIEngine;
+  const NS = window.YindeEngine;
   const DATA_DIRS = [
     { dir: "data/", kind: "local", note: "本地导出数据（完整语料）" },
     { dir: "data-demo/", kind: "demo", note: "自制演示数据（非本项目语料）" },
@@ -91,7 +91,7 @@
     if (v) v.innerHTML = `<div class="load">${text}</div>`;
   }
 
-  window.HistoryAIBoot = (async function () {
+  window.YindeBoot = (async function () {
     if (await probeApi()) {
       return { mode: "api", dir: null, site: null };
     }
@@ -137,8 +137,8 @@
              + "<strong>搜不到「秦始皇」「楚庄王」这类真实人名是正常的</strong>，"
              + "不是检索故障。检索用的是一份自制的演示样例（MIT，见 "
              + "<span class='mono'>data-demo/</span>）。"
-             + "真实史料检索请<a href='https://github.com/doctor325/HistoryProject"
-             + "/blob/main/HistoryAI/README.md'>在本地部署完整版</a>。", "demo");
+             + "真实史料检索请<a href='https://github.com/doctor325/yinde"
+             + "/blob/main/src/README.md'>在本地部署完整版</a>。", "demo");
       // 页脚那行列出的是真实书目，演示模式下它是假的——不换掉就是在误导。
       const foot = document.querySelector("footer");
       if (foot) {

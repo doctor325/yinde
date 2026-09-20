@@ -235,4 +235,4 @@
 
   NS.retrieve = { POOL_LIMIT, Retrieved, candOf, likeAny, retrieve,
                   entityForms, asDict, baseDict };
-})(window.HistoryAIEngine = window.HistoryAIEngine || {});
+})(window.YindeEngine = window.YindeEngine || {});

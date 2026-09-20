@@ -1,8 +1,8 @@
 name: Deploy site to GitHub Pages
 
-# 公开站：https://doctor325.github.io/HistoryProject/
+# 公开站：https://doctor325.github.io/yinde/
 #
-# 发布的就是 HistoryAI/frontend/ 这个目录本身 —— 本地 `python -m api.main`
+# 发布的就是 src/frontend/ 这个目录本身 —— 本地 `python -m api.main`
 # 用的 docroot 与线上是同一份文件，没有站点生成器、没有打包器、没有构建产物
 # 需要同步。这样「线上和本地不一样」这类问题在结构上就不存在。
 #
@@ -19,9 +19,9 @@ on:
     # 只有前端、演示数据、站点脚本变了才值得重新发布。
     # 改了 search/ 的 Python 也要发 —— JS 移植是它的对照实现，可能跟着改。
     paths:
-      - "HistoryAI/frontend/**"
-      - "HistoryAI/scripts/site/**"
-      - "HistoryAI/search/**"
+      - "src/frontend/**"
+      - "src/scripts/site/**"
+      - "src/search/**"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
 
@@ -54,7 +54,7 @@ jobs:
       # 任一条不过 → 这一步失败 → 后面的 upload / deploy 全都不执行。
       # 也就是说：**闸门不过，就发不出去**，而不是「发出去之后再告警」。
       - name: 装配发布产物并过泄漏闸门
-        working-directory: HistoryAI
+        working-directory: src
         run: python -m scripts.site.build_artifact "$GITHUB_WORKSPACE/_site"
 
       # 装完之后再独立核对一遍。上面 build_artifact.py 已经断言过没有 data/，

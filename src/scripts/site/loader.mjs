@@ -1,6 +1,6 @@
 /* 在 Node 里按浏览器的加载方式跑引擎脚本（仅供一致性验证，不随站点发布）。
  *
- * 引擎是**经典脚本**（挂 window.HistoryAIEngine，不是 ES module）：这样
+ * 引擎是**经典脚本**（挂 window.YindeEngine，不是 ES module）：这样
  * GitHub Pages 不必关心 .mjs 的 MIME、也不需要打包器，浏览器直接 <script> 引入。
  * Node 这边用 vm 造一个带 window 的上下文，按同样顺序执行同一批文件——
  * 验证的就是浏览器将要跑的那份代码，不是另写一份。
@@ -34,7 +34,7 @@ export function loadEngine(files = ENGINE_FILES) {
     const src = fs.readFileSync(new URL(f, ENGINE_DIR), "utf8");
     vm.runInContext(src, ctx, { filename: "engine/" + f });
   }
-  return ctx.window.HistoryAIEngine;
+  return ctx.window.YindeEngine;
 }
 
 /** 读打包语料（列式 + 字典编码），返回 {columns, dicts, rows}。
@@ -121,7 +121,7 @@ export function loadSiteBoot(dir, { apiUp = false } = {}) {
   }
   const boot = new URL("../../frontend/boot.js", import.meta.url);
   vm.runInContext(fs.readFileSync(boot, "utf8"), ctx, { filename: "boot.js" });
-  return ctx.window.HistoryAIBoot.then((r) => ({
+  return ctx.window.YindeBoot.then((r) => ({
     mode: r.mode, dir: r.dir, kind: r.kind || null, error: r.error || null,
     banner: banner.innerHTML, bannerClass: banner.className,
     bannerHidden: banner.hidden, footer: footer.innerHTML,

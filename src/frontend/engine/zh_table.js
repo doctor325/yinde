@@ -15,8 +15,8 @@
  * 一致性验证才成立。长度判据请数码位（[...s].length），不要用 .length。
  */
 "use strict";
-window.HistoryAIEngine = window.HistoryAIEngine || {};
-window.HistoryAIEngine.zhTable = {
+window.YindeEngine = window.YindeEngine || {};
+window.YindeEngine.zhTable = {
   s2t: {
 "\u4E07":"\u842C",
 "\u4E0E":"\u8207",

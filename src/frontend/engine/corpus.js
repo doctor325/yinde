@@ -242,4 +242,4 @@
   NS.asciiFold = asciiFold;
   NS.PY_WS = PY_WS;              // engine.js 用它按 Python 的 \s 切词
   NS.CORPUS_FORMAT = "historyai-corpus/1";
-})(window.HistoryAIEngine = window.HistoryAIEngine || {});
+})(window.YindeEngine = window.YindeEngine || {});
