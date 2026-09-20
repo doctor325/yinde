@@ -1,8 +1,9 @@
 {
-  "version": 1,
+  "version": 2,
   "note": [
-    "语料目录（Corpus Catalog）—— 第六点三阶段 6.3-A/B。人工维护，机器可读。",
-    "它是**书目骨架**，不是语料：只写「有哪些书、编号是什么、该长成什么样」，不含任何正文。",
+    "语料目录（Corpus Catalog）—— 第六点三阶段 6.3-A/B；第六点四阶段升到 v2（加卷级模型）。",
+    "人工维护，机器可读。它是**书目骨架**，不是语料：只写「有哪些书、编号是什么、该长成什么样、",
+    "有多少卷」，不含任何正文。",
     "同时承载 6.3-C 的解析规则选择（h2_role / ab_system / title_handler / title_patterns /",
     "juan_prefixes / file_overrides），这样「加一本书」= 在这里加一条，而不是去改 segmentation.py。",
     "键 = kanripo 书的 ID（与 books.book_id 同源）；kanripo_id 字段与键重复是为了让对账检查能",
@@ -11,16 +12,47 @@
     "这里只有 recall_verified 这个人工确认位：某书有专属召回用例且全过，才置 true。",
     "dynasty = 成书朝代（kanripo 自己的书目描述口径）；era_group = 所记史事的时代分组，供前端",
     "按时代显示收录进度。family_expected = 文件头 BASEEDITION，24 部正史全部实测过（皆为 WYG）。",
-    "本阶段（6.3）导入 12 部：三國志/晉書（第一批）+ 南北朝 10 部（第二批）。其余 9 部正史",
-    "只登记骨架，未下载。",
-    "第六点三阶段末：本阶段入库的 12 部（三國志/晉書 + 南北朝 10 部）recall_verified 已置 true —— 召回 360 例 0 失败，且每部至少 1 条带 book 过滤的专属用例；隋書 归 南北朝组用例文件（其史事止于隋）。"
+    "",
+    "【6.4 新增：卷级模型】书是书、版本是版本（见 editions 段），卷数是**版本**的属性之一：",
+    "expected_volumes  = 通行本卷数（书的属性，全 24 史必备）",
+    "declared_volumes  = 这部底本/来源实际有多少卷（人登记，机器核对；已入库时 = 库内实测卷数）",
+    "volume_witness    = 卷数的证据类型（见 volume_note 段）：corpus（库内可机械核对）/ declared",
+    "                    （无语料可核，人工登记）/ none（该书没有卷级模型）",
+    "volume_notes      = {卷号: 说明}，逐卷豁免：**人能解释的缺口不算故障**（魏書 卷一百五）",
+    "volume_note       = 一句话说清这部书的卷数是怎么回事（缺口成因/上游止于哪一卷）",
+    "机器侧的唯一实现在 scripts/pipeline/volume.py，判据在 manifest.py；这里只放**人工登记**的事实。",
+    "第六点四阶段末：19 部已入库 = 14 部完整 + 5 部上游残缺（三國志 30/65、晉書 33/130、",
+    "北齊書 35/50、隋書 49/85、北史 22/100，登记为 partial，不再显示为 verified）；",
+    "其余 9 部正史只登记骨架与来源，未下载（见 docs/phase6_4_sources.md）。"
   ],
+  "editions": {
+    "wyg": {
+      "name": "文淵閣四庫全書本",
+      "family": "wyg",
+      "source": "Kanripo 漢籍リポジトリ（github.com/kanripo），BASEEDITION=WYG",
+      "note": "文件头 `#+PROPERTY: BASEEDITION WYG`；卷题 `　X卷N` 与行内注是四庫本原样。24 部正史里 23 部是这个底本（史記除外）。"
+    },
+    "sbck": {
+      "name": "四部叢刊本",
+      "family": "sbck",
+      "source": "Kanripo 漢籍リポジトリ，BASEEDITION=SBCK",
+      "note": "文件头另有 `#+PROPERTY: WITNESS SBCK` 与 `#+PROPERTY: FILE SB02n00xx…`（书影编号，可回溯到原刊）。底本以篇为单位，没有卷题行。"
+    },
+    "tls": {
+      "name": "tls 本（Kanripo 早期轉錄，上游未標底本）",
+      "family": "tls",
+      "source": "Kanripo 漢籍リポジトリ，BASEEDITION=tls",
+      "note": "文件头 `#+PROPERTY: BASEEDITION tls`，无 WITNESS。上游没写用的什么底本，本项目**不擅自解释**（同 docs/phase3_report.md §十六）：页面上按「tls 本」如实显示，缺失字段一律「暂无」。"
+    }
+  },
   "books": {
     "KR1b0001": {
       "dir": "shangshu", "title": "尚書", "dynasty": "先秦", "era_group": "先秦",
       "category": "先秦文獻", "kanripo_id": "KR1b0001", "family_expected": "tls",
       "repo": "https://github.com/kanripo/KR1b0001.git", "branch": "master",
       "recall_verified": true, "h2_role": "section",
+      "volume_witness": "none",
+      "volume_note": "底本以**篇**为单位（库内 106 条 section），没有卷题行，卷级覆盖不适用于这部书；通行本 58 篇，上游目次 84 条（篇/序/逸篇粒度不同），篇数与卷数不可机械对照。",
       "file_overrides": {
         "59": {"layer": "appendix", "status": "ok", "note": "尚書逸篇附集(Readme 目次 59.x)，人工复核过"}
       }
@@ -29,13 +61,17 @@
       "dir": "zuozhuan", "title": "春秋左傳", "dynasty": "先秦", "era_group": "先秦",
       "category": "先秦文獻", "kanripo_id": "KR1e0001", "family_expected": "tls",
       "repo": "https://github.com/kanripo/KR1e0001.git", "branch": "master",
-      "recall_verified": true, "h2_role": "juan", "ab_system": "zuozhuan"
+      "recall_verified": true, "h2_role": "juan", "ab_system": "zuozhuan",
+      "volume_witness": "none",
+      "volume_note": "底本以**公**分卷（juans 12 条：隱公…哀公），section 500 条＝上游目次 500 条，逐条对得上；通行本 30 卷的卷次在这里不存在，卷级覆盖不适用。"
     },
     "KR2e0001": {
       "dir": "guoyu", "title": "國語", "dynasty": "先秦", "era_group": "先秦",
       "category": "先秦文獻", "kanripo_id": "KR2e0001", "family_expected": "sbck",
       "repo": "https://github.com/kanripo/KR2e0001.git", "branch": "master",
       "recall_verified": true,
+      "volume_witness": "none",
+      "volume_note": "SBCK 底本以**篇**为单位（周語上/中/下…），库内 19 条 section；文件头 JUAN 是文件序号不是卷次，通行本 21 卷不可机械对照，卷级覆盖不适用。",
       "file_overrides": {
         "0": {"layer": "preface", "status": "ok", "note": "《國語解敘》韋昭序"}
       }
@@ -45,6 +81,8 @@
       "category": "先秦文獻", "kanripo_id": "KR2e0003", "family_expected": "sbck",
       "repo": "https://github.com/kanripo/KR2e0003.git", "branch": "master",
       "recall_verified": true, "title_handler": "zhanguoce",
+      "volume_witness": "none",
+      "volume_note": "SBCK 底本按**國別**分卷（juans 10 条：西周/東周/秦/齊…），与通行本 33 卷的编号不是一回事，卷级覆盖不适用。",
       "file_overrides": {
         "0": {"layer": "preface", "status": "ok", "note": "劉向《戰國策序》及奏言"}
       }
@@ -54,19 +92,26 @@
       "dir": "shiji", "title": "史記", "dynasty": "西漢", "era_group": "秦汉",
       "category": "正史", "kanripo_id": "KR2a0001", "family_expected": "tls",
       "repo": "https://github.com/kanripo/KR2a0001.git", "branch": "master",
-      "recall_verified": true, "h2_role": "division"
+      "recall_verified": true, "h2_role": "division",
+      "expected_volumes": 130, "declared_volumes": 130,
+      "volume_witness": "declared",
+      "volume_note": "tls 底本以**篇**为单位，没有卷题行，卷数由人工登记：上游目次 ⟨1.1〉…⟨5.70〉共 **130** 条 = 通行本 130 卷（本紀 12、表 10、書 8、世家 30、列傳 70），机器核对不了卷题。实测 section 129 条，少的那一条已定位到源文件与行号：`KR2a0001_100.txt` 第 19051 行（0 起算第 19050 行）把卷十二〈孝武本紀〉的篇题写成了 `1 1.12《孝武本紀》`（正常形态是 `1.11《孝景本紀》`，多一个 `1 ` 前缀），篇题识别失败 —— **正文在库里、全文检索搜得到，只是篇名粒度上少了这一条**（该段仍归在卷十一的区间里，所以 section 覆盖率仍是 100%）。修它要改源文件（禁止零写入）或改篇题规则后重建库（会动 6.3 基线），本阶段只登记、不改。"
     },
     "KR2a0007": {
       "dir": "qianhanshu", "title": "前漢書", "dynasty": "東漢", "era_group": "秦汉",
       "category": "正史", "kanripo_id": "KR2a0007", "family_expected": "wyg",
       "repo": "https://github.com/kanripo/KR2a0007.git", "branch": "master",
-      "recall_verified": true
+      "recall_verified": true,
+      "expected_volumes": 100, "declared_volumes": 100, "volume_witness": "corpus",
+      "volume_note": "完整。卷一上/卷一下 这类**卷内分片**共 15 处（一个卷号两个文件），不算缺卷也不算重复卷。"
     },
     "KR2a0009": {
       "dir": "houhanshu", "title": "後漢書", "dynasty": "南朝宋", "era_group": "秦汉",
       "category": "正史", "kanripo_id": "KR2a0009", "family_expected": "wyg",
       "repo": "https://github.com/kanripo/KR2a0009.git", "branch": "master",
-      "recall_verified": true
+      "recall_verified": true,
+      "expected_volumes": 120, "declared_volumes": 120, "volume_witness": "corpus",
+      "volume_note": "完整。卷内分片 10 处。"
     },
     "KR2a0012": {
       "dir": "sanguozhi", "title": "三國志", "dynasty": "西晉", "era_group": "三国",
@@ -76,6 +121,8 @@
       "juan_as_section": true,
       "juan_prefixes": ["三國志", "魏志", "蜀志", "吳志"],
       "note": "正文里没有篇题行（不像前漢書/後漢書有 `第N` 篇题）：卷首的卷目行把该卷傳名并列一行（`呂布　張邈(陳登)　臧洪(陳容)¶`，带不带缩进两种都有），傳正文直接从 `夏侯惇字元讓沛國譙人…` 起 —— 实测全书正文层没有一行能成 section。真实的篇名粒度就是**卷**，故用卷题当 section（juan_as_section）。卷题写法 卷(U+5377)/巻(U+5DFB) 混用（卷首用 卷、卷末考證题用 巻），由 title_patterns 的变体展开吸收，不改原文。",
+      "expected_volumes": 65, "declared_volumes": 30, "volume_witness": "corpus",
+      "volume_note": "**上游残缺**：Kanripo 的数字化止于卷三十，缺 卷三十一–六十五（蜀書 15 卷 + 吳志 20 卷；正文只有魏志）。核对方法见 docs/phase6_3_upstream_gaps.md（上游 Readme 目次 + 文件集 + 库内篇名三路互证，WYG 分支与 master 文件集相同）。",
       "file_overrides": {
         "0": {"layer": "toc", "status": "pending_section",
               "note": "御製詩/目録/提要/目録考證，JUAN 属性写作 `0` 认不出层；按占比最大的目録记 toc"}
@@ -87,6 +134,8 @@
       "repo": "https://github.com/kanripo/KR2a0015.git", "branch": "master",
       "recall_verified": true,
       "note": "与前漢書/後漢書同形：正文有 `　帝紀第N` / `　志第N` / `　列傳第N` 篇题行（实测 34 文件里 31 个都有），走家族默认的 wyg_di_n 即可 —— 因此**不用** juan_as_section：卷题（`晉書巻一`，卷/巻混用）只记 juan 不声明 section，篇名粒度保持与前漢書一致。每文件可能含上一卷尾与下一卷头（如 006 同时有 帝紀第六/第七），由卷题清 section 分开。",
+      "expected_volumes": 130, "declared_volumes": 33, "volume_witness": "corpus",
+      "volume_note": "**上游残缺**：止于卷三十三，缺 卷三十四–一百三十（列傳第 4–70、載記 30 卷）。另：卷七的正文在 `_006.txt` 里而 `_007.txt` 只有考證 —— 卷号归属靠正文卷题认，不靠文件头。",
       "file_overrides": {
         "0": {"layer": "toc", "status": "pending_section",
               "note": "御製詩/目録/提要/目録考證，JUAN 属性写作 `0` 认不出层；按占比最大的目録记 toc"}
@@ -96,116 +145,151 @@
       "dir": "songshu", "title": "宋書", "dynasty": "南朝梁", "era_group": "南北朝",
       "category": "正史", "kanripo_id": "KR2a0016", "family_expected": "wyg",
       "repo": "https://github.com/kanripo/KR2a0016.git", "branch": "master",
-      "recall_verified": true
+      "recall_verified": true,
+      "expected_volumes": 100, "declared_volumes": 100, "volume_witness": "corpus"
     },
     "KR2a0017": {
       "dir": "nanqishu", "title": "南齊書", "dynasty": "南朝梁", "era_group": "南北朝",
       "category": "正史", "kanripo_id": "KR2a0017", "family_expected": "wyg",
       "repo": "https://github.com/kanripo/KR2a0017.git", "branch": "master",
-      "recall_verified": true
+      "recall_verified": true,
+      "expected_volumes": 59, "declared_volumes": 59, "volume_witness": "corpus"
     },
     "KR2a0018": {
       "dir": "liangshu", "title": "梁書", "dynasty": "唐", "era_group": "南北朝",
       "category": "正史", "kanripo_id": "KR2a0018", "family_expected": "wyg",
       "repo": "https://github.com/kanripo/KR2a0018.git", "branch": "master",
-      "recall_verified": true
+      "recall_verified": true,
+      "expected_volumes": 56, "declared_volumes": 56, "volume_witness": "corpus"
     },
     "KR2a0019": {
       "dir": "chenshu", "title": "陳書", "dynasty": "唐", "era_group": "南北朝",
       "category": "正史", "kanripo_id": "KR2a0019", "family_expected": "wyg",
       "repo": "https://github.com/kanripo/KR2a0019.git", "branch": "master",
-      "recall_verified": true
+      "recall_verified": true,
+      "expected_volumes": 36, "declared_volumes": 36, "volume_witness": "corpus"
     },
     "KR2a0020": {
       "dir": "weishu", "title": "魏書", "dynasty": "北齊", "era_group": "南北朝",
       "category": "正史", "kanripo_id": "KR2a0020", "family_expected": "wyg",
       "repo": "https://github.com/kanripo/KR2a0020.git", "branch": "master",
-      "recall_verified": true
+      "recall_verified": true,
+      "expected_volumes": 114, "declared_volumes": 114, "volume_witness": "corpus",
+      "volume_notes": {
+        "105": "`_105.txt` 的文件头写的是 `前上十志啓`（十志前的啓，本身不是卷），卷一百五之一…之四 的卷题只出现在该文件正文里 —— 机器按文件头认不出这一卷。实测 113 卷 + 这一条说明 = 登记的 114 卷，**不是缺卷**（6.3 已逐文件核对过，见 docs/phase6_3_upstream_gaps.md 的「两处虚警」）"
+      },
+      "volume_note": "完整 114 卷（含卷一百五「之一…之四」的 4 个分片）。卷内分片 8 处。"
     },
     "KR2a0021": {
       "dir": "beiqishu", "title": "北齊書", "dynasty": "唐", "era_group": "南北朝",
       "category": "正史", "kanripo_id": "KR2a0021", "family_expected": "wyg",
       "repo": "https://github.com/kanripo/KR2a0021.git", "branch": "master",
-      "recall_verified": true
+      "recall_verified": true,
+      "expected_volumes": 50, "declared_volumes": 35, "volume_witness": "corpus",
+      "volume_note": "**上游残缺**：止于卷三十五，缺 卷三十六–五十（含恩倖傳）。目录文件 `_000.txt` 的目次列了 50 卷，容易误判成「完整」—— 实测正文文件只到 `_035.txt`（卷题同时出现在目録与正文里，juans 表因此有 94 条，是同一个卷记了两次，不是重复入库）。"
     },
     "KR2a0022": {
       "dir": "zhoushu", "title": "周書", "dynasty": "唐", "era_group": "南北朝",
       "category": "正史", "kanripo_id": "KR2a0022", "family_expected": "wyg",
       "repo": "https://github.com/kanripo/KR2a0022.git", "branch": "master",
-      "recall_verified": true
+      "recall_verified": true,
+      "expected_volumes": 50, "declared_volumes": 50, "volume_witness": "corpus"
     },
     "KR2a0023": {
       "dir": "suishu", "title": "隋書", "dynasty": "唐", "era_group": "隋唐",
       "category": "正史", "kanripo_id": "KR2a0023", "family_expected": "wyg",
       "repo": "https://github.com/kanripo/KR2a0023.git", "branch": "master",
-      "recall_verified": true
+      "recall_verified": true,
+      "expected_volumes": 85, "declared_volumes": 49, "volume_witness": "corpus",
+      "volume_note": "**上游残缺**：止于卷四十九，缺 卷五十–八十五（列傳第 15–50）。"
     },
     "KR2a0024": {
       "dir": "nanshi", "title": "南史", "dynasty": "唐", "era_group": "南北朝",
       "category": "正史", "kanripo_id": "KR2a0024", "family_expected": "wyg",
       "repo": "https://github.com/kanripo/KR2a0024.git", "branch": "master",
-      "recall_verified": true
+      "recall_verified": true,
+      "expected_volumes": 80, "declared_volumes": 80, "volume_witness": "corpus"
     },
     "KR2a0025": {
       "dir": "beishi", "title": "北史", "dynasty": "唐", "era_group": "南北朝",
       "category": "正史", "kanripo_id": "KR2a0025", "family_expected": "wyg",
       "repo": "https://github.com/kanripo/KR2a0025.git", "branch": "master",
-      "recall_verified": true
+      "recall_verified": true,
+      "expected_volumes": 100, "declared_volumes": 22, "volume_witness": "corpus",
+      "volume_note": "**上游残缺**：止于卷二十二，缺 卷二十三–一百。"
     },
     "KR2a0026": {
       "dir": "jiutangshu", "title": "舊唐書", "dynasty": "後晉", "era_group": "隋唐",
       "category": "正史", "kanripo_id": "KR2a0026", "family_expected": "wyg",
       "repo": "https://github.com/kanripo/KR2a0026.git", "branch": "master",
-      "recall_verified": false
+      "recall_verified": false,
+      "expected_volumes": 200, "declared_volumes": 187,
+      "volume_note": "未导入。上游数字化**止于卷一百八十七下**（文件 `_000`–`_187`，共 188 个 txt），缺 卷一百八十八–二百（列傳第 138–150，13 卷）。**是上游数字化范围问题，不是底本残缺**：`_000.txt` 的目録列出全部 200 卷（实测卷号 1–200 齐备）。导入前须知：进来就是 partial。"
     },
     "KR2a0027": {
       "dir": "xintangshu", "title": "新唐書", "dynasty": "北宋", "era_group": "隋唐",
       "category": "正史", "kanripo_id": "KR2a0027", "family_expected": "wyg",
       "repo": "https://github.com/kanripo/KR2a0027.git", "branch": "master",
-      "recall_verified": false
+      "recall_verified": false,
+      "expected_volumes": 225, "declared_volumes": 75,
+      "volume_note": "未导入。上游数字化**止于卷七十五上**（文件 `_000`–`_075`，共 76 个 txt），缺 卷七十六–二百二十五（整部列傳 150 卷，占全书 2/3）。同样**不是底本残缺**：`_000.txt` 的目録列出全部 225 卷。卷七十五正好是表末（本紀 10 + 志 50 + 表 15 = 75），是一个整齐的断点。导入前须知：进来就是 partial，且缺的是最常被检索的列傳。"
     },
     "KR2a0029": {
       "dir": "jiuwudaishi", "title": "舊五代史", "dynasty": "北宋", "era_group": "五代",
       "category": "正史", "kanripo_id": "KR2a0029", "family_expected": "wyg",
       "repo": "https://github.com/kanripo/KR2a0029.git", "branch": "master",
       "recall_verified": false,
+      "expected_volumes": 150, "declared_volumes": 150,
+      "volume_note": "未导入。上游数字化完整（299 个 txt，卷 1–150 齐）；目次标题带书名前缀「舊五代史 卷N」，每卷正文与攷證各占一个文件 —— 解析前先核对。",
       "note": "首文件 JUAN 为「目錄上」（toc 层），不是卷正文 —— 导入时先核对 section 归层"
     },
     "KR2a0030": {
       "dir": "xinwudaishi", "title": "新五代史", "dynasty": "北宋", "era_group": "五代",
       "category": "正史", "kanripo_id": "KR2a0030", "family_expected": "wyg",
       "repo": "https://github.com/kanripo/KR2a0030.git", "branch": "master",
-      "recall_verified": false
+      "recall_verified": false,
+      "expected_volumes": 74, "declared_volumes": 74,
+      "volume_note": "未导入。上游数字化完整（75 个 txt，卷 1–74 齐）。"
     },
     "KR2a0032": {
       "dir": "songshi", "title": "宋史", "dynasty": "元", "era_group": "宋",
       "category": "正史", "kanripo_id": "KR2a0032", "family_expected": "wyg",
       "repo": "https://github.com/kanripo/KR2a0032.git", "branch": "master",
-      "recall_verified": false
+      "recall_verified": false,
+      "expected_volumes": 496, "declared_volumes": 496,
+      "volume_note": "未导入。上游数字化完整（497 个 txt，卷 1–496 齐）—— 本批里最大的一部（496 卷）。"
     },
     "KR2a0033": {
       "dir": "liaoshi", "title": "遼史", "dynasty": "元", "era_group": "宋",
       "category": "正史", "kanripo_id": "KR2a0033", "family_expected": "wyg",
       "repo": "https://github.com/kanripo/KR2a0033.git", "branch": "master",
-      "recall_verified": false
+      "recall_verified": false,
+      "expected_volumes": 116, "declared_volumes": 115,
+      "volume_note": "未导入。上游数字化**止于卷一百十五**（文件 `_000`–`_115`，共 116 个 txt），缺 卷一百十六（國語解）。已逐文件核对：末文件 `KR2a0033_115.txt` 是「遼史卷一百十五」+ 其考證，正文里没有「國語解」三字。该书上游没有目録文件（`_000` 只有御製序/進表），所以**无法从上游目録反证它是缺的** —— 按 Readme 目次与文件集登记为缺 1 卷。"
     },
     "KR2a0035": {
       "dir": "jinshi", "title": "金史", "dynasty": "元", "era_group": "宋",
       "category": "正史", "kanripo_id": "KR2a0035", "family_expected": "wyg",
       "repo": "https://github.com/kanripo/KR2a0035.git", "branch": "master",
-      "recall_verified": false
+      "recall_verified": false,
+      "expected_volumes": 135, "declared_volumes": 135,
+      "volume_note": "未导入。上游数字化完整（136 个 txt，卷 1–135 齐）；目次标题带书名前缀「金史 卷N」。"
     },
     "KR2a0036": {
       "dir": "yuanshi", "title": "元史", "dynasty": "明", "era_group": "元",
       "category": "正史", "kanripo_id": "KR2a0036", "family_expected": "wyg",
       "repo": "https://github.com/kanripo/KR2a0036.git", "branch": "master",
-      "recall_verified": false
+      "recall_verified": false,
+      "expected_volumes": 210, "declared_volumes": 210,
+      "volume_note": "未导入。上游数字化完整（211 个 txt，卷 1–210 齐）；目次标题带书名前缀「元史 卷N」，各卷含考證。"
     },
     "KR2a0038": {
       "dir": "mingshi", "title": "明史", "dynasty": "清", "era_group": "明",
       "category": "正史", "kanripo_id": "KR2a0038", "family_expected": "wyg",
       "repo": "https://github.com/kanripo/KR2a0038.git", "branch": "master",
       "recall_verified": false,
+      "expected_volumes": 332, "declared_volumes": 332,
+      "volume_note": "未导入。上游数字化完整（548 个 txt，卷 1–332 齐，卷目与考證分文件）。这是「未收录」的样板：搜《明史》里的人物时，系统必须说「《明史》尚未收录」，不能说「正文中没有」。",
       "note": "实测文件头 JUAN 用阿拉伯数字（`JUAN 1`），与其余 WYG 书的汉字卷次不同 —— 导入前先核对卷题正则"
     }
   },
@@ -248,5 +332,21 @@
     "加一本形态已知的书（如另一部 WYG 正史）＝ 只加 books 一条，引用已有模式名，代码零改动。",
     "加一种**新形态**才需要往 title_patterns.py 里加一个具名模式（并在此处登记），这符合计划书",
     "「Parser + 结构规则 + 语料元数据」三层，而不是 if book == ... 的书名分支。"
+  ],
+  "volume_note": [
+    "卷级模型的口径（6.4）—— 三层字段各有各的读者，别混：",
+    "  expected_volumes  通行本卷数。它是**书**的属性：三國志 65 卷，不管谁用什么底本。",
+    "  declared_volumes  这部**底本/来源**实际有多少卷。人工登记，机器核对：",
+    "                    volume_witness=corpus 时，机器从 files.juan_prop ∪ juans.label 实测，",
+    "                    与登记数对不上就报 problem（E1/E2/E4）；对得上才敢说「已收 N 卷」。",
+    "                    volume_witness=declared 时（史記）：底本没有卷题行，机器核对不了，",
+    "                    登记数就是结论，但页面必须写明「人工登记，非机器数出」。",
+    "  volume_witness=none  这部书没有卷级模型（先秦文献以篇/公/國別为单位），页面显示「卷级覆盖：不适用」。",
+    "  volume_notes      逐卷豁免表 {卷号: 说明}。人能解释的缺口不算故障，人解释不了才算 ——",
+    "                    魏書 卷一百五就是这么登记的（源文件把卷题写成「前上十志啓」+ 之一…之四）。",
+    "**文件数量 ≠ 卷数量**：`_000.txt` 是卷首附錄（目録/序/御製詩/考證跋語），不是卷；反过来说，",
+    "一个卷号允许有多个分片文件（前漢書 卷一上/卷一下、魏書 卷一百五之一…之四）。所以实测走",
+    "「文件头 JUAN ∪ 正文卷题，且文件号 ≠ 0、且该文件有正文层 passage」——判据的唯一实现在",
+    "scripts/pipeline/volume.py，本文件只登记事实。"
   ]
 }

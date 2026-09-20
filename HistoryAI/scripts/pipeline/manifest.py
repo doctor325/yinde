@@ -53,6 +53,7 @@ from datetime import datetime, timezone
 
 from . import catalog
 from . import config
+from . import volume
 
 # 正文层的判定：layer 为空（老数据）或 main 都算正文
 BODY_LAYER_SQL = "(p.layer IS NULL OR p.layer = 'main')"
@@ -195,6 +196,64 @@ def audit_book(con, book: sqlite3.Row) -> dict:
     }
 
 
+def _self_id(row: dict, cat_by_id: dict) -> dict:
+    """§4 要的那几个「这本书／这个底本是谁」的字段。
+
+    都从已有的行里取，**不新算任何东西**：`editions[0]` 是 `edition_rows()`
+    刚填好的底本行（含 edition_id / edition_name / source），`dynasty` 从
+    catalog 的 Book 上取。计划中的书（未入库）没有 Book 可查之外的问题 ——
+    `catalog_report()` 建 planned 行时已经把 dynasty / kanripo_id 写进去了。
+
+    取不到就留空字符串，**不编**。空字符串页面上显示为「未登记」，比一个
+    看着像真的假值好。
+    """
+    ed = (row.get("editions") or [{}])[0]
+    cb = cat_by_id.get(row.get("book_id"))
+    return {
+        "dynasty": (row.get("dynasty") or (cb.dynasty if cb else "") or ""),
+        "edition_id": ed.get("edition_id") or "",
+        "edition_name": ed.get("edition_name") or "",
+        "source": ed.get("source") or "",
+        "kanripo_id": (row.get("kanripo_id") or row.get("book_id") or ""),
+    }
+
+
+def volume_row(con, book_id: str, cb) -> dict:
+    """卷级覆盖行 = 库内实测（`volume.measure`）× 目录登记（`volume.audit`）。
+
+    `cb` 是语料目录里的那本书（None = 库里有、目录没登记 → 只有实测、没有分母，
+    结论必然是 unknown，如实报出来比编一个数好）。
+    """
+    m = volume.measure(con, book_id)
+    reg = cb.volumes() if cb else {}
+    row = volume.audit(m, reg.get("expected"), reg.get("declared"),
+                       reg.get("witness") or "none", reg.get("notes"))
+    row["book_id"] = book_id
+    if reg.get("note"):
+        row["note"] = reg["note"]
+    return row
+
+
+def edition_rows(book_row: dict | None, cb, cat) -> list[dict]:
+    """这本书的底本行（计划书 §11：Book 与 Edition 是两个实体）。
+
+    出一律是**列表**：一本书可以有几个底本（六点四阶段全部是 1 个 —— Kanripo
+    一 repo 一书）。列表让第二个底本进来时页面不用改结构，也让「哪一部底本覆盖
+    到哪一卷」有地方放（`volumes` 字段），而不是挤在书这一层。
+    """
+    if cb is None:
+        return [{"edition_id": (book_row or {}).get("book_id"),
+                 "edition_name": "", "family": (book_row or {}).get("family"),
+                 "source": "", "repo": "", "branch": "",
+                 "base_edition": (book_row or {}).get("edition"),
+                 "imported": book_row is not None,
+                 "note": "目录里没登记这本书 —— 底本信息无从得知"}]
+    row = cat.edition_of(cb)
+    row["base_edition"] = (book_row or {}).get("edition") or cb.family_expected
+    row["imported"] = book_row is not None
+    return [row]
+
+
 def publish_gate_sync(titles: list[str]) -> dict:
     """语料里的书名，发布闸门 ② 的名单里都有吗（§23）。
 
@@ -214,13 +273,14 @@ def publish_gate_sync(titles: list[str]) -> dict:
 
 
 def merge_catalog(rows: list[dict], cat) -> dict:
-    """语料目录（应该有什么）× 库内实况（实际有什么）→ 每本书一个五态 status。
+    """语料目录（应该有什么）× 库内实况（实际有什么）→ 每本书一个六态 status。
 
-    五态判据（计划书 §4）：
+    六态判据（计划书 §4；`partial` 是 6.4 加的第六态）：
 
       planned   目录在册，磁盘无目录、库中无记录
       imported  已入库，但证据不足以称 verified（审计未跑 / 召回尚未人工确认）
-      verified  coverage_status == OK 且该书的 recall_verified 为真
+      verified  coverage_status == OK 且 recall_verified 为真 且 **卷级完整**
+      partial   已入库，但这部底本**卷不全**（declared < expected）—— 上游残缺
       warning   coverage_status == WARN（篇名覆盖 <0.90）
       failed    coverage_status == FAIL（有正文行但 0 section）或 FTS 探针查不到自己
 
@@ -228,7 +288,19 @@ def merge_catalog(rows: list[dict], cat) -> dict:
     「搜得到」。后者要召回用例背书（tests/search_cases/，每部 verified 书至少一条
     专属用例），那是人在 catalog 里置 `recall_verified` 的动作，机器不替人拍板。
 
-    两处刻意的取舍（五态是计划书定死的，不为边角另立状态，改用附加字段点名）：
+    `partial` 为什么要单立一态（6.4 §5）：5 部书的 `coverage_status` 是 OK、
+    召回也全过 —— 按旧口径它们全是 `verified`，页面于是把「上游只数字化到卷三十五」
+    显示成「已验证」。**篇名覆盖 OK 与卷级完整是两件事**，合并成一个状态就会
+    让「这部书是全的」这个暗示溜出去。判据只看卷级：`volume.status == "partial"`。
+    `volume.status == "unknown"`（无卷级模型，如先秦四书、史記）**不算 partial** ——
+    「没量过」不等于「残缺」，把它算成残缺会让整库的 no-hit 全变成 partial_no_hit。
+
+    优先级 failed > warning > partial > verified > imported：warning 是**我们能修的**
+    结构问题（篇名覆盖缺口），partial 是上游事实（修不了），页面应该先看见前者。
+    两个口径各自都完整保留在同一行的 volume / coverage_status 字段里，单看 status
+    不会丢信息。
+
+    两处刻意的取舍（不为边角另立状态，改用附加字段点名）：
     - 「目录里没有、库里却有」→ status=imported + catalog_gap=true，并在报告里
       点名。目录是人工维护的，漏登记必须有人看见，而不是被静默当成正常书。
     - 「已下载、还没入库」→ status=planned + on_disk=true，报告提示跑管线。它与
@@ -248,10 +320,13 @@ def merge_catalog(rows: list[dict], cat) -> dict:
             continue
         r["era_group"], r["category"], r["dynasty"] = b.era_group, b.category, b.dynasty
         r["recall_verified"] = b.recall_verified
+        vols = (r.get("volume") or {}).get("status")
         if r["coverage_status"] == "FAIL" or not r["indexed"]["ok"]:
             r["status"] = "failed"
         elif r["coverage_status"] == "WARN":
             r["status"] = "warning"
+        elif vols == "partial":
+            r["status"] = "partial"
         elif b.recall_verified:
             r["status"] = "verified"
         else:
@@ -261,7 +336,12 @@ def merge_catalog(rows: list[dict], cat) -> dict:
         "book_id": b.book_id, "title": b.title, "dir": b.dir,
         "dynasty": b.dynasty, "era_group": b.era_group, "category": b.category,
         "kanripo_id": b.book_id, "repo": b.repo, "branch": b.branch,
+        "family": b.family_expected,
         "on_disk": on_disk.get(b.dir, False),
+        "status": "planned",
+        "editions": edition_rows(None, b, cat),
+        "volume": volume.audit_planned(b.book_id, b.expected_volumes,
+                                       b.declared_volumes, b.volume_note),
     } for b in (cat.books.values() if cat else ()) if b.book_id not in in_db]
 
     counts: dict[str, int] = {}
@@ -272,8 +352,9 @@ def merge_catalog(rows: list[dict], cat) -> dict:
         "catalog_path": str(cat.path) if cat else None,
         "catalog_version": cat.version if cat else None,
         "note": ("catalog = 应该有什么（人工维护），books = 实际有什么（库内实况）。"
-                 "status 是两者相乘的五态；coverage_status 仍是篇名覆盖的三态口径"
-                 "（与 api/db.py 一致，一字未改）。"),
+                 "status 是两者相乘的六态（6.4 起含 partial = 底本卷不全）；"
+                 "coverage_status 仍是篇名覆盖的三态口径（与 api/db.py 一致，"
+                 "一字未改），卷级口径在每行的 volume 字段里。"),
         "in_catalog": len(rows) - len([r for r in rows if r["catalog_gap"]]),
         "counts": dict(sorted(counts.items())),
         "planned": planned,
@@ -300,15 +381,51 @@ def _era_progress(rows: list[dict], planned: list[dict]) -> dict:
     return dict(sorted(out.items()))
 
 
+def _volume_totals(rows: list[dict], planned: list[dict]) -> dict:
+    """卷级总账：库内 15 部 + 未入库 9 部，各按 volume.status 分桶。
+
+    「应有卷数」只在**正史**这一层加总：先秦四书没有卷级模型（volume_witness
+    = "none"，expected 为 None），把它们算进分母是拿「春秋左傳若干卷」这种
+    本就没有通行卷数的书去稀释覆盖率。分开报，分子分母都不掺水。
+    """
+    def agg(items):
+        exp = sum((i.get("volume") or {}).get("expected") or 0 for i in items)
+        avail = sum(((i.get("volume") or {}).get("available")) or 0 for i in items)
+        bucket: dict[str, int] = {}
+        for i in items:
+            s = (i.get("volume") or {}).get("status") or "unknown"
+            bucket[s] = bucket.get(s, 0) + 1
+        return {"books": len(items), "expected": exp, "available": avail,
+                "ratio": (avail / exp) if exp else None,
+                "by_status": dict(sorted(bucket.items())),
+                "upstream_partial": [i["title"] for i in items
+                                     if (i.get("volume") or {}).get("declared") is not None
+                                     and (i.get("volume") or {}).get("expected") is not None
+                                     and i["volume"]["declared"] < i["volume"]["expected"]]}
+
+    return {"in_library": agg(rows), "planned": agg(planned),
+            "note": ("available/expected 是**卷号口径**，不是文件数口径 —— "
+                     "文件数量 ≠ 卷数量。expected 为 0 的书（先秦四书，无卷级模型）"
+                     "不进分母；ratio=None 表示这部书没有可比的通行卷数。")}
+
+
 def build(quiet: bool = False) -> dict:
+    # 目录先加载：卷级核对（volume_row）要用目录里登记的 expected/declared 才能
+    # 判 partial，缺了目录就只能报「量过但没得比」，那是假阴性。
+    cat = catalog.try_load()
+    cat_by_id = {b.book_id: b for b in cat.books.values()} if cat else {}
+
     con = _connect()
     try:
         books = list(con.execute("SELECT * FROM books ORDER BY book_id"))
         rows = [audit_book(con, b) for b in books]
+        for r in rows:
+            cb = cat_by_id.get(r["book_id"])
+            r["volume"] = volume_row(con, r["book_id"], cb)
+            r["editions"] = edition_rows(r, cb, cat)
     finally:
         con.close()
 
-    cat = catalog.try_load()
     cat_rep = merge_catalog(rows, cat)
 
     gate = publish_gate_sync([r["title"] for r in rows])
@@ -329,6 +446,7 @@ def build(quiet: bool = False) -> dict:
             "uncovered_rows": sum(r["uncovered_rows"] for r in rows),
             "planned_books": len(cat_rep["planned"]),
         },
+        "volume_totals": _volume_totals(rows, cat_rep["planned"]),
         "catalog": cat_rep,
         "publish_gate": gate,
         "books": rows,
@@ -352,11 +470,56 @@ def build(quiet: bool = False) -> dict:
         } for r in rows],
     }
 
+    # 第三份产物：卷级覆盖明细（6.4 §4/§13）。单独立文件而不是塞进 manifest，
+    # 是因为它要回答的是「**哪些卷号**缺、缺在哪个文件」，比 section_coverage
+    # 更细一层；读的人（人、页面、诊断）各取所需，不必把整本 manifest 展开。
+    volumes = {
+        "generated_at": manifest["generated_at"],
+        "totals": manifest["volume_totals"],
+        "note": ("卷级覆盖：expected = 通行本卷数（人工登记），declared = 这部底本"
+                 "自己声明的卷数，available = 库内实测卷号数。"
+                 "「应有卷数」用通行本，是因为它稳定、可外证；底本声称的卷数"
+                 "（declared）另列一栏对照。missing = 应有而实测未见，"
+                 "unexpected = 实测卷号超出通行本范围。"),
+        # 字段名对照（计划书 §4 列的是 book_id / title / dynasty / family /
+        # edition_id / edition_name / source / kanripo_id / expected_volumes /
+        # available_volumes / coverage_ratio / status）：
+        #
+        #   §4 的 status  →  本文件的 book_status（书级六态）
+        #   §4 的 expected_volumes / available_volumes  →  expected / available
+        #                     （两个名字同时给，见下）
+        #
+        # **为什么不把 status 直接照抄成 status**：本文件的主语是**卷**，
+        # status 已经被卷级三态（complete/partial/unknown）占了。两个 status
+        # 同名会互相盖掉 —— 页面会把「卷完整」读成「这本书 verified」，这正是
+        # 本阶段要防的那类误读（也是实现期真踩过的一个 bug）。
+        # 所以书级状态一律写 book_status，两套状态永远不共用字段名。
+        "field_map": {
+            "status": "book_status（书级六态；卷级三态在本文件叫 status）",
+            "expected_volumes": "expected",
+            "available_volumes": "available",
+        },
+        "books": [dict(r["volume"], **_self_id(r, cat_by_id),
+                       book_id=r["book_id"], title=r["title"],
+                       family=r["family"], edition=r["edition"],
+                       expected_volumes=(r["volume"] or {}).get("expected"),
+                       available_volumes=(r["volume"] or {}).get("available"),
+                       book_status=r["status"]) for r in rows],
+        "planned": [dict(p["volume"], **_self_id(p, {}),
+                         title=p["title"], family=p["family"],
+                         edition=(p.get("editions") or [{}])[0].get("edition_name"),
+                         expected_volumes=(p["volume"] or {}).get("expected"),
+                         available_volumes=None,
+                         book_status=p["status"]) for p in cat_rep["planned"]],
+    }
+
     config.ensure_data_dirs()
     (config.METADATA_DIR / "corpus_manifest.json").write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
     (config.METADATA_DIR / "section_coverage.json").write_text(
         json.dumps(coverage, ensure_ascii=False, indent=2), encoding="utf-8")
+    (config.METADATA_DIR / "volume_coverage.json").write_text(
+        json.dumps(volumes, ensure_ascii=False, indent=2), encoding="utf-8")
 
     if not quiet:
         print_audit(coverage, manifest)
@@ -391,14 +554,63 @@ def print_section_methods(manifest: dict) -> None:
               f'首次出现记下的，篇名可信度低，audit_sections 里逐条可查')
 
 
+def print_volume_audit(manifest: dict) -> None:
+    """卷级覆盖（§4/§13）：expected / declared / available + 缺口点名。
+
+    为什么要单开一张表而不是并进上面的 section 表：section 表答的是「篇名认全没有」
+    （我们的解析质量），这张表答的是「**这部底本收了哪些卷**」（上游给了什么）。
+    前者是我们能修的，后者是事实。混在一张表里，读的人分不清 35/50 是该修 bug
+    还是该认账。
+    """
+    v = manifest.get("volume_totals") or {}
+    if not v:
+        return
+    print("\n=== Volume Coverage Audit（§4 / §13，卷号口径：文件数量 ≠ 卷数量）")
+    print(f'{"书名":<9}{"底本":<6}{"应有":>6}{"底本称":>7}{"实收":>6}{"覆盖率":>9}'
+          f'  {"状态":<9}顺带记的')
+    for b in manifest["books"]:
+        m = b.get("volume") or {}
+        exp, dec, av = m.get("expected"), m.get("declared"), m.get("available")
+        rat = m.get("coverage_ratio")
+        note = m.get("problems") or []
+        flags = "；".join(p["detail"] for p in note) if note else ""
+        print(f'{b["title"]:<9}{b["family"]:<6}'
+              f'{(exp if exp is not None else "—"):>6}'
+              f'{(dec if dec is not None else "—"):>7}'
+              f'{(av if av is not None else "—"):>6}'
+              f'{((f"{rat * 100:.1f}%") if rat is not None else "—"):>9}'
+              f'  {m.get("status", "—"):<9}{flags}')
+    print(f'  库内 {v["in_library"]["books"]} 部：应有 {v["in_library"]["expected"]} 卷，'
+          f'实收 {v["in_library"]["available"]} 卷'
+          + (f'（{v["in_library"]["ratio"] * 100:.1f}%）' if v["in_library"]["ratio"] else "")
+          + "  " + "、".join(f"{k} {n}" for k, n in v["in_library"]["by_status"].items()))
+    if v["planned"]:
+        _up = v["planned"]["upstream_partial"]
+        print(f'  未入库 {v["planned"]["books"]} 部：应有 {v["planned"]["expected"]} 卷，'
+              f'其中上游已残缺 {len(_up)} 部'
+              + (f'（{"、".join(_up)}）—— 将来导入也是残缺版本，'
+                 f'这个事实现在就要让用户看得见' if _up else ''))
+    for b in manifest["books"]:
+        m = b.get("volume") or {}
+        for p in m.get("problems") or []:
+            if p["level"] == "info":
+                continue
+            print(f'  [{p["level"].upper()}] {b["title"]}：{p["detail"]}')
+    for p in (manifest.get("catalog") or {}).get("planned", []):
+        for pr in (p.get("volume") or {}).get("problems") or []:
+            if pr["level"] == "info":
+                continue
+            print(f'  [{pr["level"].upper()}] {p["title"]}（未入库）：{pr["detail"]}')
+
+
 def print_catalog_status(manifest: dict) -> None:
-    """五态总表（catalog × 库）+ 未入库名单 + 三处必须有人看的告警。"""
+    """六态总表（catalog × 库）+ 未入库名单 + 三处必须有人看的告警。"""
     rep = manifest.get("catalog") or {}
     if not rep.get("catalog_path"):
         print("\n=== 语料状态：没有语料目录（corpus_catalog.json 缺失）"
-              "—— 五态退化为三态，未入库的书无从得知")
+              "—— 六态退化为未登记一种，未入库的书无从得知")
         return
-    print(f"\n=== 语料状态（五态 = 语料目录 × 库内实况；目录 {rep['catalog_path']}）")
+    print(f"\n=== 语料状态（六态 = 语料目录 × 库内实况；目录 {rep['catalog_path']}）")
     print(f'{"书名":<9}{"时代":<8}{"类目":<11}{"覆盖":<7}{"书籍状态":<10}召回确认')
     for b in manifest["books"]:
         print(f'{b["title"]:<9}{str(b.get("era_group") or "-"):<8}'
@@ -451,6 +663,7 @@ def print_audit(coverage: dict, manifest: dict) -> None:
     idx_bad = [b["title"] for b in manifest["books"] if not b["indexed"]["ok"]]
     print(f"  FTS 索引完整：{'全部入索引' if not idx_bad else '缺口 ' + str(idx_bad)}")
     print_section_methods(manifest)
+    print_volume_audit(manifest)
     print_catalog_status(manifest)
     g = manifest["publish_gate"]
     print(f"  发布闸门书名清单（check_publish.REAL_TITLES）："

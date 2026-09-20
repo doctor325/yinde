@@ -36,10 +36,14 @@ const qs = obj => { const u = new URLSearchParams(); for (const k in obj)
  * 本地静态导出）没有 Python 进程，回答不了「语料里到底有没有这个串」——那要全表
  * 计数。那边保持原有文案与横幅（boot.js），本函数返回 null，调用方什么都不做。
  * 出错一律吞掉：归因是锦上添花，不能让它把「没有结果」变成「检索失败」。 */
-async function tryDiagnose(q) {
+async function tryDiagnose(q, book, edition) {
   const boot = window.HistoryAIBoot ? await window.HistoryAIBoot : { mode: "api" };
   if (boot.mode !== "api" || !q) return null;
-  try { return await api(`/api/diagnose?${qs({ q })}`); } catch (e) { return null; }
+  // book/edition 必须一起传：归因的「收录范围」是**按这次检索的范围**算的。
+  // 只传 q 会让「在《北齊書》里搜不到」被答成「全库 19 部里没有」——
+  // 那正是本阶段要消灭的那种含糊话（§25 情况三）。
+  try { return await api(`/api/diagnose?${qs({ q, book, edition })}`); }
+  catch (e) { return null; }
 }
 
 /* 语料收录进度（第六点三阶段）。同样是**只在本地 API 模式问**：真实书单不能进
@@ -249,10 +253,24 @@ let searchState = { q: "", book: "", edition: "", page: 1, pageSize: 20,
                     mode: "standard", text: "orig", total: 0, hitTotal: 0,
                     terms: [], simpleTerms: [], results: [], items: [] };
 let searchLoading = false;
+/* 在册未入库的书（第六点四阶段 §25 情况四）。数据来自 /api/catalog 的 planned；
+ * 演示模式下拿不到目录，集合为空 —— 于是公开站的下拉里只有演示书，
+ * **真实书名一个都不进产物**（§22）。 */
+let plannedBooks = [];
+/* 这本书在不在「在册未入库」里？**判据只有这一处**。判错的方向不对称：
+ * 判成「在库」→ 送去 /api/search → engine 抛「未识别的史书」→ 用户看到错误框；
+ * 判成「未入库」→ 送去 diagnose → 用户看到「这部史书尚未收录」。后者才是真话。
+ * 空 id 一律 false（「全部史书」不能被判成某本未入库的书）。 */
+const isPlannedBook = (id, list = plannedBooks) =>
+  !!id && (list || []).some(p => p.book_id === id);
 
 async function searchView(params) {
   const view = $("#view");
   const books = await getBooks();
+  // §25 情况四：把「在册未入库」的书也列进下拉。**必须能选中它们** —— 否则
+  // 「这部史书尚未收录」这句话在浏览器里根本没有入口，「情况四」也就无从验收。
+  const cat = await tryCatalog();
+  plannedBooks = (cat && cat.planned) || [];
   searchState = { ...searchState, q: params.q ?? "", book: params.book ?? "",
                   edition: params.edition ?? "", page: +(params.page || 1),
                   mode: params.mode || searchState.mode || "standard",
@@ -265,6 +283,10 @@ async function searchView(params) {
         <option value="">全部史书</option>
         ${books.map(b => `<option value="${esc(b.book_id)}"
           ${searchState.book === b.book_id ? "selected" : ""}>《${esc(b.title)}》</option>`).join("")}
+        ${plannedBooks.length ? `<optgroup label="尚未收录（搜不到）">${
+          plannedBooks.map(p => `<option value="${esc(p.book_id)}"
+            ${searchState.book === p.book_id ? "selected" : ""}>《${esc(p.title)}》</option>`).join("")
+        }</optgroup>` : ""}
       </select>
       <select id="sedition">
         <option value="">全部版本</option>
@@ -322,6 +344,16 @@ function doSearch(page) {
                mode: searchState.mode, text: searchState.text };
   history.replaceState(null, "", `#/search?${qs(rp)}`);
   const box = $("#result");
+  // §25 情况四：**在册未入库的书不送去 /api/search** —— engine.resolve_book 只认
+  // 库里的书，会抛「未识别的史书」（engine 没错，它的职责就只管库里的书）。
+  // 正确答案是 diagnose 的四态之一 not_imported：「这部史书尚未收录」，还带上
+  // 它有多少卷。送去 /api/search 的话，用户看到的是一个错误框 —— 那等于把
+  // 「我还没收这本书」说成了「这次检索坏了」。
+  if (isPlannedBook(searchState.book)) {
+    box.innerHTML = `<div class="load">正在查收录范围…</div>`;
+    renderNotImported(box, rp);
+    return;
+  }
   box.innerHTML = `<div class="load">正在查找史料…</div>`;
   searchLoading = true;
   api(`/api/search?${qs(rp)}`).then(res => { searchLoading = false; renderResults(res); })
@@ -358,6 +390,7 @@ function renderResults(res) {
       ${res.truncated ? `<br><span class="quiet">命中过多，本次只组装了前 ${blocks.toLocaleString()} 段</span>` : ""}
       ${res.section_truncated ? `<br><span class="quiet">命中的篇名过多，篇名结果只列了前若干条（正文结果不受影响）</span>` : ""}
     </div>`;
+  html += partialBanner(res.scope);
   searchState.results.forEach((b, i) => {
     html += blockCard(b, terms, i, searchState.text, searchState.simpleTerms); });
   html += pagerBlock(blocks, res.page, res.page_size, "doSearch");
@@ -371,11 +404,20 @@ function renderResults(res) {
  * 所以页面上说「语料尚未收录」时，`tests/recall.py` 的报告里也是同一句话。
  * 只在本地 API 模式下拿得到（见 tryDiagnose）；拿不到就保持上面那句通用提示。 */
 async function renderDiagnosis(box, res) {
-  const d = await tryDiagnose(res.q || searchState.q);
+  const d = await tryDiagnose(res.q || searchState.q, res.book, res.edition);
   // 竞态：等回来时用户可能已经搜了别的 —— 那一格已经被覆盖，别再写回去。
   if (!d || !d.summary || searchState.lastRes !== res) return;
   const mark = ok => (ok === true ? "✓" : (ok === false ? "✗" : "–"));
-  let html = `<div class="empty"><b>没有找到相关史料</b><br>${esc(d.summary)}</div>`;
+  // 标题由**归因给的 result_status** 决定，不在这里另判一次（§7~§9）。
+  // 六点三时这里写死「没有找到相关史料」—— 那句话在 5 部残缺正史和 9 部未导入
+  // 正史上都是错的：它把「我们没有」说成了「史书里没有」。§28 的门面就是这一段。
+  const st = d.result_status;
+  const head = st === "partial_no_hit" ? "所收版本不完整，未收录的部分无从判断"
+    : st === "not_imported" ? "这部史书尚未收录"
+    : st === "complete_no_hit" ? "所收版本内没有找到"
+    : "没有找到相关史料";
+  let html = `<div class="empty"><b>${esc(head)}</b><br>${esc(d.summary)}</div>`;
+  html += scopeCard(d.scope);
   if ((d.layers || []).length) {
     html += `<div class="card"><b>逐层排查</b>
       <div class="quiet">从「语料在册」到「块组装」，每层给结论与证据：</div>
@@ -388,6 +430,82 @@ async function renderDiagnosis(box, res) {
       .map(s => `<li>${esc(s)}</li>`).join("")}</ul></div>`;
   }
   box.innerHTML = html;
+}
+
+/* §25 情况四：查一部**在册未入库**的史书。不调 /api/search（理由见 doSearch），
+ * 直接问 diagnose 并复用 renderDiagnosis —— 四态标题、收录范围卡、逐层排查都在
+ * 那一处；两处各写一套，早晚会给出两个说法。
+ *
+ * 这里只塞一个最小 res：renderDiagnosis 只用 q/book/edition 三个字段，以及
+ * lastRes 的同一性做竞态守卫（先记下这个 res，守卫才放行）。 */
+function renderNotImported(box, rp) {
+  const res = { q: rp.q, book: rp.book, edition: rp.edition };
+  searchState.lastRes = res;
+  renderDiagnosis(box, res);
+}
+
+/* 有结果时的残缺提示（第六点四阶段 §28）。
+ *
+ * **这是本阶段最容易漏的一半**：§25 的四种情况全部是「搜不到」时说什么，
+ * 而一个搜到了的用户同样会误判 —— 搜《北齊書》得到 1 段「高歡」，他自然
+ * 以为那就是北齊書里关于高歡的全部，而这本书只有 35/50 卷，缺的 15 卷
+ * 根本不在检索范围里。**结果是对的，结论是错的。**
+ *
+ * 只在限定了单一史书时出现（服务端只在那种情况下给 scope），且只在残缺时画：
+ * 每页都挂一条免责声明，说多了等于没说。完整史书不给。 */
+function partialBanner(sc) {
+  const b = sc && sc.book;
+  if (!b || b.volume_status !== "partial") return "";
+  const miss = b.expected_missing || [];
+  return `<div class="card"><b>⚠ 所收版本不完整</b>
+    <div class="quiet">《${esc(b.title)}》的这部底本只收到
+      <b>${esc(b.range_text || `${b.declared}/${b.expected} 卷`)}</b>${
+      miss.length ? `（缺 ${miss.length} 卷）` : ""}。
+      <b>下面的结果全部来自已收录的卷</b>；未收录的部分没有参与检索，
+      所以这不等于「${esc(b.title)}里只有这些」。
+      <a class="backlink" href="#/coverage">收录范围 →</a></div></div>`;
+}
+
+/* 收录范围卡（第六点四阶段 §6/§25）。**一张卡只讲一件事：这次搜的范围里，
+ * 我们手上到底有多少卷。** 数来自 search/diagnose.py 的 scope_status()，
+ * 与 #/coverage 页、tests/recall.py 同源；页面不自己算，也不算第二遍。
+ *
+ * 为什么残缺书必须显示这一块：用户搜《北齊書》搜不到「齊桓公」，页面若只说
+ * 「没有找到」，他得到的结论是「北齊書里没有齊桓公」。而事实是我们只有 35 卷，
+ * 卷三十六以后根本没进来 —— 那 15 卷里有没有，我们不知道。§28：
+ * 「宁可明确告诉用户我的史料不完整，也不能让用户误以为史书中没有」。 */
+function scopeCard(sc) {
+  if (!sc) return "";
+  const b = sc.book;
+  const rows = [];
+  if (b && b.title) {
+    let line = `<b>《${esc(b.title)}》</b>`;
+    if (b.edition) line += ` <span class="quiet">· ${esc(b.edition)}</span>`;
+    if (b.range_text) line += ` · 已收 <b>${esc(b.range_text)}</b>`;
+    else if (b.upstream_text) line += ` · ${esc(b.upstream_text)}`;
+    rows.push(`<li>${line}</li>`);
+    if (b.volume_status === "partial") {
+      const miss = (b.expected_missing || []);
+      rows.push(`<li class="quiet">这是<b>上游数字化</b>的边界，不是检索出错：
+        这部底本只到卷 ${b.declared}，通行本共 ${b.expected} 卷${
+          miss.length ? `（未收 ${miss.length} 卷，如卷 ${miss.slice(0, 6).join("、")}${
+            miss.length > 6 ? " 等" : ""}）` : ""}。</li>`);
+    }
+    if (b.caveat) rows.push(`<li class="quiet">${esc(b.caveat)}</li>`);
+  } else if (sc.books_in_scope) {
+    rows.push(`<li>检索范围：全库 <b>${sc.books_in_scope}</b> 部</li>`);
+    const inc = sc.incomplete || [];
+    if (inc.length) rows.push(`<li><b>${inc.length} 部底本残缺</b>：${
+      inc.map(x => `《${esc(x.title)}》${esc(x.range_text || "卷数不详")}`).join("、")}
+      <br><span class="quiet">这些书未收录的部分没有参与检索。</span></li>`);
+    const ni = sc.not_imported || [];
+    if (ni.length) rows.push(`<li class="quiet">另有 ${ni.length} 部正史尚未导入${
+      ni.length <= 8 ? `：${ni.map(t => `《${esc(t)}》`).join("、")}` : ""}。</li>`);
+  }
+  if (!rows.length) return "";
+  return `<div class="card"><b>本次检索的收录范围</b>
+    <div class="quiet">来自语料目录与库内实测卷号（不是文件数）。</div>
+    <ul class="diag">${rows.join("")}</ul></div>`;
 }
 
 /* ---------- 史料片段卡片 ---------- */
@@ -621,8 +739,8 @@ async function booksView() {
  * 三个状态是**算出来的，不是标的**：该时代在册的书写全在库里＝已收录；一部都没
  * 入库＝未开始；两头都不占＝部分。数据来自 /api/catalog（即 manifest 的五态快照，
  * 判据只有一份），cat 为 null 时整块不画。 */
-const STATUS_CN = { verified: "已核验", imported: "已入库", warning: "有告警",
-                    failed: "失败", planned: "未开始" };
+const STATUS_CN = { verified: "已核验", partial: "残缺", imported: "已入库",
+                    warning: "有告警", failed: "失败", planned: "未开始" };
 function eraProgress(cat) {
   if (!cat) return "";
   const groups = cat.by_era_group || {};
@@ -649,7 +767,9 @@ function eraProgress(cat) {
       <span class="era-pend quiet">${pendHtml}</span></div>`;
   }).join("");
   const counts = cat.counts || {};
-  const five = ["verified", "imported", "warning", "failed"]
+  // partial 是 6.4 加的第六态：底本卷不全（上游只数字化到某一卷）。
+  // 它必须出现在这里 —— 少了它，5 部残缺正史会从这一行里凭空消失。
+  const five = ["verified", "partial", "imported", "warning", "failed"]
     .filter(k => num(counts[k]))
     .map(k => `${STATUS_CN[k] || k} ${num(counts[k])}`).join("、");
   const stamp = String(cat.generated_at || "").slice(0, 16).replace("T", " ");
@@ -684,6 +804,10 @@ async function coverageView() {
   const view = $("#view");
   const books = await getBooks();
   const cat = await tryCatalog();
+  // book_id → 卷级行。卷数只在语料快照里（/api/catalog），书单（/api/books）
+  // 没有这个字段；这里按 book_id 关联，不另取一次数、也不在前端算覆盖率。
+  const volMap = {};
+  ((cat && cat.books) || []).forEach(b => { volMap[b.book_id] = b.volume || null; });
   const body = books.reduce((s, b) => s + num(b.body_rows), 0);
   const covered = books.reduce((s, b) => s + num(b.covered_rows), 0);
   const secs = books.reduce((s, b) => s + num(b.sections), 0);
@@ -692,11 +816,16 @@ async function coverageView() {
   let html = `<a class="backlink" href="#/books">← 数据检查</a>
     <h3>篇名覆盖审计 · ${books.length} 部史书</h3>
     ${eraProgress(cat)}
-    <p class="quiet">这一页回答的是「每卷正文有没有一个篇名可归」。归了篇，篇名检索
-      与「定位到命中句」才知道自己在哪一篇里；没归篇的正文照样能全文检索，只是没有篇名。</p>
+    ${volumeTotalsCard(cat)}
+    <p class="quiet">这一页回答两个不同的问题，左右两栏分开答：
+      <b>「每卷正文有没有一个篇名可归」</b>（篇名覆盖，我们的解析质量，能修）
+      与<b>「这部书我们到底收了多少卷」</b>（卷级覆盖，上游给了多少，修不了）。
+      归了篇，篇名检索与「定位到命中句」才知道自己在哪一篇里；没归篇的正文照样能
+      全文检索，只是没有篇名。</p>
     <div class="overflow"><table class="dev"><tr>
       <th>书名</th><th>版本</th><th>篇名</th><th>卷</th><th>正文行</th><th>已归篇</th>
-      <th>覆盖</th><th>状态</th><th></th></tr>`;
+      <th>篇名覆盖</th><th>状态</th>
+      <th>已收/应有卷</th><th>卷覆盖率</th><th>卷状态</th><th></th></tr>`;
   for (const b of books) {
     const pct = (num(b.section_coverage) * 100).toFixed(1) + "%";
     html += `<tr><td><b>《${esc(b.title)}》</b></td>
@@ -707,6 +836,7 @@ async function coverageView() {
       <td>${num(b.covered_rows).toLocaleString()}</td>
       <td class="mono">${pct}</td>
       <td>${covChip(b.coverage_status)}</td>
+      ${volCells(volMap[b.book_id])}
       <td><a class="backlink" href="#/book/${encodeURIComponent(b.book_id)}">文件列表 →</a></td></tr>`;
   }
   html += `</table></div>
@@ -729,6 +859,90 @@ async function coverageView() {
   }
   view.innerHTML = html;
 }
+/* 卷级覆盖（第六点四阶段 §6）。**只加不改**：这一页原有的篇名覆盖口径一字未动，
+ * 卷级信息是新增的三列 + 一块总账，因为它们回答的是另一个问题。 */
+function volCells(v) {
+  // undefined（这一格没有数据）与 known:false（有数据，但这部书没有卷级模型）
+  // 是两回事：前者是**我们没拿到**（静态演示模式、或快照缺这本书），后者是
+  // 「这部底本本来就不按卷分」。混成一格会让演示站上每本书都显示「无卷级模型」，
+  // 那是句假话。发布产物里没有真实卷数（§22），所以这条路径必然走到。
+  if (v === undefined || v === null) {
+    return `<td class="quiet">—</td><td class="quiet">—</td>
+      <td class="quiet" title="本地 API 模式才有卷级数据（真实卷数不进发布产物）">未提供</td>`;
+  }
+  if (!v.known) return `<td class="quiet">—</td><td class="quiet">—</td>
+    <td>${chip("无卷级模型", "", "该底本以篇为单位，文件头 JUAN 是文件序号不是卷次")}</td>`;
+  const av = v.available, ex = v.expected;
+  const have = (av == null) ? "—" : num(av).toLocaleString();
+  const want = ex ? num(ex).toLocaleString() : "—";
+  const pct = (v.coverage_ratio == null) ? "—"
+    : (num(v.coverage_ratio) * 100).toFixed(1) + "%";
+  return `<td class="mono">${have} / ${want}</td>
+    <td class="mono">${pct}</td>
+    <td>${volChip(v)}</td>`;
+}
+function volChip(v) {
+  const s = v.status;
+  if (s === "partial") {
+    const miss = num(v.expected) - num(v.available);
+    return chip("残缺", "warn",
+      `上游数字化只到卷 ${v.declared}，通行本共 ${v.expected} 卷（缺 ${miss} 卷）`
+      + ` —— 这是上游的边界，不是我们漏了，也不是检索出错`);
+  }
+  if (s === "complete") {
+    const gap = num(v.expected) - num(v.available);
+    // 「完整」不等于「每一卷都被机器数到」。魏書显示 113/114 却是完整的：
+    // 卷一百五在源文件里被拆成「之一…之四」，文件头认不出卷题，那 1 卷是人
+    // 逐卷豁免的（catalog 的 volume_notes）。差额不解释就等于说我们丢了一卷。
+    const why = gap > 0
+      ? `底本卷数与通行本相符；卷号差额 ${gap} 卷已在语料目录里逐卷说明（源文件如此）`
+      : v.witness === "declared"
+        ? "底本卷数与通行本相符 —— 该底本无卷级证据，此卷数是人工登记的"
+        : "底本卷数与通行本相符，机器逐卷核对过";
+    return chip("完整", "main", why);
+  }
+  if (s === "unknown") return chip("无卷级模型", "");
+  return chip(s || "—", "");
+}
+
+/* 卷级总账（§4/§13）。数字来自 manifest 的 volume_totals，页面不重算。
+ * 「文件数量 ≠ 卷数量」这句话必须跟着数字走 —— 否则 1013/1275 会被读成
+ * 「我们的语料是残的」或者更糟「史书里没有」。 */
+function volumeTotalsCard(cat) {
+  if (!cat || !cat.available) return "";
+  if (cat.volume_available === false) {
+    return `<div class="card"><b>卷级覆盖</b>
+      <div class="quiet">卷级快照不可用：${esc(cat.volume_reason || "未知原因")}
+        —— 卷数一栏显示「—」，不代表这些书没有卷，只代表现在读不到卷级信息。</div></div>`;
+  }
+  const t = cat.volume_totals || {}, lib = t.in_library || {}, pl = t.planned || {};
+  if (!lib.books) return "";
+  const pct = lib.ratio == null ? "—" : (num(lib.ratio) * 100).toFixed(1) + "%";
+  const bs = lib.by_status || {};
+  const stamp = String(cat.volume_generated_at || cat.generated_at || "")
+    .slice(0, 16).replace("T", " ");
+  const up = lib.upstream_partial || [];
+  return `<div class="card"><b>卷级覆盖（库内 ${lib.books} 部）</b>
+    <p>已收 <b>${num(lib.available).toLocaleString()}</b> /
+      应有 <b>${num(lib.expected).toLocaleString()}</b> 卷
+      <span class="mono">（${pct}）</span>
+      <span class="quiet">· 完整 ${num(bs.complete)} 部、残缺 ${num(bs.partial)} 部、
+        无卷级模型 ${num(bs.unknown)} 部 · 快照 ${esc(stamp)} UTC</span></p>
+    ${up.length ? `<p class="quiet"><b>${up.length} 部底本残缺</b>：
+      ${up.map(t => `《${esc(t)}》`).join("")}
+      —— 上游数字化本身只到某一卷为止（Kanripo 就是这样）。搜索这些书时，
+      未收录的卷不在检索范围里，页面会说「所收版本不完整」而不是「书里没有」。</p>` : ""}
+    ${num(pl.books) ? `<p class="quiet">另有 ${num(pl.books)} 部正史尚未导入
+      （登记 ${num(pl.expected).toLocaleString()} 卷）
+      ${(pl.upstream_partial || []).length ? `，其中
+        ${pl.upstream_partial.map(t => `《${esc(t)}》`).join("")} 上游本身也不全` : ""}。</p>` : ""}
+    <p class="quiet">口径：应有卷数 = <b>通行本</b>卷数（外证，稳定）；已收卷数 =
+      库内<b>实测卷号数</b>。是卷号口径，<b>不是文件数</b> —— Kanripo 的
+      <span class="mono">_000.txt</span> 是目録、考證文件不是卷，北齊書 36 个文件
+      只是 35 卷，後漢書 125 个文件只是 120 卷。${esc(cat.volume_note || "")}</p>
+  </div>`;
+}
+
 function covChip(status) {
   const s = status || "OK";
   if (s === "FAIL") return chip("FAIL", "fail", "整本书没有一条篇名——篇名检索不可用");
@@ -1228,7 +1442,10 @@ function renderAsk(res) {
   if (!ag.events.length) {
     html += `<div class="card"><b>语料中没有找到相关史料</b><br>
       系统如实返回空，不编造答案。可以换个问法，或改用
-      <a class="backlink" href="#/search?q=${encodeURIComponent(res.q || "")}">全文检索</a>。</div>`;
+      <a class="backlink" href="#/search?q=${encodeURIComponent(res.q || "")}">全文检索</a>。<br>
+      <span class="quiet">这句话说的是<b>我们的语料</b>里没有，不是「史书上没有」——
+      语料收了多少部、多少卷，见
+      <a class="backlink" href="#/coverage">收录范围</a>。</span></div>`;
     box.innerHTML = html;
     return;
   }

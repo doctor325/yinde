@@ -8,6 +8,7 @@
 （planned / uncatalogued）依赖本机是否有 HistoryLibrary，不在这里断言。
 """
 import json
+import shutil
 import sys
 import unittest
 from pathlib import Path
@@ -15,6 +16,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from scripts.pipeline import catalog as C                            # noqa: E402
+from tests import _tmp                                               # noqa: E402
 
 
 def write(tmp: Path, obj) -> str:
@@ -330,6 +332,124 @@ class LayerRuleTest(unittest.TestCase):
         self.assertEqual(file_layer_defaults("某書", 0, "sbck", {})[1],
                          "pending_section")
         self.assertEqual(file_layer_defaults("某書", 1, None, {})[0], "unknown")
+
+
+class CatalogVolumeTest(unittest.TestCase):
+    """卷级登记（6.4 §4/§5）：expected / declared / witness / volume_notes。
+
+    这一组守的是**数字的来源是否可信**。卷级字段错了不会报错，它只会让页面
+    安静地显示成另一个数 —— 而页面上那个数正是用户判断「史书里有没有」的依据。
+    """
+
+    def setUp(self):
+        self.tmp = Path(_tmp.mkdtemp(prefix="catalog_vol_"))
+        self.raw = json.loads(C.CATALOG_PATH.read_text(encoding="utf-8"))
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _load(self, mutate):
+        import copy
+        obj = copy.deepcopy(self.raw)
+        mutate(obj)
+        return C.load(write(self.tmp, obj))
+
+    def _bad(self, mutate, *expect_fragments):
+        with self.assertRaises(C.CatalogError) as cm:
+            self._load(mutate)
+        msg = str(cm.exception)
+        for frag in expect_fragments:
+            self.assertIn(frag, msg)
+        return msg
+
+    def test_partial_books_registered_as_declared_short(self):
+        """§5：5 部上游残缺的正史必须登记成 declared < expected。
+
+        这三条数字（30/65、35/50、22/100）是本阶段的产品承诺 —— 页面上的
+        「《北齊書》35/50 卷」直接来自它们。改错任何一个，搜索页就会对着
+        一个残缺版本说「已收全」。
+        """
+        cat = C.load()
+        want = {"KR2a0012": (30, 65), "KR2a0015": (33, 130),
+                "KR2a0021": (35, 50), "KR2a0023": (49, 85),
+                "KR2a0025": (22, 100)}
+        for bid, (declared, expected) in want.items():
+            b = cat.books[bid]
+            self.assertEqual((b.declared_volumes, b.expected_volumes),
+                             (declared, expected), bid)
+            self.assertLess(b.declared_volumes, b.expected_volumes, bid)
+            self.assertEqual(b.volume_witness, "corpus", bid)
+
+    def test_complete_books_have_equal_numbers(self):
+        """完整书 declared == expected —— 否则会凭空多出「残缺」。"""
+        cat = C.load()
+        for bid in ("KR2a0007", "KR2a0009", "KR2a0024"):
+            b = cat.books[bid]
+            self.assertEqual(b.declared_volumes, b.expected_volumes, bid)
+
+    def test_witness_none_books_have_no_numbers(self):
+        """先秦四书：底本以篇为单位，登记卷数就是自相矛盾。"""
+        cat = C.load()
+        for bid in ("KR1b0001", "KR1e0001", "KR2e0001", "KR2e0003"):
+            b = cat.books[bid]
+            self.assertEqual(b.volume_witness, "none", bid)
+            self.assertIsNone(b.expected_volumes, bid)
+
+    def test_volumes_view_shape(self):
+        """`volumes()` 是 manifest 取数的那一层，键名改了会静默拿到 None。"""
+        b = C.load().books["KR2a0012"]
+        v = b.volumes()
+        self.assertEqual(set(v), {"expected", "declared", "witness", "notes",
+                                 "note"})
+        self.assertEqual(v["witness"], "corpus")
+
+    def test_declared_over_expected_is_error(self):
+        self._bad(lambda r: r["books"]["KR2a0012"].update(declared_volumes=99),
+                  "declared_volumes", "expected_volumes")
+
+    def test_witness_none_forbids_numbers(self):
+        self._bad(lambda r: r["books"]["KR2e0001"].update(declared_volumes=21),
+                  "volume_witness", "none")
+
+    def test_corpus_witness_requires_both_numbers(self):
+        self._bad(lambda r: r["books"]["KR2a0012"].pop("declared_volumes"),
+                  "declared_volumes")
+
+    def test_unknown_witness_caught(self):
+        self._bad(lambda r: r["books"]["KR2a0012"].update(volume_witness="guess"),
+                  "volume_witness", "guess")
+
+    def test_volume_notes_key_must_be_digit(self):
+        """volume_notes 的键是**卷号**，写成「卷105」就对不上 gaps 里的整数。"""
+        self._bad(lambda r: r["books"]["KR2a0019"].update(
+            volume_notes={"卷105": "说明"}), "volume_notes")
+
+    def test_volume_notes_must_explain(self):
+        self._bad(lambda r: r["books"]["KR2a0019"].update(
+            volume_notes={"105": ""}), "volume_notes")
+
+    def test_editions_registry_required(self):
+        """版本登记表（§11）：底本名与来源必须能查到，否则页面上只有个空标签。"""
+        cat = C.load()
+        self.assertEqual(set(cat.editions), {"wyg", "sbck", "tls"})
+        for key, e in cat.editions.items():
+            self.assertEqual(e["family"], key)
+            self.assertTrue(e["name"], key)
+            self.assertTrue(e["source"], key)
+
+    def test_edition_of_returns_book_scoped_id(self):
+        """`edition_id` 是「书-家族」，因为同一个 WYG 在本库里有 14 部不同的书；
+        只用 family 会让 14 部书共用一个版本号，页面无从区分。"""
+        cat = C.load()
+        ed = cat.edition_of(cat.books["KR2a0012"])
+        self.assertEqual(ed["edition_id"], "KR2a0012-wyg")
+        self.assertEqual(ed["family"], "wyg")
+        self.assertEqual(ed["kanripo_id"], "KR2a0012")
+        self.assertTrue(ed["edition_name"])
+
+    def test_missing_edition_registration_caught(self):
+        self._bad(lambda r: r["editions"].pop("sbck"),
+                  "sbck")
 
 
 if __name__ == "__main__":

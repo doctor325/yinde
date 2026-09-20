@@ -1375,6 +1375,13 @@ def check_static_api() -> bool:
             r.pop("library", None)
             if isinstance(r.get("run"), dict):
                 r["run"].pop("library", None)
+        # 卷级覆盖（6.4-§28）同理，而且是**更强**的一条纪律：scope 里带真实书名与
+        # 「《北齊書》35/50 卷」这类只有本地真语料才数得出来的数字。发布产物里
+        # 一个真实书名都不许有（§22，check_publish 的第 ② 条闸门），所以静态版
+        # **永远给不出** scope —— 那不是差异，是它本来就不该有。
+        # 页面对此的处理是「拿不到就不画」（app.js 的 partialBanner 收 null/undefined）。
+        if isinstance(r, dict) and "scope" in r:
+            r.pop("scope", None)
 
     ok = True
     n_diff = 0

@@ -195,6 +195,121 @@ def recall_ok(case: dict, res: dict) -> bool:
     return res["hit_total"] > 0
 
 
+# ---------------------------------------------------------- Recall Invariant
+# 第六点四阶段 §15：把「命中数 == 基线」这种**定数断言**换成**包含断言**。
+#
+# 定数断言为什么必须换掉：语料每加一部书，命中数就变，`baseline_hits` 立刻漂移。
+# 漂移不是失败（报告里也是这么写的），可它天天响，响到最后没人看 —— 一个没人看的
+# 告警等于没有告警。反过来，「上次返回过的这一段，这次还得返回」是**单调**的：
+# 语料只增不减，新数据只会带来新结果，不会让老结果消失。它只在真出问题时才红。
+#
+# 存的是 `(book_id, file_name, row_first, row_last)` 而不是 `passage_id`：
+# rowid 只在**这一个** history.db 里有效，重建库（run_all 重跑）就会变；文件号 +
+# 行号是从源文件直接读出来的，只要源文件没改就永远指同一段原文。§15 说的
+# `expected_passage_ids ⊆ actual_passage_ids`，落地上就是这个包含关系。
+INVARIANT_IN = 8        # 每条用例最多冻结前 8 段 —— 够抓住召回退化，又不至于
+                        # 把「排序微调」也判成失败（顺序不在包含断言的范围里）
+INVARIANT_FILE = "invariant.json"   # 机器生成的基线，与手写用例分开放
+
+
+def prov_of(block: dict) -> tuple:
+    return (block.get("book_id") or block.get("book_title") or "",
+            block.get("file_name") or "",
+            block.get("row_first"), block.get("row_last"))
+
+
+def invariant_violations(case: dict, res: dict) -> list:
+    """冻结过的期望片段，这次还都在结果里吗。**只进不退**。"""
+    want = case.get("expect_prov")
+    if not want:
+        return []
+    got = {prov_of(b) for b in (res.get("results") or [])}
+    missing = [w for w in want if tuple(w) not in got]
+    if not missing:
+        return []
+    shown = "；".join(f"{m[1]} 行 {m[2]}-{m[3]}" for m in missing[:3])
+    return [f"冻结的 {len(want)} 段里有 {len(missing)} 段这次没返回（{shown}）"
+            f" —— 召回退化（语料只增不减，老结果不该消失）"]
+
+
+# 冻结动作只有一处实现：`freeze_run()`（在文件末尾，`--freeze-invariant` 调它）。
+# 这里曾经另有一个 freeze_invariant() 辅助函数，写的是**另一套** JSON 结构。
+# 两个写同一个基线文件的函数 = 两套基线，早晚会写出后者覆盖前者的东西。
+
+
+# §28 的机器判据：这些词组**不许被当成结论**。判据不是「出现即禁止」——
+# not_imported 的正确措辞里就带着它（「这不是「这本书里没有」，是这本书还搜不了」），
+# 那是**否定**它，正是我们想要的句子。所以看它前面几个字里有没有否定词。
+_BANNED_ABSENCE = ("正文中没有", "史书中没有", "书里没有", "语料中没有")
+_NEGATORS = ("不是", "不等于", "并非", "而不是", "不能", "无从", "无法")
+
+
+def _asserted_absence(summary: str) -> str | None:
+    """摘要里有没有**未被否定**的「…没有」断言。返回第一个越界词组。"""
+    for phrase in _BANNED_ABSENCE:
+        start = 0
+        while True:
+            i = summary.find(phrase, start)
+            if i < 0:
+                break
+            before = summary[max(0, i - 12):i]
+            if not any(n in before for n in _NEGATORS):
+                return phrase
+            start = i + len(phrase)
+    return None
+
+
+def _classify_status(cur, case: dict, out: dict) -> dict:
+    """四态用例：产品给出的 result_status 必须与期望相符（6.4 §25）。
+
+    只认 `diagnose()` 的结论 —— 那是页面与 API 共用的唯一实现。这里再判一次
+    「按语料该不该是 partial」就是第二套说法，迟早和产品说的不一样。
+    """
+    try:
+        d = diagnose.diagnose(cur, case["query"], book=case.get("book"),
+                              edition=case.get("edition"))
+    except ValueError as e:
+        out.update(status="FAIL", klass=COVERAGE,
+                   why=f"诊断抛异常（书名认不出？）{e}")
+        out["got_status"] = None
+        return out
+    got = d.get("result_status")
+    want = case["expect_status"]
+    sc = d.get("scope") or {}
+    out["got_status"] = got
+    out["scope_status"] = sc.get("status")
+    out["summary"] = d.get("summary")
+    b = sc.get("book") or {}
+    out["scope_range"] = b.get("range_text") or b.get("upstream_text") or ""
+    if got != want:
+        out.update(status="FAIL", klass=COVERAGE,
+                   why=f"四态应为 {want}，实得 {got}（{d.get('summary')}）")
+        return out
+    # 情况三的要求不止「状态对」，还要**给出当前收录范围**（§25）：报 partial
+    # 却不告诉用户收了多少卷，用户还是不知道缺在哪。
+    # 整库范围（book=None）没有单一 range_text，它的范围体现在 incomplete 名单上 ——
+    # 「全库 5 部残缺」本身就是范围，两种给法都算数。
+    if want == "partial_no_hit" and not (out["scope_range"]
+                                        or sc.get("incomplete")):
+        out.update(status="FAIL", klass=COVERAGE,
+                   why="报了 partial_no_hit 却没给出收录范围"
+                       "（既没有 range_text，也没有残缺书名单）")
+        return out
+    # §28：这两态下的措辞不许**断言**「书里没有」。
+    # 注意是断言，不是出现 —— not_imported 的正确措辞恰恰是
+    # 「这不是「这本书里没有」，是这本书还搜不了」，那句话里就带着这个词组。
+    # 判据是看它有没有被否定（前面几个字里有没有「不是」「不等于」）。
+    if want in ("partial_no_hit", "not_imported"):
+        bad = _asserted_absence(d.get("summary") or "")
+        if bad:
+            out.update(status="FAIL", klass=COVERAGE,
+                       why=f"措辞越界：「{bad}」被当成结论说了出来（§28 禁止）")
+            return out
+    out["why"] = f"四态 {got} 相符" + (f"，收录范围「{out['scope_range']}」"
+                                       if out["scope_range"] else "")
+    return out
+
+
 def classify(cur, case: dict, zh_ok: bool) -> dict:
     """跑一条 case 并给出八维判定。"""
     q = case["query"]
@@ -217,6 +332,14 @@ def classify(cur, case: dict, zh_ok: bool) -> dict:
            "hit_total": 0, "total": 0, "exec_mode": "-", "truncated": False,
            "section_truncated": False, "match_types": [], "audits": [],
            "books": [], "rank": None, "klass": "-", "status": "PASS", "why": ""}
+
+    # 搜索结果四态（6.4 §14/§15）：这类用例问的不是「命中几段」，而是
+    # 「**产品如实说了什么**」—— 未导入的书它必须报 not_imported，残缺的书必须报
+    # partial_no_hit 并给出收录范围。所以判据走 diagnose()（产品真正调用的那一份），
+    # 不走 search_result_blocks：后者对未导入的书直接抛 ValueError，
+    # 根本走不到「怎么措辞」这一步。
+    if case.get("expect_status"):
+        return _classify_status(cur, case, out)
 
     try:
         res = result_block.search_result_blocks(
@@ -294,6 +417,16 @@ def classify(cur, case: dict, zh_ok: bool) -> dict:
     audits.append((PROVENANCE, bad))
     if bad:
         out.update(status="FAIL", klass=PROVENANCE, why="；".join(bad[:3]))
+        out["audits"] = _pack(audits)
+        return out
+
+    # Recall Invariant（§15）：冻结过的片段必须还在。排在最后，因此前面几维
+    # 都过了才判它 —— 一条用例只报**最先**出问题的那一维，不叠报。
+    out["_prov_top"] = [list(prov_of(b)) for b in res["results"][:INVARIANT_IN]]
+    bad = invariant_violations(case, res)
+    audits.append(("RecallInvariant", bad))
+    if bad:
+        out.update(status="FAIL", klass=PASSAGE, why="；".join(bad[:3]))
         out["audits"] = _pack(audits)
         return out
 
@@ -437,7 +570,9 @@ def load_cases() -> list:
     """
     cases: list = []
     seen: dict = {}
-    files = sorted(CASES_DIR.glob("*.json"))
+    # invariant.json 是机器生成的基线（cases 是 dict 不是 list），不能当用例文件读。
+    files = [p for p in sorted(CASES_DIR.glob("*.json"))
+             if p.name != INVARIANT_FILE]
     if not files:
         raise SystemExit(f"没有用例文件：{CASES_DIR}")
     for p in files:
@@ -449,7 +584,32 @@ def load_cases() -> list:
                 raise SystemExit(f"用例 id 重复：{c['id']}（{seen[c['id']]} 与 {p.name}）")
             seen[c["id"]] = p.name
             cases.append(c)
+    _attach_invariant(cases)
     return cases
+
+
+def _attach_invariant(cases: list) -> int:
+    """把 `invariant.json` 里冻结的 expect_prov 贴回各条用例。
+
+    **不放进 search_cases/ 里**：那些文件是人手写的用例（查询、期望、注释），
+    这个文件是机器生成的基线，混在一起会被人当成手写数据去编辑。两者也按不同的
+    节奏变 —— 用例是人想出来的，基线是跑出来的。
+    """
+    p = CASES_DIR / INVARIANT_FILE
+    if not p.is_file():
+        return 0
+    try:
+        d = json.loads(p.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as e:
+        print(f"** {INVARIANT_FILE} 读不了（{e}）—— 本次不判 Recall Invariant")
+        return 0
+    frozen = d.get("cases") or {}
+    n = 0
+    for c in cases:
+        if frozen.get(c["id"]):
+            c["expect_prov"] = [tuple(x) for x in frozen[c["id"]]]
+            n += 1
+    return n
 
 
 def run(report_path=None) -> int:
@@ -471,6 +631,10 @@ def run(report_path=None) -> int:
     print(f"库        {config.DB_PATH}")
     print(f"繁简转换  {'可用' if zh_ok else '!! 恒等回退 —— 简体输入会全部搜不到'}")
     print(f"用例      {len(cases)} 条")
+    # 不变量加载失败时跑分照样全绿 —— 把条数印在抬头里，让「有没有判」这件事
+    # 一眼可见，而不是只能从报告里推断。
+    frozen_n = sum(1 for c in cases if c.get("expect_prov"))
+    print(f"不变量    {frozen_n} 条带冻结基线，其余 {len(cases) - frozen_n} 条不判")
     if not self_ok:
         print("\n**分类器自检未通过 —— 下面的归因不可信**")
         print(self_report)
@@ -499,7 +663,7 @@ def run(report_path=None) -> int:
     cur.close()
 
     pairs = _script_pairs(cases, results)
-    text = render(results, pairs, zh_ok, self_ok)
+    text = render(results, pairs, zh_ok, self_ok, frozen_n)
     print()
     print(text)
 
@@ -516,7 +680,7 @@ def run(report_path=None) -> int:
     return 1 if (n_fail or not self_ok) else 0
 
 
-def render(results, pairs, zh_ok, self_ok=True) -> str:
+def render(results, pairs, zh_ok, self_ok=True, frozen_n=0) -> str:
     """生成 markdown 报告。"""
     n = len(results)
     n_pass = sum(1 for r in results if r["status"] == "PASS")
@@ -533,8 +697,14 @@ def render(results, pairs, zh_ok, self_ok=True) -> str:
     L.append("## 运行环境")
     L.append("")
     L.append(f"- 数据库：`{config.DB_PATH}`")
-    n_file = len(sorted(CASES_DIR.glob("*.json")))
+    n_file = len([p for p in CASES_DIR.glob("*.json") if p.name != INVARIANT_FILE])
     L.append(f"- 用例集：`tests/search_cases/`（{n_file} 个时代文件，{n} 条）")
+    # §15 的基线有没有真的加载上，必须写进报告：加载失败时跑分照样全绿，
+    # 报告长得一模一样 —— 那是「安全检查静默失效」，比不检查更糟。
+    L.append(f"- Recall Invariant：**{frozen_n} 条带冻结基线**"
+             + (f"，其余 {n - frozen_n} 条不判（负例 / 四态 / 超长结果，见报告末尾）"
+                if frozen_n < n else "")
+             + f"（`{INVARIANT_FILE}`）")
     L.append(f"- 繁简转换：**{'可用' if zh_ok else '恒等回退（简体输入会全部搜不到）'}**")
     L.append("")
     L.append("繁简转换是否可用是全局开关——脚本 `search/zh.py` 依赖 Windows 的 "
@@ -673,7 +843,68 @@ def render(results, pairs, zh_ok, self_ok=True) -> str:
             L.append(f"| {r['id']} | {r['query']} | {hb} | {r['hit_total']} "
                      f"| {bb} | {r['total']} |")
     L.append("")
+    if frozen_n < n:
+        L.append(f"## Recall Invariant 的射程（{frozen_n} / {n} 条）")
+        L.append("")
+        L.append(f"冻结基线在 `{INVARIANT_FILE}` 里，判据是"
+                 "`expected_passage_ids ⊆ actual_passage_ids`：**冻过的片段必须还在**，"
+                 "防的是召回退化（语料只增不减，老结果不该消失）。剩下 "
+                 f"{n - frozen_n} 条不判，三类都不是漏：")
+        L.append("")
+        L.append("- **负例**（`must_hit=false`）：本来就没有片段，冻一个空集等于什么都没说。")
+        L.append("- **四态用例**（`cov-*`）：判的是措辞（`result_status` + 收录范围 + "
+                 "不许断言「书里没有」），判据走 `diagnose()`，这条路径不取片段表。")
+        L.append("- **超长结果用例**（`nb-single-01` / `pagination-01`）：在分页审计那一步"
+                 "就返回了，走不到冻结那一行；它们本身就是本阶段记录的性能债。")
+        L.append("")
+        L.append("反方向（一条 0 命中的用例以后命中了）不在射程内 —— "
+                 "那由四态用例自己的 `expect_status` 去守。一条断言管两头，两头都会松。")
+        L.append("")
     return "\n".join(L)
+
+
+def _invariant_payload(frozen: list) -> str:
+    """基线文件的**全部**内容构造（单独一个函数，为了能先空跑一遍）。
+
+    这里曾经把 `datetime.now(timezone.utc)` 写在 `freeze_run` 的最后一行，而
+    `timezone` 没 import —— 于是跑完 373 条用例、耗掉十几分钟之后才在**最后一句**
+    NameError，全部结果丢掉。写文件的那段代码在真跑之前先拿空表执行一次，
+    这种错就会在毫秒内炸出来。
+    """
+    return json.dumps(
+        {"note": "自动生成（tests/recall.py --freeze-invariant）：每条用例本次"
+                 "返回的前若干段的来源坐标（书 id/文件名/起止行）。语料只增不减，"
+                 "这些片段必须在以后每次跑里都还出现 —— 这是 §15 的 Recall "
+                 "Invariant：expected_passage_ids ⊆ actual_passage_ids。"
+                 "**不要手改**；要重冻就再跑一次 --freeze-invariant（先确认报告是绿的）。",
+         "frozen_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),   # 同 689 行：本地时间
+         "count": len(frozen),
+         "cases": {x["id"]: x["prov"] for x in frozen}}, ensure_ascii=False,
+        indent=2)
+
+
+def freeze_run(quiet: bool = False) -> int:
+    """跑一遍**当前**用例集，把前 N 段的来源坐标冻成 `invariant.json`。
+
+    先用脚跑、再看结果 —— 冻结动作本身不判断对错，它只是把「今天这套引擎给出的
+    结果」记成以后的底线。所以**跑之前先看一眼报告是绿的**：把一次带 bug 的输出
+    冻进去，那个 bug 就从此变成了「基线」，再也不会红。
+    """
+    _invariant_payload([])          # 先空跑一次写文件的代码，见上面的 docstring
+    cases = load_cases()
+    cur = db.connect()
+    frozen: list = []
+    for c in cases:
+        r = classify(cur, c, zh_works())
+        provs = r.get("_prov_top") or []
+        if provs:
+            frozen.append({"id": c["id"], "prov": [list(p) for p in provs]})
+    p = CASES_DIR / INVARIANT_FILE
+    p.write_text(_invariant_payload(frozen), encoding="utf-8")
+    if not quiet:
+        print(f"已冻结 {len(frozen)} / {len(cases)} 条用例的前 {INVARIANT_IN} 段 → {p}")
+        print("（负例与篇名用例没有正文块，不入表，这是正常的。）")
+    return 0
 
 
 def main(argv) -> int:
@@ -694,6 +925,8 @@ def main(argv) -> int:
     if not config.DB_PATH.is_file():
         print(f"缺 history.db：{config.DB_PATH}\n先跑 python -m scripts.pipeline.run_all")
         return 1
+    if "--freeze-invariant" in argv:
+        return freeze_run(report is not None)
     # 报告要落盘时把过程输出收起来，避免和 markdown 混在一起
     if report:
         buf = io.StringIO()

@@ -4,15 +4,20 @@
 （缺则跳过本文件；重建命令见 README）。
 """
 import json
+import shutil
 import sqlite3
-import tempfile
+import sys
 import threading
 import unittest
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 from scripts.pipeline import config
 from scripts.pipeline.validate import run_validation
+from tests import _tmp
+
 
 def db_count(sql: str) -> int:
     """从**正式库**数一个计数，当作基准。
@@ -42,17 +47,18 @@ N_FILES = db_count("SELECT COUNT(*) FROM files")
 class TestDbLoader(unittest.TestCase):
     def test_rebuild_into_throwaway_db(self):
         from scripts.pipeline.sqlite_store import rebuild
-        with tempfile.TemporaryDirectory() as td:
-            stats = rebuild(Path(td) / "t.db")
-            self.assertEqual(stats["books"], N_BOOKS)
-            self.assertEqual(stats["files"], N_FILES)
-            self.assertGreater(stats["records"], 220_000)
-            self.assertGreater(stats["passages"], 200_000)
-            conn = sqlite3.connect(Path(td) / "t.db")
-            # 与正式库同 schema、同重建逻辑
-            self.assertEqual(
-                conn.execute("SELECT COUNT(*) FROM kr_chars").fetchone()[0], stats["kr_codes"])
-            conn.close()
+        td = _tmp.mkdtemp()
+        self.addCleanup(shutil.rmtree, td, ignore_errors=True)
+        stats = rebuild(Path(td) / "t.db")
+        self.assertEqual(stats["books"], N_BOOKS)
+        self.assertEqual(stats["files"], N_FILES)
+        self.assertGreater(stats["records"], 220_000)
+        self.assertGreater(stats["passages"], 200_000)
+        conn = sqlite3.connect(Path(td) / "t.db")
+        # 与正式库同 schema、同重建逻辑
+        self.assertEqual(
+            conn.execute("SELECT COUNT(*) FROM kr_chars").fetchone()[0], stats["kr_codes"])
+        conn.close()
 
     def test_db_counts_match_metadata(self):
         """库内计数与 `data/metadata/*.json` 导出一致。

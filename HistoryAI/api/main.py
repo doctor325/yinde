@@ -55,6 +55,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from scripts.pipeline import config  # noqa: E402
+from scripts.pipeline import volume  # noqa: E402
 from scripts.pipeline.kanripo_header import split_header  # noqa: E402
 from api import db as api_db  # noqa: E402
 from search import context as search_ctx  # noqa: E402
@@ -108,7 +109,8 @@ _catalog_cache: dict[str, tuple] = {}
 
 
 def _catalog_snapshot() -> dict:
-    """语料收录进度（6.3-I）：回放审计快照里的 catalog 段 + 每本书的五态。
+    """语料收录进度（6.3-I）+ 卷级覆盖（6.4-E）：回放审计快照里的 catalog 段 +
+    每本书的六态 + 卷数/底本。
 
     **为什么不在这里重算五态**：判据在 `manifest.merge_catalog()`（coverage_status
     × FTS 索引探针 × `recall_verified` 人工确认位），这里再算一遍就是第二套说法，
@@ -116,8 +118,14 @@ def _catalog_snapshot() -> dict:
     `data/metadata/corpus_manifest.json`，并把它的生成时间原样带出：页面自己说明
     这份快照有多新，过期的责任落到看见的人头上，而不是被接口悄悄掩掉。
 
+    **卷级数字走 `volume.read_snapshot()`，不在这里从 manifest 里再抠一遍**：
+    卷级词汇（complete/partial/unknown + expected/declared/available 三个数）只有
+    volume.py 一个实现，搜索诊断（search/diagnose.py）读的是同一个快照 ——
+    页面说「《北齊書》35/50 卷」，搜索说「这本书只收到卷三十五」，必须是同一个数。
+
     快照不存在（没跑过 manifest）时返回 `available: False` + 原因，前端只少画一块
-    进度条，不报错。
+    进度条，不报错。卷级快照单独缺失时同书按 `volume_known: False` 处理，
+    照实说「不知道全不全」，**不默认 complete**。
     """
     path = config.METADATA_DIR / "corpus_manifest.json"
     try:
@@ -126,16 +134,30 @@ def _catalog_snapshot() -> dict:
         return {"available": False,
                 "reason": "还没有审计快照 —— 先跑一次 "
                           "python -m scripts.pipeline.manifest"}
+    vpath = volume.snapshot_path()
+    try:
+        vmtime = vpath.stat().st_mtime
+    except OSError:
+        vmtime = 0.0
     hit = _catalog_cache.get("snap")
-    if hit and hit[0] == mtime:
+    if hit and hit[0] == (mtime, vmtime):
         return hit[1]
     try:
         d = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as e:
         return {"available": False, "reason": f"审计快照读不出来：{e}"}
     cat = d.get("catalog") or {}
+    vsnap = volume.read_snapshot()
     # 只挑页面要用的字段：manifest 的整行里还有 gap_files 之类的明细，
     # 原样回放会让每次翻页多传几十 KB 没人看的东西。
+    def _vol(bid, title):
+        s = volume.scope_of(vsnap, bid, title)
+        return {
+            "status": s["status"], "expected": s["expected"],
+            "declared": s["declared"], "available": s["available"],
+            "coverage_ratio": s["coverage_ratio"], "witness": s["witness"],
+            "known": s["known"], "note": s["note"],
+        }
     books = [{
         "book_id": b.get("book_id"), "title": b.get("title"),
         "era_group": b.get("era_group"), "dynasty": b.get("dynasty"),
@@ -144,6 +166,10 @@ def _catalog_snapshot() -> dict:
         "recall_verified": b.get("recall_verified", False),
         "catalog_gap": b.get("catalog_gap", False),
         "indexed": (b.get("indexed") or {}).get("ok"),
+        "edition": b.get("edition"),
+        "family": b.get("family"),
+        "editions": b.get("editions") or [],
+        "volume": _vol(b.get("book_id"), b.get("title")),
     } for b in (d.get("books") or [])]
     snap = {
         "available": True,
@@ -156,9 +182,20 @@ def _catalog_snapshot() -> dict:
         "not_in_catalog": cat.get("not_in_catalog") or [],
         "on_disk_not_imported": cat.get("on_disk_not_imported") or [],
         "uncatalogued_dirs": cat.get("uncatalogued_dirs") or [],
+        # 卷级总账 + 口径说明。note 必须跟着数字走（§28）：页面上的 1013/1275
+        # 一旦离开「这是卷号口径、且 5 部书上upstream 本身就残缺」这句话，
+        # 就会被读成「我们的语料是残的」或者更糟——「史书里没有」。
+        "volume_totals": d.get("volume_totals") or {},
+        "volume_available": vsnap["available"],
+        "volume_reason": vsnap["reason"],
+        "volume_generated_at": vsnap["generated_at"],
+        "volume_note": (
+            "应有卷数 = 通行本卷数（外证，稳定）；已收卷数 = 库内实测卷号数。"
+            "**卷号口径，不是文件数**：上表里的 5 部书上游本身就只数字化到某一卷"
+            "为止，那是上游的事实，不是我们漏了。"),
         "books": books,
     }
-    _catalog_cache["snap"] = (mtime, snap)
+    _catalog_cache["snap"] = ((mtime, vmtime), snap)
     return snap
 
 
@@ -292,6 +329,19 @@ class Handler(BaseHTTPRequestHandler):
             out = self._with_cur(fn)
         except ValueError as e:
             return self._err(str(e), 400)
+        # 收录范围随结果一起回（6.4-§28）。三条约束：
+        #   ① 只在 **level=block** 给 —— 那是用户真看的视图；level=passage 是
+        #      第二阶段留下的调试契约（逐条命中），往那儿加字段是噪音，而且
+        #      scripts/site/check_engine.py 的 static-api 会逐键对拍那条路径。
+        #   ② 只在**限定了单一史书**时给 —— 那是用户在说「我就要看这本书」，
+        #      也是「这本书不全」最容易被误读成「史书里没有」的时候。
+        #      全库检索不给：每次搜索都挂免责声明，说多了等于没说。
+        #   ③ 只在真的有结果时给 —— 空结果的四态归因走 /api/diagnose，那里更细。
+        # 代价：一次 resolve_book + 读一次内存里的卷级快照，**没有全表扫描**。
+        if (level == "block" and isinstance(out, dict) and out.get("total")
+                and out.get("book") and out["book"] != "全部"):
+            out["scope"] = self._with_cur(
+                lambda c: search_diagnose.hit_scope(c.cursor(), out["book"]))
         self._json(out)
 
     def _h_diagnose(self, _):

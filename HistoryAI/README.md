@@ -21,13 +21,27 @@
 ```
 HistoryProject/
 ├── HistoryLibrary/kanripo/      ← 原始史料（只读！任何阶段绝不写它）
-│   ├── guoyu/       國語    KR2e0001  SBCK   22 txt
 │   ├── shangshu/    尚書    KR1b0001  tls    59 txt
+│   ├── zuozhuan/    春秋左傳 KR1e0001  tls    12 txt
 │   ├── shiji/       史記    KR2a0001  tls    14 txt
-│   ├── qianhanshu/  前漢書  KR2a0007  WYG   102 txt   ← 第六点二阶段加入
-│   ├── houhanshu/   後漢書  KR2a0009  WYG   125 txt   ← 第六点二阶段加入
-│   ├── zhanguoce/   戰國策  KR2e0003  SBCK   11 txt
-│   └── zuozhuan/    春秋左傳 KR1e0001  tls    12 txt
+│   ├── qianhanshu/  前漢書  KR2a0007  WYG   102 txt
+│   ├── houhanshu/   後漢書  KR2a0009  WYG   125 txt
+│   ├── sanguozhi/   三國志  KR2a0012  WYG    31 txt
+│   ├── jinshu/      晉書    KR2a0015  WYG    34 txt
+│   ├── songshu/     宋書    KR2a0016  WYG   102 txt
+│   ├── nanqishu/    南齊書  KR2a0017  WYG    61 txt
+│   ├── liangshu/    梁書    KR2a0018  WYG    58 txt
+│   ├── chenshu/     陳書    KR2a0019  WYG    37 txt
+│   ├── weishu/      魏書    KR2a0020  WYG   116 txt
+│   ├── beiqishu/    北齊書  KR2a0021  WYG    36 txt
+│   ├── zhoushu/     周書    KR2a0022  WYG    52 txt
+│   ├── suishu/      隋書    KR2a0023  WYG    50 txt
+│   ├── nanshi/      南史    KR2a0024  WYG    81 txt
+│   ├── beishi/      北史    KR2a0025  WYG    23 txt
+│   ├── guoyu/       國語    KR2e0001  SBCK   22 txt
+│   └── zhanguoce/   戰國策  KR2e0003  SBCK   11 txt
+│       ↑ 共 19 部 = 先秦 4 + 正史 15（第六点三阶段扩到这里）；另有 9 部正史
+│         登记在册未导入，见「语料完整性」一节
 └── HistoryAI/
     ├── scripts/pipeline/       解析管线（本阶段实现）
     │   ├── config.py           路径/正则集中定义（不硬编码书名）
@@ -53,10 +67,14 @@ HistoryProject/
     │   ├── data-demo/          自撰演示数据（MIT，入库）（第五阶段）
     │   └── data/               （git 忽略）真实语料导出，**永不发布**
     ├── scripts/site/           静态站工具：字符表 / 导出 / 演示数据 / 闸门 / 一致性
-    ├── tests/                  unittest 168 例（一阶段 43 + 二阶段及以后 109 + 四阶段 16）
+    ├── tests/                  unittest 312 例（第六点三阶段基线 225 + 第六点四阶段 87）
     │   ├── search_cases/       召回测试集，**按时代分文件**（第六点二阶段 §21）
-    │   │   ├── preqin.json     先秦 83 例（第六阶段原有，id 沿用不改名）
-    │   │   └── qin_han.json    秦汉 77 例（第六点二阶段，id 前缀 qh-）
+    │   │   ├── preqin.json     先秦 82 例（第六阶段原有，id 沿用不改名）
+    │   │   ├── qin_han.json    秦汉 78 例（第六点二阶段，id 前缀 qh-）
+    │   │   ├── nanbeichao.json 南北朝 91 例（第六点三阶段，id 前缀 nb-，含隋書）
+    │   │   ├── sanguozhi_jinshu.json 三國志/晉書 109 例（第六点三阶段，id 前缀 sz-）
+    │   │   ├── coverage_scope.json   覆盖四态 13 例（第六点四阶段 §7–§9，id 前缀 cov-）
+    │   │   └── invariant.json  Recall Invariant 冻结基线 321 条（第六点四阶段 §15）
     │   ├── recall.py           召回跑分器 + 八维归因（非 unittest）
     │   ├── rebaseline_cases.py 重测用例集的 baseline_hits/blocks（加书/改组装后跑）
     │   └── perf_corpus.py      语料规模性能基线（扩容前后同表对比）
@@ -112,7 +130,7 @@ python -m scripts.pipeline.run_all --no-validate
 # 只跑校验（须先有 data/database/history.db）
 python -m scripts.pipeline.validate
 
-# 测试（168 例；含真实史料/真实库抽查，library 或库不在场时对应文件自动跳过）
+# 测试（312 例；含真实史料/真实库抽查，library 或库不在场时对应文件自动跳过）
 # 注意：tests/ 下没有 __init__.py，`python -m unittest discover -s tests` 会报
 #      "Start directory is not importable"，必须逐个文件跑并带 PYTHONPATH=.：
 # test_phase4_questions.py 走 HTTP，需先 `python -m api.main`（改代码后先重启）
@@ -496,7 +514,8 @@ PYTHONPATH=. PYTHONIOENCODING=utf-8 python tests/recall.py     # 写 docs/phase6
 PYTHONPATH=. PYTHONIOENCODING=utf-8 python tests/recall.py --selftest   # 只验分类器
 ```
 
-`tests/search_cases/`（按时代分文件，现 160 例：先秦 83 + 秦汉 77）是唯一测试集；
+`tests/search_cases/`（按时代分文件，现 373 例：先秦 82 + 秦汉 78 + 南北朝 91 +
+三國志·晉書 109 + 覆盖四态 13）是唯一测试集；
 `tests/recall.py` 对每条查询跑真实
 检索，把「没命中」**自动归因**到八个维度之一，并对每条命中做 Passage（块文本与库中
 原文逐字对拍）与 Provenance（出处字段齐全）两条机械审计：
@@ -523,6 +542,33 @@ PYTHONPATH=. PYTHONIOENCODING=utf-8 python tests/recall.py --selftest   # 只验
 
 分类器自身要先通过自检（`--selftest` 注入已知故障，看四类是否各归其位）——
 一个永远全绿的分类器等于没有分类器。
+
+## 语料完整性：「搜不到」的四种说法（第六点四阶段）
+
+**有史书 ≠ 有这部史书的全本。** 库内 19 部（正史 15 部）不是 24 史的全本全集：
+应有 1275 卷、已收 1013 卷（79.5%），其中完整 10 部、**上游残缺 5 部、无卷级模型 4 部**；
+另有 9 部正史（1938 卷）登记在册但尚未导入。5 部残缺的底本（三國志 30/65、
+晉書 33/130、北齊書 35/50、隋書 49/85、北史 22/100）是**上游 Kanripo 数字化本身
+只到某一卷**，不是我们漏导。
+
+所以「搜不到」现在分四种说法，不再一律说「没有找到相关史料」：
+
+| 说法 | 什么情况 | 例子 |
+|---|---|---|
+| `hit` | 搜到了 | — |
+| `complete_no_hit` | 这部是完整本，收全了，里面确实没有 | 陳書（36/36 卷）搜「齊桓公」 |
+| `partial_no_hit` | **只搜了已收的卷**，未收部分无从判断 | 北齊書（35/50 卷）搜「齊桓公」 |
+| `not_imported` | 这部史书还没导入，压根不在检索范围 | 明史（332 卷，未下载） |
+
+判据在 `/api/diagnose`（`scope.status`），卷数口径是**卷号**不是文件数（Kanripo 的
+`_000.txt` 是目録/考證文件，北齊書 36 个文件只是 35 卷）；`#/coverage` 页新增
+已收/应有卷、覆盖率、卷状态三列与一块总账，逐书可查。卷级数据只存在本地
+（`data/metadata/volume_coverage.json`），**不进发布产物**。
+
+召回测试里对应一条 **Recall Invariant**（`tests/search_cases/invariant.json`）：
+把 321 条用例这次命中的片段按「书 + 文件 + 起止行」冻成基线，此后只判
+`expected ⊆ actual` —— 语料只增不减，老结果不该消失。跑分报告会自报这次判了
+几条（冻结文件读不到时**不静默跳过**，会打印出来）。
 
 ## 重建演示数据
 

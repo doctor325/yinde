@@ -18,6 +18,16 @@
 - `file_overrides` 的层名/状态名必须在 `records.LAYER_VALUES` / `STATUS_VALUES` 里
   —— 否则会往库里写进一个下游认不出的层。
 
+6.4 起多两段：`editions`（版本登记表：wyg/sbck/tls 各是什么本子、来源在哪）与每本书的
+卷级字段（`expected_volumes` / `declared_volumes` / `volume_witness` / `volume_notes` /
+`volume_note`）。校验的重点不是字段在不在，而是**三者要自洽**：
+
+- `volume_witness=none` 的书不许登记卷数（没有卷级模型，登记一个数就是自相矛盾）；
+- `corpus` / `declared` 必须「通行本卷数 + 底本卷数」都登记 —— 只登记一个数，
+  覆盖率就没有分母，而本阶段的全部意义就是那个分母；
+- `volume_notes` 的键必须是卷号的十进制字符串（与 `_explain_volume_problem` 的
+  报错信息同口径，写错的人能一眼看出是哪一个卷）。
+
 回滚路径：`try_load()` 在文件不存在时返回 None，调用方回落到 6.2 的既有行为
 （`structure.file_layer_defaults` 的内置 overrides 等）。
 
@@ -37,9 +47,14 @@ from .records import LAYER_VALUES, STATUS_VALUES
 from .title_patterns import PATTERNS, TitlePattern
 
 CATALOG_PATH = config.PIPELINE_DIR / "corpus_catalog.json"
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 FAMILIES = ("tls", "sbck", "wyg")
+# 卷数的证据类型（6.4）。与 volume.WITNESSES 同口径，这里只能重列一份常量：
+# volume.py 是判据实现，catalog.py 是**数据文件**的校验器，让校验器去 import
+# 判据实现会把「数据格式」和「判断逻辑」绑成一起（volume.py 改口径不该动数据校验）。
+VOLUME_WITNESSES = ("corpus", "declared", "none")
+EDITION_KEYS = ("name", "family", "source", "note")
 CATEGORIES = ("先秦文獻", "正史")
 H2_ROLES = ("division", "section", "juan")
 AB_SYSTEMS = ("zuozhuan",)
@@ -57,8 +72,11 @@ REQUIRED_BOOK_KEYS = ("dir", "title", "dynasty", "era_group", "category",
                       "kanripo_id", "family_expected", "repo", "branch",
                       "recall_verified")
 OPTIONAL_BOOK_KEYS = ("h2_role", "ab_system", "title_handler", "title_patterns",
-                      "juan_prefixes", "juan_as_section", "file_overrides", "note")
-TOP_KEYS = ("version", "note", "books", "families", "pattern_note", "layer_note")
+                      "juan_prefixes", "juan_as_section", "file_overrides", "note",
+                      "expected_volumes", "declared_volumes", "volume_witness",
+                      "volume_notes", "volume_note")
+TOP_KEYS = ("version", "note", "books", "families", "pattern_note", "layer_note",
+            "editions", "volume_note")
 FAMILY_KEYS = ("title_patterns", "layer_defaults", "note")
 LAYER_RULE_KEYS = ("when", "layer", "resolver", "status", "note")
 
@@ -88,12 +106,30 @@ class Book:
     juan_as_section: bool = False
     file_overrides: dict = field(default_factory=dict)
     note: str = ""
+    # ---- 6.4 卷级模型（判据在 volume.py，这里只是登记的事实）----
+    expected_volumes: int | None = None
+    declared_volumes: int | None = None
+    volume_witness: str | None = None
+    volume_notes: dict = field(default_factory=dict)
+    volume_note: str = ""
 
     def override_for(self, file_no: int | None) -> dict | None:
         """该文件的层/状态特例（键是文件号的字符串形式），没有则 None。"""
         if file_no is None:
             return None
         return self.file_overrides.get(str(file_no))
+
+    def volumes(self) -> dict:
+        """交给 `volume.audit()` 的那几个登记值（**只搬字段，不判断**）。
+
+        判据一律留在 volume.py：这里一旦出现 `if declared < expected` 之类的
+        分支，覆盖率口径就有了第二份实现。
+        """
+        return {"expected": self.expected_volumes,
+                "declared": self.declared_volumes,
+                "witness": self.volume_witness,
+                "notes": self.volume_notes,
+                "note": self.volume_note}
 
 
 @dataclass(frozen=True)
@@ -103,6 +139,31 @@ class Catalog:
     families: dict[str, dict]
     path: Path
     by_dir_map: dict[str, Book] = field(default_factory=dict)
+    editions: dict[str, dict] = field(default_factory=dict)
+
+    # ---- 版本（6.4）----
+    def edition_of(self, book: "Book") -> dict:
+        """书的底本行：`edition_id` / `edition_name` / `source` / `family`。
+
+        **Book 与 Edition 是两个实体**（计划书 §11）：一本书可以有几个底本，
+        每部底本各有各的卷数。今天每部书入库的底本恰好一个（Kanripo 一 repo
+        一书），但接口按「一本书 → 一串底本行」出，第二个底本进来时页面不用改。
+
+        id 用 `{book_id}-{family}`（如 `KR2a0007-wyg`）：它同时编码了书与底本，
+        且与源仓库一一对应，比另起一套编号好对账。家族没在 editions 里登记时
+        不编一个名字出来 —— 名字留空，页面显示「未登记」。
+        """
+        fam = book.family_expected or ""
+        reg = self.editions.get(fam) or {}
+        return {
+            "edition_id": f"{book.book_id}-{fam}" if fam else book.book_id,
+            "edition_name": reg.get("name") or "",
+            "family": fam,
+            "source": reg.get("source") or "",
+            "repo": book.repo,
+            "branch": book.branch,
+            "kanripo_id": book.book_id,
+        }
 
     # ---- 查询 ----
     def book(self, book_id: str) -> Book | None:
@@ -177,6 +238,32 @@ class Catalog:
             "uncatalogued": self.uncatalogued_dirs(),
             "recall_verified": sorted(b.title for b in self.books.values()
                                       if b.recall_verified),
+            "editions": sorted(self.editions),
+            **self.volume_summary(),
+        }
+
+    def volume_summary(self) -> dict:
+        """卷级模型的登记情况（**只数登记了什么，不判覆盖率**）。
+
+        判断留给 volume.audit()；这里回答的是「目录里卷数登记齐了没有」：
+        哪些书还没有 expected_volumes（骨架不全）、哪些登记为残缺。
+        """
+        def _of(pred):
+            return sorted(b.title for b in self.books.values() if pred(b))
+        declared = [(b, b.expected_volumes, b.declared_volumes)
+                    for b in self.books.values() if b.expected_volumes]
+        return {
+            "volume_books": len(declared),
+            "no_volume_model": _of(lambda b: b.volume_witness == "none"),
+            # 「骨架不全」只对**该有卷数**的书成立：witness=none 的书本来就没有
+            # 卷级模型，不该被算成登记漏了。
+            "no_expected": _of(lambda b: not b.expected_volumes
+                               and b.volume_witness != "none"),
+            "declared_partial": [b.title for b, e, d in declared if d and d < e],
+            "declared_incomplete": _of(lambda b: b.expected_volumes
+                                       and b.declared_volumes is None),
+            "volume_notes": {b.title: len(b.volume_notes)
+                             for b in self.books.values() if b.volume_notes},
         }
 
 
@@ -201,6 +288,48 @@ def _no_duplicate_keys(pairs):
             raise CatalogError(f"JSON 里有重复的键：{k!r}")
         seen[k] = v
     return seen
+
+
+def _check_volumes(bid: str, raw: dict, problems: list[str]) -> None:
+    """卷级字段的**自洽**校验（6.4）。见模块注释：重点不是字段在不在，是别自相矛盾。"""
+    where = f"books[{bid}]"
+    exp, dec = raw.get("expected_volumes"), raw.get("declared_volumes")
+    wit = raw.get("volume_witness")
+    for k, v in (("expected_volumes", exp), ("declared_volumes", dec)):
+        if v is None:
+            continue
+        if not isinstance(v, int) or isinstance(v, bool) or v <= 0:
+            problems.append(f"{where}: {k}={v!r} 必须是正整数（卷数）")
+    if wit is not None and wit not in VOLUME_WITNESSES:
+        problems.append(f"{where}: volume_witness={wit!r} 不在 {VOLUME_WITNESSES}")
+    if wit == "none" and (exp is not None or dec is not None):
+        problems.append(f"{where}: volume_witness=none（没有卷级模型）却登记了卷数"
+                        f"（expected={exp!r} declared={dec!r}）—— 二者只能留一个")
+    if wit in ("corpus", "declared"):
+        miss = [k for k, v in (("expected_volumes", exp),
+                               ("declared_volumes", dec)) if v is None]
+        if miss:
+            problems.append(f"{where}: volume_witness={wit} 但缺 {miss} —— "
+                            f"覆盖率要有分母（通行本卷数）和分子（底本卷数）")
+    if isinstance(exp, int) and isinstance(dec, int) and not isinstance(exp, bool) \
+            and not isinstance(dec, bool) and dec > exp:
+        problems.append(f"{where}: declared_volumes={dec} > expected_volumes={exp} "
+                        f"—— 底本比通行本还多卷，先核对卷次的算法（分上下算一卷？）")
+    notes = raw.get("volume_notes")
+    if notes is not None:
+        if not isinstance(notes, dict) or not notes:
+            problems.append(f"{where}.volume_notes: 必须是非空对象 {{卷号: 说明}}")
+        else:
+            for k, v in notes.items():
+                if not (isinstance(k, str) and k.isdigit() and int(k) > 0):
+                    problems.append(f"{where}.volume_notes 的键 {k!r} 必须是卷号"
+                                    f"（十进制正整数字符串，如 \"105\"）")
+                if not (isinstance(v, str) and v.strip()):
+                    problems.append(f"{where}.volume_notes[{k}]: 说明不能为空 —— "
+                                    f"空说明等于没说明，缺口还是没人解释")
+    if raw.get("volume_note") is not None and \
+            not isinstance(raw.get("volume_note"), str):
+        problems.append(f"{where}.volume_note: 必须是字符串（一句话说清卷数是怎么回事）")
 
 
 def _check_book(bid: str, raw: dict, problems: list[str]) -> None:
@@ -261,6 +390,37 @@ def _check_book(bid: str, raw: dict, problems: list[str]) -> None:
             problems.append(f"{w}: layer={ov.get('layer')!r} 不在 records.LAYER_VALUES")
         if ov.get("status") not in STATUS_VALUES:
             problems.append(f"{w}: status={ov.get('status')!r} 不在 records.STATUS_VALUES")
+    _check_volumes(bid, raw, problems)
+
+
+def _check_editions(raw: dict, problems: list[str]) -> None:
+    """版本登记表（6.4）：家族码 → 这是什么本子、来源在哪。"""
+    eds = raw.get("editions")
+    if eds is None:
+        problems.append("缺 editions 段（版本登记表：wyg/sbck/tls 各是什么本子）")
+        return
+    if not isinstance(eds, dict) or not eds:
+        problems.append("editions 必须是非空对象")
+        return
+    for fam, e in eds.items():
+        w = f"editions[{fam}]"
+        if fam not in FAMILIES:
+            problems.append(f"{w}: 未知家族（只能是 {FAMILIES}）")
+        if not isinstance(e, dict):
+            problems.append(f"{w}: 必须是对象")
+            continue
+        for k in e:
+            if k not in EDITION_KEYS:
+                problems.append(f"{w}: 未知字段 {k!r}")
+        if e.get("family") != fam:
+            problems.append(f"{w}: family={e.get('family')!r} 与键 {fam!r} 不一致")
+        for k in ("name", "source"):
+            if not (e.get(k) or "").strip():
+                problems.append(f"{w}: {k} 不能为空（版本名与来源要能对到实物）")
+    used = {b.get("family_expected") for b in (raw.get("books") or {}).values()
+            if isinstance(b, dict)}
+    for fam in sorted(used - set(eds)):
+        problems.append(f"editions: 有书用 family_expected={fam!r} 却没登记这个版本")
 
 
 def _check_family(fname: str, raw: dict, problems: list[str]) -> None:
@@ -323,6 +483,8 @@ def _validate(raw: dict, path: Path) -> Catalog:
     for bid, braw in books_raw.items():
         _check_book(bid, braw, problems)
 
+    _check_editions(raw, problems)
+
     fams = raw.get("families")
     if not isinstance(fams, dict) or not fams:
         problems.append("families 必须是非空对象")
@@ -359,9 +521,15 @@ def _validate(raw: dict, path: Path) -> Catalog:
         juan_as_section=bool(b.get("juan_as_section")),
         file_overrides=dict(b.get("file_overrides") or {}),
         note=b.get("note", ""),
+        expected_volumes=b.get("expected_volumes"),
+        declared_volumes=b.get("declared_volumes"),
+        volume_witness=b.get("volume_witness"),
+        volume_notes=dict(b.get("volume_notes") or {}),
+        volume_note=b.get("volume_note", ""),
     ) for bid, b in books_raw.items()}
     return Catalog(version=raw["version"], books=books, families=fams, path=path,
-                   by_dir_map={b.dir: b for b in books.values()})
+                   by_dir_map={b.dir: b for b in books.values()},
+                   editions=dict(raw.get("editions") or {}))
 
 
 # ------------------------------------------------------------------ 加载
@@ -401,6 +569,17 @@ def main(argv=None) -> int:
     print(f"  磁盘已有目录：{s['on_disk']} 部；未下载（planned）："
           f"{len(s['planned'])} 部 {s['planned']}")
     print(f"  按时代：{s['by_era_group']}")
+    print(f"  版本登记：{'、'.join(s['editions'])}")
+    print(f"  卷级模型：{s['volume_books']} 部登记了通行本卷数；"
+          f"无卷级模型 {len(s['no_volume_model'])} 部 {s['no_volume_model']}")
+    if s["no_expected"]:
+        print(f"  ** 还没登记 expected_volumes（骨架不全）：{s['no_expected']}")
+    if s["declared_incomplete"]:
+        print(f"  ** 有 expected_volumes 却没有 declared_volumes：{s['declared_incomplete']}")
+    print(f"  底本残缺（已登记并已核对）：{s['declared_partial']}")
+    if s["volume_notes"]:
+        print(f"  逐卷豁免（volume_notes）："
+              + "、".join(f"{k} {v} 条" for k, v in s["volume_notes"].items()))
     print(f"  已人工确认可召回：{s['recall_verified']}")
     if s["uncatalogued"]:
         print(f"  **磁盘上有未登记的书目录**：{s['uncatalogued']} —— 补进 books 或移走")

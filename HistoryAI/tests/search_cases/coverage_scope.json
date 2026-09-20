@@ -1,0 +1,134 @@
+{
+  "version": 2,
+  "corpus": "第六点四阶段：卷级覆盖与搜索结果四态",
+  "era": "跨时代",
+  "note": "这组用例问的不是「命中几段」，而是**产品在结果里如实说了什么**。第六点三阶段及以前，搜不到一律显示「没有找到相关史料」—— 那句话在 5 部上游残缺的正史（三國志 30/65、晉書 33/130、北齊書 35/50、隋書 49/85、北史 22/100）和 9 部未导入的正史上都是错的：它把「我们没有」说成了「史书里没有」。这里把四种情况各钉死一条，判据走 search/diagnose.py 的 result_status（页面与 API 共用的唯一实现）。",
+  "groups": {
+    "A": "完整史书 + 有结果 → hit（不能因为『怕担责任』就把所有结果都打上残缺标记）",
+    "B": "完整史书 + 无结果 → complete_no_hit",
+    "C1": "残缺史书 + 无结果 → partial_no_hit，且必须给出收录范围",
+    "C2": "残缺史书 + 有结果 → 仍是 hit（命中就是命中，但要提示范围）",
+    "D": "未导入史书 → not_imported（不是「正文中没有」）",
+    "E": "繁简对照：齊桓公 / 齐桓公 必须给同一个四态",
+    "F": "全库无结果 → partial_no_hit（整库都不完整，没资格断言「全部史料里都没有」）"
+  },
+  "cases": [
+    {
+      "id": "cov-A-01",
+      "group": "A",
+      "query": "齊桓公",
+      "book": "前漢書",
+      "must_hit": true,
+      "expect_status": "hit",
+      "note": "情况一（§25）：完整史书 + 有结果。前漢書 100/100 卷。若这条变成 partial_no_hit，说明卷级判据把完整的书也当残缺了 —— 那种「宁滥勿缺」同样是错，会让所有结果都带上无意义的免责声明。"
+    },
+    {
+      "id": "cov-B-01",
+      "group": "B",
+      "query": "齊桓公",
+      "book": "陳書",
+      "must_hit": false,
+      "expect_status": "complete_no_hit",
+      "note": "情况二（§25）：完整史书 + 无结果。陳書 36/36 卷收全了，確实没有齊桓公（陳書是陳朝史，齊桓公是春秋人物）。这一态**不是错误**，是正常答案；页面标题应为「所收版本内没有找到」。"
+    },
+    {
+      "id": "cov-C1-01",
+      "group": "C1",
+      "query": "齊桓公",
+      "book": "北齊書",
+      "must_hit": false,
+      "expect_status": "partial_no_hit",
+      "note": "情况三（§25）：残缺史书 + 无结果。北齊書底本只到卷三十五（通行本 50 卷），缺 15 卷。必须同时给出收录范围 —— 只说 partial 不说收了多少卷，用户仍然不知道缺在哪。"
+    },
+    {
+      "id": "cov-C1-02",
+      "group": "C1",
+      "query": "齊桓公",
+      "book": "北史",
+      "must_hit": false,
+      "expect_status": "partial_no_hit",
+      "note": "北史 22/100 卷，是 5 部里残缺最严重的（缺 78 卷）。这条守的是「残缺比例不同也要判 partial」—— 22% 与 70% 都叫 partial，判据是 declared < expected，不是某个阈值。"
+    },
+    {
+      "id": "cov-C1-03",
+      "group": "C1",
+      "query": "嵇康",
+      "book": "晉書",
+      "must_hit": false,
+      "expect_status": "partial_no_hit",
+      "note": "晉書 33/130 卷（只到卷三十三，列傳整片没进来）。嵇康的傳在晉書卷四十九，正是缺的那一段；全库有 25 段（其他书里提到他）。这条是本组最像真实误判的一条：用户搜魏晋人物搜不到，若页面说「晉書里没有」，他会当成史实结论 —— 而事实是那一段我们根本没有。"
+    },
+    {
+      "id": "cov-C2-01",
+      "group": "C2",
+      "query": "司馬懿",
+      "book": "晉書",
+      "must_hit": true,
+      "expect_status": "hit",
+      "note": "残缺史书 + **有**结果 → 仍是 hit。有命中就是有命中，不该因为书残缺就把状态改成 partial_no_hit —— 那样用户会以为「这次结果不可信」。残缺只在无结果时才改变结论。"
+    },
+    {
+      "id": "cov-D-01",
+      "group": "D",
+      "query": "齊桓公",
+      "book": "明史",
+      "must_hit": false,
+      "expect_status": "not_imported",
+      "note": "情况四（§25）：未导入史书。明史 332 卷还没进来。页面标题应为「这部史书尚未收录」，绝不能是「正文中没有」。"
+    },
+    {
+      "id": "cov-D-02",
+      "group": "D",
+      "query": "齊桓公",
+      "book": "新唐書",
+      "must_hit": false,
+      "expect_status": "not_imported",
+      "note": "新唐書未导入，且上游本身只有 75/225 卷。这条守的是：未导入的书也要报出「这部书有多少卷 / 上游到哪一卷」，用户才知道等它导入之后能搜到什么程度。"
+    },
+    {
+      "id": "cov-D-03",
+      "group": "D",
+      "query": "齊桓公",
+      "book": "舊唐書",
+      "must_hit": false,
+      "expect_status": "not_imported",
+      "note": "舊唐書 187/200 卷（缺 13）。**简体输入**走一遍：未导入这条路上繁简转换不该改变结论。"
+    },
+    {
+      "id": "cov-E-01",
+      "group": "E",
+      "query": "齐桓公",
+      "book": "北齊書",
+      "must_hit": false,
+      "expect_status": "partial_no_hit",
+      "expect_same_as": "cov-C1-01",
+      "note": "繁简对照（§14-D）：简体「齐桓公」与繁体「齊桓公」必须给同一个四态。转不转换不该改变「这本书收没收全」这个结论 —— 那是语料事实，不是检索行为。"
+    },
+    {
+      "id": "cov-E-02",
+      "group": "E",
+      "query": "齐桓公",
+      "book": "明史",
+      "must_hit": false,
+      "expect_status": "not_imported",
+      "expect_same_as": "cov-D-01",
+      "note": "同上，简体输入走未导入这一态。"
+    },
+    {
+      "id": "cov-F-01",
+      "group": "F",
+      "query": "朱元璋",
+      "must_hit": false,
+      "expect_status": "partial_no_hit",
+      "note": "朱元璋（明史人物）全库搜不到。整库 19 部里有 5 部底本残缺、9 部正史未导入，所以**没有资格**报 complete_no_hit —— 那句「语料里确实没有」在整库层面是不成立的。这是本组最关键的一条：它是「别把话说满」的机器判据。"
+    },
+    {
+      "id": "cov-F-02",
+      "group": "F",
+      "query": "齊桓公",
+      "must_hit": true,
+      "expect_status": "hit",
+      "note": "全库有结果仍是 hit。注意 summary 里会附一句「全库有 5 部底本残缺」—— 命中也要说明范围，因为用户不知道自己搜的是不是全部。"
+    }
+  ]
+}

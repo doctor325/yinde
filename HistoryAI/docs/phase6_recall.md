@@ -1,13 +1,14 @@
 # 第六阶段 · 搜索召回基线报告
 
-生成时间：2026-09-13 23:41:47
+生成时间：2026-09-14 21:44:55
 
 由 `python tests/recall.py --report docs/phase6_recall.md` 生成，请勿手改。
 
 ## 运行环境
 
 - 数据库：`D:\MyCode\HistoryProject\HistoryAI\data\database\history.db`
-- 用例集：`tests/search_cases/`（4 个时代文件，360 条）
+- 用例集：`tests/search_cases/`（5 个时代文件，373 条）
+- Recall Invariant：**321 条带冻结基线**，其余 52 条不判（负例 / 四态 / 超长结果，见报告末尾）（`invariant.json`）
 - 繁简转换：**可用**
 
 繁简转换是否可用是全局开关——脚本 `search/zh.py` 依赖 Windows 的 `LCMapStringEx`，非 Windows 或调用失败会静默返回原文。
@@ -22,10 +23,10 @@
 
 | 结果 | 条数 |
 |---|---|
-| 通过 | 358 |
+| 通过 | 371 |
 | 注意 | 2 |
 | 失败 | 0 |
-| 合计 | 360 |
+| 合计 | 373 |
 
 ### 八维分布
 
@@ -38,90 +39,103 @@
 
 | id | 分组 | 查询 | 转换后 | 参数 | 语料段 | 命中段 | 结果块 | 命中形态 | 路径 | 机械审计 | 出处 | 维度 | 结论 |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| nb-person-01 | person | 檀道濟 | 檀道濟 | 默认 | 103 | 103 | 73 | text | fts | Passage:通过、Provenance:通过 | 南史、宋書、魏書 |  | PASS |
-| nb-person-02 | person | 沈約 | 沈約 | 默认 | 226 | 226 | 184 | text | bigram | Passage:通过、Provenance:通过 | 南史、南齊書、宋書… |  | PASS |
-| nb-person-03 | person | 王琳 | 王琳 | 默认 | 262 | 262 | 155 | text | bigram | Passage:通过、Provenance:通过 | 南史、周書、陳書 |  | PASS |
-| nb-person-04 | person | 崔浩 | 崔浩 | 默认 | 135 | 135 | 114 | text | bigram | Passage:通过、Provenance:通过 | 北史、魏書 |  | PASS |
-| nb-person-05 | person | 楊愔 | 楊愔 | 默认 | 87 | 87 | 57 | text | bigram | Passage:通过、Provenance:通过 | 北史、北齊書、魏書 |  | PASS |
-| nb-person-06 | person | 蘇綽 | 蘇綽 | 默认 | 22 | 22 | 19 | text | bigram | Passage:通过、Provenance:通过 | 北史、周書、隋書 |  | PASS |
-| nb-person-07 | person | 楊素 | 楊素 | 默认 | 121 | 121 | 85 | text | bigram | Passage:通过、Provenance:通过 | 北史、周書、隋書 |  | PASS |
-| nb-person-08 | person | 宇文泰 | 宇文泰 | 默认 | 25 | 25 | 13 | text | fts | Passage:通过、Provenance:通过 | 北史、南史、周書… |  | PASS |
-| nb-person-09 | person | 蕭子顯 | 蕭子顯 | 默认 | 17 | 17 | 16 | text | fts | Passage:通过、Provenance:通过 | 南史、南齊書、晉書… |  | PASS |
-| nb-person-10 | person | 侯景 | 侯景 | 默认 | 899 | 899 | 556 | text | bigram | Passage:通过、Provenance:通过 | 北史、北齊書、南史… |  | PASS |
-| nb-person-11 | person | 祖沖之 | 祖沖之 | 默认 | 21 | 21 | 17 | text | fts | Passage:通过、Provenance:通过 | 南史、南齊書、宋書… |  | PASS |
-| nb-person-12 | person | 斛律光 | 斛律光 | 默认 | 43 | 43 | 29 | text | fts | Passage:通过、Provenance:通过 | 北史、北齊書 |  | PASS |
-| nb-person-13 | person | 高熲 | 高熲 | 默认 | 13 | 13 | 11 | text | bigram | Passage:通过、Provenance:通过 | 北史、周書、隋書 |  | PASS |
-| nb-person-14 | person | 韋孝寛 | 韋孝寛 | 默认 | 64 | 64 | 59 | text | fts | Passage:通过、Provenance:通过 | 北史、北齊書、周書… |  | PASS |
-| nb-person-15 | person | 陳霸先 | 陳霸先 | 默认 | 21 | 21 | 15 | text | fts | Passage:通过、Provenance:通过 | 北史、北齊書、南史… |  | PASS |
-| nb-person-16 | person | 髙熲 | 髙熲 | 默认 | 84 | 84 | 51 | text | bigram | Passage:通过、Provenance:通过 | 北史、周書、隋書 |  | PASS |
-| nb-alias-01 | alias | 宋武帝 | 宋武帝 | 默认 | 129 | 129 | 116 | text | fts | Passage:通过、Provenance:通过 | 南史、宋書、隋書 |  | PASS |
-| nb-alias-02 | alias | 梁武帝 | 梁武帝 | 默认 | 241 | 241 | 209 | text | fts | Passage:通过、Provenance:通过 | 南史、周書、陳書… |  | PASS |
-| nb-alias-03 | alias | 陳武帝 | 陳武帝 | 默认 | 103 | 103 | 83 | text | fts | Passage:通过、Provenance:通过 | 北齊書、南史 |  | PASS |
-| nb-alias-04 | alias | 齊神武 | 齊神武 | 默认 | 202 | 202 | 115 | text | fts | Passage:通过、Provenance:通过 | 北史、周書 |  | PASS |
-| nb-alias-05 | alias | 隋文帝 | 隋文帝 | 默认 | 137 | 137 | 82 | text | fts | Passage:通过、Provenance:通过 | 北史、南史、周書 |  | PASS |
-| nb-alias-06 | alias | 周文帝 | 周文帝 | 默认 | 49 | 49 | 43 | text | fts | Passage:通过、Provenance:通过 | 北史、北齊書 |  | PASS |
-| nb-alias-07 | alias | 梁元帝 | 梁元帝 | 默认 | 151 | 151 | 113 | text | fts | Passage:通过、Provenance:通过 | 北史、北齊書、南史… |  | PASS |
-| nb-alias-08 | alias | 煬帝 | 煬帝 | 默认 | 137 | 137 | 118 | text | bigram | Passage:通过、Provenance:通过 | 北史、南史、周書… |  | PASS |
-| nb-alias-09 | alias | 昭明太子 | 昭明太子 | 默认 | 58 | 58 | 50 | text | fts | Passage:通过、Provenance:通过 | 前漢書、南史、梁書… |  | PASS |
-| nb-alias-10 | alias | 蘭陵王 | 蘭陵王 | 默认 | 30 | 30 | 19 | text | fts | Passage:通过、Provenance:通过 | 北史、北齊書、史記… |  | PASS |
-| nb-script-01 | script | 侯景之乱 | 侯景之亂 | 默认 | 117 | 117 | 111 | text | fts | Passage:通过、Provenance:通过 | 南史、梁書、陳書… |  | PASS |
-| nb-script-02 | script | 侯景之亂 | 侯景之亂 | 默认 | 117 | 117 | 111 | text | fts | Passage:通过、Provenance:通过 | 南史、梁書、陳書… |  | PASS |
-| nb-script-03 | script | 陈庆之 | 陳慶之 | 默认 | 31 | 31 | 28 | text | fts | Passage:通过、Provenance:通过 | 北齊書、南史、周書… |  | PASS |
-| nb-script-04 | script | 陳慶之 | 陳慶之 | 默认 | 31 | 31 | 28 | text | fts | Passage:通过、Provenance:通过 | 北齊書、南史、周書… |  | PASS |
+| cov-A-01 | A | 齊桓公 | 齊桓公 | book=前漢書 | 23 | 0 | 0 | — | - | — | — |  | PASS：四态 hit 相符，收录范围「100/100 卷」 |
+| cov-B-01 | B | 齊桓公 | 齊桓公 | book=陳書 | 0 | 0 | 0 | — | - | — | — |  | PASS：四态 complete_no_hit 相符，收录范围「36/36 卷」 |
+| cov-C1-01 | C1 | 齊桓公 | 齊桓公 | book=北齊書 | 0 | 0 | 0 | — | - | — | — |  | PASS：四态 partial_no_hit 相符，收录范围「35/50 卷（底本收至卷35，通行本共 50 卷）」 |
+| cov-C1-02 | C1 | 齊桓公 | 齊桓公 | book=北史 | 0 | 0 | 0 | — | - | — | — |  | PASS：四态 partial_no_hit 相符，收录范围「22/100 卷（底本收至卷22，通行本共 100 卷）」 |
+| cov-C1-03 | C1 | 嵇康 | 嵇康 | book=晉書 | 0 | 0 | 0 | — | - | — | — |  | PASS：四态 partial_no_hit 相符，收录范围「33/130 卷（底本收至卷33，通行本共 130 卷）」 |
+| cov-C2-01 | C2 | 司馬懿 | 司馬懿 | book=晉書 | 1 | 0 | 0 | — | - | — | — |  | PASS：四态 hit 相符，收录范围「33/130 卷（底本收至卷33，通行本共 130 卷）」 |
+| cov-D-01 | D | 齊桓公 | 齊桓公 | book=明史 | 159 | 0 | 0 | — | - | — | — |  | PASS：四态 not_imported 相符，收录范围「全书 332 卷」 |
+| cov-D-02 | D | 齊桓公 | 齊桓公 | book=新唐書 | 159 | 0 | 0 | — | - | — | — |  | PASS：四态 not_imported 相符，收录范围「上游数字化 75/225 卷」 |
+| cov-D-03 | D | 齊桓公 | 齊桓公 | book=舊唐書 | 159 | 0 | 0 | — | - | — | — |  | PASS：四态 not_imported 相符，收录范围「上游数字化 187/200 卷」 |
+| cov-E-01 | E | 齐桓公 | 齊桓公 | book=北齊書 | 0 | 0 | 0 | — | - | — | — |  | PASS：四态 partial_no_hit 相符，收录范围「35/50 卷（底本收至卷35，通行本共 50 卷）」 |
+| cov-E-02 | E | 齐桓公 | 齊桓公 | book=明史 | 159 | 0 | 0 | — | - | — | — |  | PASS：四态 not_imported 相符，收录范围「全书 332 卷」 |
+| cov-F-01 | F | 朱元璋 | 朱元璋 | 默认 | 0 | 0 | 0 | — | - | — | — |  | PASS：四态 partial_no_hit 相符 |
+| cov-F-02 | F | 齊桓公 | 齊桓公 | 默认 | 159 | 0 | 0 | — | - | — | — |  | PASS：四态 hit 相符 |
+| nb-person-01 | person | 檀道濟 | 檀道濟 | 默认 | 103 | 103 | 73 | text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 南史、宋書、魏書 |  | PASS |
+| nb-person-02 | person | 沈約 | 沈約 | 默认 | 226 | 226 | 184 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 南史、南齊書、宋書… |  | PASS |
+| nb-person-03 | person | 王琳 | 王琳 | 默认 | 262 | 262 | 155 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 南史、周書、陳書 |  | PASS |
+| nb-person-04 | person | 崔浩 | 崔浩 | 默认 | 135 | 135 | 114 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 北史、魏書 |  | PASS |
+| nb-person-05 | person | 楊愔 | 楊愔 | 默认 | 87 | 87 | 57 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 北史、北齊書、魏書 |  | PASS |
+| nb-person-06 | person | 蘇綽 | 蘇綽 | 默认 | 22 | 22 | 19 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 北史、周書、隋書 |  | PASS |
+| nb-person-07 | person | 楊素 | 楊素 | 默认 | 121 | 121 | 85 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 北史、周書、隋書 |  | PASS |
+| nb-person-08 | person | 宇文泰 | 宇文泰 | 默认 | 25 | 25 | 13 | text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 北史、南史、周書… |  | PASS |
+| nb-person-09 | person | 蕭子顯 | 蕭子顯 | 默认 | 17 | 17 | 16 | text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 南史、南齊書、晉書… |  | PASS |
+| nb-person-10 | person | 侯景 | 侯景 | 默认 | 899 | 899 | 556 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 北史、北齊書、南史… |  | PASS |
+| nb-person-11 | person | 祖沖之 | 祖沖之 | 默认 | 21 | 21 | 17 | text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 南史、南齊書、宋書… |  | PASS |
+| nb-person-12 | person | 斛律光 | 斛律光 | 默认 | 43 | 43 | 29 | text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 北史、北齊書 |  | PASS |
+| nb-person-13 | person | 高熲 | 高熲 | 默认 | 13 | 13 | 11 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 北史、周書、隋書 |  | PASS |
+| nb-person-14 | person | 韋孝寛 | 韋孝寛 | 默认 | 64 | 64 | 59 | text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 北史、北齊書、周書… |  | PASS |
+| nb-person-15 | person | 陳霸先 | 陳霸先 | 默认 | 21 | 21 | 15 | text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 北史、北齊書、南史… |  | PASS |
+| nb-person-16 | person | 髙熲 | 髙熲 | 默认 | 84 | 84 | 51 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 北史、周書、隋書 |  | PASS |
+| nb-alias-01 | alias | 宋武帝 | 宋武帝 | 默认 | 129 | 129 | 116 | text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 南史、宋書、隋書 |  | PASS |
+| nb-alias-02 | alias | 梁武帝 | 梁武帝 | 默认 | 241 | 241 | 209 | text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 南史、周書、陳書… |  | PASS |
+| nb-alias-03 | alias | 陳武帝 | 陳武帝 | 默认 | 103 | 103 | 83 | text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 北齊書、南史 |  | PASS |
+| nb-alias-04 | alias | 齊神武 | 齊神武 | 默认 | 202 | 202 | 115 | text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 北史、周書 |  | PASS |
+| nb-alias-05 | alias | 隋文帝 | 隋文帝 | 默认 | 137 | 137 | 82 | text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 北史、南史、周書 |  | PASS |
+| nb-alias-06 | alias | 周文帝 | 周文帝 | 默认 | 49 | 49 | 43 | text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 北史、北齊書 |  | PASS |
+| nb-alias-07 | alias | 梁元帝 | 梁元帝 | 默认 | 151 | 151 | 113 | text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 北史、北齊書、南史… |  | PASS |
+| nb-alias-08 | alias | 煬帝 | 煬帝 | 默认 | 137 | 137 | 118 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 北史、南史、周書… |  | PASS |
+| nb-alias-09 | alias | 昭明太子 | 昭明太子 | 默认 | 58 | 58 | 50 | text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、南史、梁書… |  | PASS |
+| nb-alias-10 | alias | 蘭陵王 | 蘭陵王 | 默认 | 30 | 30 | 19 | text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 北史、北齊書、史記… |  | PASS |
+| nb-script-01 | script | 侯景之乱 | 侯景之亂 | 默认 | 117 | 117 | 111 | text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 南史、梁書、陳書… |  | PASS |
+| nb-script-02 | script | 侯景之亂 | 侯景之亂 | 默认 | 117 | 117 | 111 | text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 南史、梁書、陳書… |  | PASS |
+| nb-script-03 | script | 陈庆之 | 陳慶之 | 默认 | 31 | 31 | 28 | text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 北齊書、南史、周書… |  | PASS |
+| nb-script-04 | script | 陳慶之 | 陳慶之 | 默认 | 31 | 31 | 28 | text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 北齊書、南史、周書… |  | PASS |
 | nb-script-05 | script | 高颎 | 高颎 | 默认 | 0 | 0 | 0 | — | bigram | — | — | Coverage | PASS：预期为空，归因 Coverage 相符 |
-| nb-script-06 | script | 高熲 | 高熲 | 默认 | 13 | 13 | 11 | text | bigram | Passage:通过、Provenance:通过 | 北史、周書、隋書 |  | PASS |
-| nb-script-07 | script | 韋孝寛 | 韋孝寛 | 默认 | 64 | 64 | 59 | text | fts | Passage:通过、Provenance:通过 | 北史、北齊書、周書… |  | PASS |
+| nb-script-06 | script | 高熲 | 高熲 | 默认 | 13 | 13 | 11 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 北史、周書、隋書 |  | PASS |
+| nb-script-07 | script | 韋孝寛 | 韋孝寛 | 默认 | 64 | 64 | 59 | text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 北史、北齊書、周書… |  | PASS |
 | nb-script-08 | script | 韋孝寬 | 韋孝寬 | 默认 | 0 | 0 | 0 | — | fts | — | — | Coverage | PASS：预期为空，归因 Coverage 相符 |
-| nb-script-09 | script | 高祖 | 高祖 | 默认 | 2080 | 2080 | 997 | text | bigram | Passage:通过、Provenance:通过 | 北史、史記、宋書… |  | PASS |
-| nb-script-10 | script | 髙祖 | 髙祖 | 默认 | 3492 | 3492 | 1522 | text | bigram | Passage:通过、Provenance:通过 | 北齊書、宋書、梁書… |  | PASS |
-| nb-section-01 | section | 宋本紀上第一 | 宋本紀上第一 | recall=section | 1 | 1 | 2 | section、text | fts | Passage:通过、Provenance:通过 | 南史 |  | PASS |
-| nb-section-02 | section | 魏本紀第一 | 魏本紀第一 | recall=section | 0 | 0 | 1 | section | fts | Passage:通过、Provenance:通过 | 北史 |  | PASS |
-| nb-section-03 | section | 志第一 | 志第一 | book=隋書、recall=section | 0 | 0 | 2 | section | fts | Passage:通过、Provenance:通过 | 隋書 |  | PASS |
-| nb-section-04 | section | 帝紀第一 | 帝紀第一 | book=魏書、recall=section | 1 | 1 | 2 | section、text | fts | Passage:通过、Provenance:通过 | 魏書 |  | PASS |
-| nb-section-05 | section | 帝紀第一 | 帝紀第一 | book=周書、recall=section | 0 | 0 | 1 | section | fts | Passage:通过、Provenance:通过 | 周書 |  | PASS |
-| nb-section-06 | section | 列傳第一 | 列傳第一 | book=梁書、recall=section | 1 | 1 | 2 | section、text | fts | Passage:通过、Provenance:通过 | 梁書 |  | PASS |
-| nb-section-07 | section | 本紀第六 | 本紀第六 | book=陳書、recall=section | 1 | 1 | 2 | section、text | fts | Passage:通过、Provenance:通过 | 陳書 |  | PASS |
-| nb-section-08 | section | 本紀第一 | 本紀第一 | book=宋書、recall=section | 0 | 0 | 1 | section | fts | Passage:通过、Provenance:通过 | 宋書 |  | PASS |
-| nb-section-09 | section | 夲紀第二 | 夲紀第二 | book=南齊書、recall=section | 0 | 0 | 1 | section | fts | Passage:通过、Provenance:通过 | 南齊書 |  | PASS |
-| nb-section-10 | section | 本紀第二 | 本紀第二 | book=南齊書 | 1 | 1 | 1 | text | fts | Passage:通过、Provenance:通过 | 南齊書 |  | PASS |
+| nb-script-09 | script | 高祖 | 高祖 | 默认 | 2080 | 2080 | 997 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 北史、史記、宋書… |  | PASS |
+| nb-script-10 | script | 髙祖 | 髙祖 | 默认 | 3492 | 3492 | 1522 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 北齊書、宋書、梁書… |  | PASS |
+| nb-section-01 | section | 宋本紀上第一 | 宋本紀上第一 | recall=section | 1 | 1 | 2 | section、text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 南史 |  | PASS |
+| nb-section-02 | section | 魏本紀第一 | 魏本紀第一 | recall=section | 0 | 0 | 1 | section | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 北史 |  | PASS |
+| nb-section-03 | section | 志第一 | 志第一 | book=隋書、recall=section | 0 | 0 | 2 | section | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 隋書 |  | PASS |
+| nb-section-04 | section | 帝紀第一 | 帝紀第一 | book=魏書、recall=section | 1 | 1 | 2 | section、text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 魏書 |  | PASS |
+| nb-section-05 | section | 帝紀第一 | 帝紀第一 | book=周書、recall=section | 0 | 0 | 1 | section | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 周書 |  | PASS |
+| nb-section-06 | section | 列傳第一 | 列傳第一 | book=梁書、recall=section | 1 | 1 | 2 | section、text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 梁書 |  | PASS |
+| nb-section-07 | section | 本紀第六 | 本紀第六 | book=陳書、recall=section | 1 | 1 | 2 | section、text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 陳書 |  | PASS |
+| nb-section-08 | section | 本紀第一 | 本紀第一 | book=宋書、recall=section | 0 | 0 | 1 | section | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 宋書 |  | PASS |
+| nb-section-09 | section | 夲紀第二 | 夲紀第二 | book=南齊書、recall=section | 0 | 0 | 1 | section | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 南齊書 |  | PASS |
+| nb-section-10 | section | 本紀第二 | 本紀第二 | book=南齊書 | 1 | 1 | 1 | text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 南齊書 |  | PASS |
 | nb-single-01 | single | 之 | 之 | 默认 | 158417 | 158417 | 40566 | text | like | — | 三國志、南史、南齊書… | Pagination | WARN：命中 158417 段，触发组装上限，结果不完整 |
-| nb-single-02 | single | 帝 | 帝 | 默认 | 34807 | 34807 | 14003 | both、text | like | Passage:通过、Provenance:通过 | 北史、北齊書、南史… |  | PASS |
-| nb-single-03 | single | 州 | 州 | 默认 | 30601 | 30601 | 10171 | text | like | Passage:通过、Provenance:通过 | 南齊書、宋書、晉書… |  | PASS |
-| nb-single-04 | single | 元年 | 元年 | 默认 | 7673 | 7673 | 4249 | text | bigram | Passage:通过、Provenance:通过 | 史記、宋書 |  | PASS |
-| nb-multi-01 | multi | 侯景 王僧辯 | 侯景 王僧辯 | 默认 | 25 | 25 | 24 | text | fts | Passage:通过、Provenance:通过 | 南史、梁書、陳書… |  | PASS |
-| nb-multi-02 | multi | 宇文泰 高歡 | 宇文泰 高歡 | 默认 | 1 | 1 | 1 | text | fts | Passage:通过、Provenance:通过 | 魏書 |  | PASS |
-| nb-book-01 | book | 崔浩 | 崔浩 | book=魏書 | 96 | 96 | 79 | text | bigram | Passage:通过、Provenance:通过 | 魏書 |  | PASS |
-| nb-book-02 | book | 楊愔 | 楊愔 | book=北齊書 | 65 | 65 | 39 | text | bigram | Passage:通过、Provenance:通过 | 北齊書 |  | PASS |
-| nb-book-03 | book | 楊素 | 楊素 | book=隋書 | 82 | 82 | 54 | text | bigram | Passage:通过、Provenance:通过 | 隋書 |  | PASS |
-| nb-book-04 | book | 宇文泰 | 宇文泰 | book=北史 | 16 | 16 | 6 | text | fts | Passage:通过、Provenance:通过 | 北史 |  | PASS |
-| nb-book-05 | book | 侯景 | 侯景 | book=南史 | 295 | 295 | 171 | text | bigram | Passage:通过、Provenance:通过 | 南史 |  | PASS |
-| nb-book-06 | book | 侯景 | 侯景 | book=陳書 | 153 | 153 | 98 | text | bigram | Passage:通过、Provenance:通过 | 陳書 |  | PASS |
-| nb-book-07 | book | 沈約 | 沈約 | book=梁書 | 60 | 60 | 45 | text | bigram | Passage:通过、Provenance:通过 | 梁書 |  | PASS |
-| nb-book-08 | book | 檀道濟 | 檀道濟 | book=宋書 | 49 | 49 | 35 | text | fts | Passage:通过、Provenance:通过 | 宋書 |  | PASS |
-| nb-edition-01 | edition | 崔浩 | 崔浩 | edition=WYG | 135 | 135 | 114 | text | bigram | Passage:通过、Provenance:通过 | 北史、魏書 |  | PASS |
-| nb-edition-02 | edition | 楊素 | 楊素 | edition=WYG | 121 | 121 | 85 | text | bigram | Passage:通过、Provenance:通过 | 北史、周書、隋書 |  | PASS |
+| nb-single-02 | single | 帝 | 帝 | 默认 | 34807 | 34807 | 14003 | both、text | like | Passage:通过、Provenance:通过、RecallInvariant:通过 | 北史、北齊書、南史… |  | PASS |
+| nb-single-03 | single | 州 | 州 | 默认 | 30601 | 30601 | 10171 | text | like | Passage:通过、Provenance:通过、RecallInvariant:通过 | 南齊書、宋書、晉書… |  | PASS |
+| nb-single-04 | single | 元年 | 元年 | 默认 | 7673 | 7673 | 4249 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 史記、宋書 |  | PASS |
+| nb-multi-01 | multi | 侯景 王僧辯 | 侯景 王僧辯 | 默认 | 25 | 25 | 24 | text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 南史、梁書、陳書… |  | PASS |
+| nb-multi-02 | multi | 宇文泰 高歡 | 宇文泰 高歡 | 默认 | 1 | 1 | 1 | text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 魏書 |  | PASS |
+| nb-book-01 | book | 崔浩 | 崔浩 | book=魏書 | 96 | 96 | 79 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 魏書 |  | PASS |
+| nb-book-02 | book | 楊愔 | 楊愔 | book=北齊書 | 65 | 65 | 39 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 北齊書 |  | PASS |
+| nb-book-03 | book | 楊素 | 楊素 | book=隋書 | 82 | 82 | 54 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 隋書 |  | PASS |
+| nb-book-04 | book | 宇文泰 | 宇文泰 | book=北史 | 16 | 16 | 6 | text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 北史 |  | PASS |
+| nb-book-05 | book | 侯景 | 侯景 | book=南史 | 295 | 295 | 171 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 南史 |  | PASS |
+| nb-book-06 | book | 侯景 | 侯景 | book=陳書 | 153 | 153 | 98 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 陳書 |  | PASS |
+| nb-book-07 | book | 沈約 | 沈約 | book=梁書 | 60 | 60 | 45 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 梁書 |  | PASS |
+| nb-book-08 | book | 檀道濟 | 檀道濟 | book=宋書 | 49 | 49 | 35 | text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 宋書 |  | PASS |
+| nb-edition-01 | edition | 崔浩 | 崔浩 | edition=WYG | 135 | 135 | 114 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 北史、魏書 |  | PASS |
+| nb-edition-02 | edition | 楊素 | 楊素 | edition=WYG | 121 | 121 | 85 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 北史、周書、隋書 |  | PASS |
 | nb-edition-03 | edition | 崔浩 | 崔浩 | edition=tls | 0 | 0 | 0 | — | bigram | — | — | Coverage | PASS：预期为空，归因 Coverage 相符 |
-| nb-place-01 | place | 建康 | 建康 | 默认 | 387 | 387 | 334 | text | bigram | Passage:通过、Provenance:通过 | 南史、南齊書、宋書… |  | PASS |
-| nb-place-02 | place | 平城 | 平城 | 默认 | 311 | 311 | 266 | text | bigram | Passage:通过、Provenance:通过 | 前漢書、北史、史記… |  | PASS |
-| nb-place-03 | place | 江陵 | 江陵 | 默认 | 925 | 925 | 624 | text | bigram | Passage:通过、Provenance:通过 | 南史、南齊書、周書… |  | PASS |
-| nb-place-04 | place | 鄴城 | 鄴城 | 默认 | 109 | 109 | 99 | text | bigram | Passage:通过、Provenance:通过 | 三國志、北史、北齊書… |  | PASS |
-| nb-place-05 | place | 鍾離 | 鍾離 | 默认 | 257 | 257 | 199 | text | bigram | Passage:通过、Provenance:通过 | 北史、南史、南齊書… |  | PASS |
-| nb-place-06 | place | 廣陵 | 廣陵 | 默认 | 774 | 774 | 608 | text | bigram | Passage:通过、Provenance:通过 | 前漢書、北史、南史… |  | PASS |
-| nb-war-01 | war | 玉壁 | 玉壁 | 默认 | 54 | 54 | 43 | text | bigram | Passage:通过、Provenance:通过 | 北齊書、周書、魏書 |  | PASS |
-| nb-war-02 | war | 沙苑 | 沙苑 | 默认 | 105 | 105 | 94 | text | bigram | Passage:通过、Provenance:通过 | 北史、北齊書、周書… |  | PASS |
-| nb-war-03 | war | 邙山 | 邙山 | 默认 | 85 | 85 | 73 | text | bigram | Passage:通过、Provenance:通过 | 北齊書、周書、陳書… |  | PASS |
-| nb-office-01 | office | 尚書令 | 尚書令 | 默认 | 1282 | 1282 | 1052 | text | fts | Passage:通过、Provenance:通过 | 北史、北齊書、南史… |  | PASS |
-| nb-office-02 | office | 中書監 | 中書監 | 默认 | 358 | 358 | 304 | text | fts | Passage:通过、Provenance:通过 | 三國志、南史、南齊書… |  | PASS |
-| nb-office-03 | office | 領軍將軍 | 領軍將軍 | 默认 | 245 | 245 | 211 | text | fts | Passage:通过、Provenance:通过 | 宋書、晉書、梁書… |  | PASS |
-| nb-office-04 | office | 都督中外諸軍事 | 都督中外諸軍事 | 默认 | 88 | 88 | 86 | text | fts | Passage:通过、Provenance:通过 | 三國志、南史、宋書… |  | PASS |
-| nb-event-01 | event | 河陰 | 河陰 | 默认 | 29 | 29 | 26 | text | bigram | Passage:通过、Provenance:通过 | 前漢書、北史、周書… |  | PASS |
-| nb-event-02 | event | 元嘉 | 元嘉 | 默认 | 1104 | 1104 | 645 | text | bigram | Passage:通过、Provenance:通过 | 宋書 |  | PASS |
-| nb-event-03 | event | 開皇 | 開皇 | 默认 | 1171 | 1171 | 1089 | text | bigram | Passage:通过、Provenance:通过 | 北史、隋書 |  | PASS |
-| nb-event-04 | event | 大業 | 大業 | 默认 | 920 | 920 | 834 | text | bigram | Passage:通过、Provenance:通过 | 北史、北齊書、南史… |  | PASS |
-| nb-page-01 | pagination | 沈約 | 沈約 | page_size=100 | 226 | 226 | 184 | text | bigram | Pagination:通过、Passage:通过、Provenance:通过 | 前漢書、南史、南齊書… |  | PASS |
-| nb-page-02 | pagination | 尚書令 | 尚書令 | page_size=100 | 1282 | 1282 | 1052 | text | fts | Pagination:通过、Passage:通过、Provenance:通过 | 前漢書、北史、北齊書… |  | PASS |
-| nb-passage-01 | passage | 檀道濟 | 檀道濟 | mode=long | 103 | 103 | 62 | text | fts | Passage:通过、Provenance:通过 | 北史、南史、宋書… |  | PASS |
-| nb-passage-02 | passage | 崔浩 | 崔浩 | mode=long | 135 | 135 | 102 | text | bigram | Passage:通过、Provenance:通过 | 北史、魏書 |  | PASS |
+| nb-place-01 | place | 建康 | 建康 | 默认 | 387 | 387 | 334 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 南史、南齊書、宋書… |  | PASS |
+| nb-place-02 | place | 平城 | 平城 | 默认 | 311 | 311 | 266 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、北史、史記… |  | PASS |
+| nb-place-03 | place | 江陵 | 江陵 | 默认 | 925 | 925 | 624 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 南史、南齊書、周書… |  | PASS |
+| nb-place-04 | place | 鄴城 | 鄴城 | 默认 | 109 | 109 | 99 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、北史、北齊書… |  | PASS |
+| nb-place-05 | place | 鍾離 | 鍾離 | 默认 | 257 | 257 | 199 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 北史、南史、南齊書… |  | PASS |
+| nb-place-06 | place | 廣陵 | 廣陵 | 默认 | 774 | 774 | 608 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、北史、南史… |  | PASS |
+| nb-war-01 | war | 玉壁 | 玉壁 | 默认 | 54 | 54 | 43 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 北齊書、周書、魏書 |  | PASS |
+| nb-war-02 | war | 沙苑 | 沙苑 | 默认 | 105 | 105 | 94 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 北史、北齊書、周書… |  | PASS |
+| nb-war-03 | war | 邙山 | 邙山 | 默认 | 85 | 85 | 73 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 北齊書、周書、陳書… |  | PASS |
+| nb-office-01 | office | 尚書令 | 尚書令 | 默认 | 1282 | 1282 | 1052 | text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 北史、北齊書、南史… |  | PASS |
+| nb-office-02 | office | 中書監 | 中書監 | 默认 | 358 | 358 | 304 | text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、南史、南齊書… |  | PASS |
+| nb-office-03 | office | 領軍將軍 | 領軍將軍 | 默认 | 245 | 245 | 211 | text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 宋書、晉書、梁書… |  | PASS |
+| nb-office-04 | office | 都督中外諸軍事 | 都督中外諸軍事 | 默认 | 88 | 88 | 86 | text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、南史、宋書… |  | PASS |
+| nb-event-01 | event | 河陰 | 河陰 | 默认 | 29 | 29 | 26 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、北史、周書… |  | PASS |
+| nb-event-02 | event | 元嘉 | 元嘉 | 默认 | 1104 | 1104 | 645 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 宋書 |  | PASS |
+| nb-event-03 | event | 開皇 | 開皇 | 默认 | 1171 | 1171 | 1089 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 北史、隋書 |  | PASS |
+| nb-event-04 | event | 大業 | 大業 | 默认 | 920 | 920 | 834 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 北史、北齊書、南史… |  | PASS |
+| nb-page-01 | pagination | 沈約 | 沈約 | page_size=100 | 226 | 226 | 184 | text | bigram | Pagination:通过、Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、南史、南齊書… |  | PASS |
+| nb-page-02 | pagination | 尚書令 | 尚書令 | page_size=100 | 1282 | 1282 | 1052 | text | fts | Pagination:通过、Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、北史、北齊書… |  | PASS |
+| nb-passage-01 | passage | 檀道濟 | 檀道濟 | mode=long | 103 | 103 | 62 | text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 北史、南史、宋書… |  | PASS |
+| nb-passage-02 | passage | 崔浩 | 崔浩 | mode=long | 135 | 135 | 102 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 北史、魏書 |  | PASS |
 | nb-neg-01 | negative | 安祿山 | 安祿山 | 默认 | 0 | 0 | 0 | — | fts | — | — | Coverage | PASS：预期为空，归因 Coverage 相符 |
 | nb-neg-02 | negative | 趙匡胤 | 趙匡胤 | 默认 | 0 | 0 | 0 | — | fts | — | — | Coverage | PASS：预期为空，归因 Coverage 相符 |
 | nb-neg-03 | negative | 岳飛 | 岳飛 | 默认 | 0 | 0 | 0 | — | bigram | — | — | Coverage | PASS：预期为空，归因 Coverage 相符 |
@@ -129,156 +143,156 @@
 | nb-neg-05 | negative | 朱元璋 | 朱元璋 | 默认 | 0 | 0 | 0 | — | fts | — | — | Coverage | PASS：预期为空，归因 Coverage 相符 |
 | nb-neg-06 | negative | 忽必烈 | 忽必烈 | 默认 | 0 | 0 | 0 | — | fts | — | — | Coverage | PASS：预期为空，归因 Coverage 相符 |
 | nb-neg-07 | negative | 桃園結義 | 桃園結義 | 默认 | 0 | 0 | 0 | — | fts | — | — | Coverage | PASS：预期为空，归因 Coverage 相符 |
-| person-01 | person | 齐桓公 | 齊桓公 | 默认 | 159 | 159 | 133 | text | fts | Passage:通过、Provenance:通过 | 史記、戰國策 |  | PASS |
-| person-02 | person | 管仲 | 管仲 | 默认 | 219 | 219 | 170 | text | bigram | Passage:通过、Provenance:通过 | 前漢書、史記、後漢書… |  | PASS |
-| person-03 | person | 楚庄王 | 楚莊王 | 默认 | 57 | 57 | 47 | text | fts | Passage:通过、Provenance:通过 | 史記 |  | PASS |
-| person-04 | person | 郑庄公 | 鄭莊公 | 默认 | 21 | 21 | 19 | text | fts | Passage:通过、Provenance:通过 | 前漢書、北史、史記… |  | PASS |
-| person-05 | person | 秦始皇 | 秦始皇 | 默认 | 141 | 141 | 138 | both、text | fts | Passage:通过、Provenance:通过 | 前漢書、史記、宋書… |  | PASS |
-| person-06 | person | 晋文公 | 晉文公 | 默认 | 112 | 112 | 90 | text | fts | Passage:通过、Provenance:通过 | 史記、國語、春秋左傳 |  | PASS |
-| person-07 | person | 重耳 | 重耳 | 默认 | 238 | 238 | 142 | text | bigram | Passage:通过、Provenance:通过 | 史記、春秋左傳 |  | PASS |
-| person-08 | person | 秦穆公 | 秦穆公 | 默认 | 50 | 50 | 48 | text | fts | Passage:通过、Provenance:通过 | 前漢書、史記、國語… |  | PASS |
-| person-09 | person | 百里奚 | 百里奚 | 默认 | 29 | 29 | 26 | text | fts | Passage:通过、Provenance:通过 | 三國志、前漢書、南史… |  | PASS |
-| person-10 | person | 伍子胥 | 伍子胥 | 默认 | 69 | 69 | 59 | both、text | fts | Passage:通过、Provenance:通过 | 前漢書、史記、後漢書… |  | PASS |
-| person-11 | person | 孙武 | 孫武 | 默认 | 40 | 40 | 33 | text | bigram | Passage:通过、Provenance:通过 | 前漢書、北齊書、史記… |  | PASS |
-| person-12 | person | 孔子 | 孔子 | 默认 | 1585 | 1585 | 1226 | both、text | bigram | Passage:通过、Provenance:通过 | 史記、宋書、晉書 |  | PASS |
-| person-13 | person | 墨子 | 墨子 | 默认 | 58 | 58 | 50 | text | bigram | Passage:通过、Provenance:通过 | 前漢書、史記、後漢書… |  | PASS |
-| person-14 | person | 孟子 | 孟子 | 默认 | 227 | 227 | 184 | text | bigram | Passage:通过、Provenance:通过 | 前漢書、史記、宋書… |  | PASS |
-| person-15 | person | 荀子 | 荀子 | 默认 | 18 | 18 | 17 | text | bigram | Passage:通过、Provenance:通过 | 前漢書、南史、宋書… |  | PASS |
-| person-16 | person | 商鞅 | 商鞅 | 默认 | 32 | 32 | 31 | text | bigram | Passage:通过、Provenance:通过 | 前漢書、史記、後漢書… |  | PASS |
-| person-17 | person | 苏秦 | 蘇秦 | 默认 | 235 | 235 | 167 | both、text | bigram | Passage:通过、Provenance:通过 | 史記、戰國策 |  | PASS |
-| person-18 | person | 张仪 | 張儀 | 默认 | 357 | 357 | 230 | both、text | bigram | Passage:通过、Provenance:通过 | 史記、戰國策 |  | PASS |
-| place-01 | place | 城濮 | 城濮 | 默认 | 40 | 40 | 38 | text | bigram | Passage:通过、Provenance:通过 | 三國志、史記、國語… |  | PASS |
-| place-02 | place | 長勺 | 長勺 | 默认 | 8 | 8 | 7 | text | bigram | Passage:通过、Provenance:通过 | 前漢書、國語、春秋左傳… |  | PASS |
-| place-03 | place | 邯鄲 | 邯鄲 | 默认 | 446 | 446 | 352 | text | bigram | Passage:通过、Provenance:通过 | 三國志、史記、後漢書… |  | PASS |
-| place-04 | place | 曲沃 | 曲沃 | 默认 | 155 | 155 | 105 | text | bigram | Passage:通过、Provenance:通过 | 前漢書、史記、春秋左傳 |  | PASS |
-| place-05 | place | 葵丘 | 葵丘 | 默认 | 29 | 29 | 26 | text | bigram | Passage:通过、Provenance:通过 | 前漢書、史記、國語… |  | PASS |
-| place-06 | place | 滎陽 | 滎陽 | 默认 | 517 | 517 | 428 | text | bigram | Passage:通过、Provenance:通过 | 前漢書、史記、宋書… |  | PASS |
-| place-07 | place | 垓下 | 垓下 | 默认 | 28 | 28 | 24 | text | bigram | Passage:通过、Provenance:通过 | 前漢書、史記、後漢書 |  | PASS |
-| state-01 | state | 齊國 | 齊國 | 默认 | 199 | 199 | 182 | text | bigram | Passage:通过、Provenance:通过 | 前漢書、北齊書、南史… |  | PASS |
-| state-02 | state | 晉國 | 晉國 | 默认 | 200 | 200 | 180 | text | bigram | Passage:通过、Provenance:通过 | 史記、周書、國語… |  | PASS |
-| state-03 | state | 楚國 | 楚國 | 默认 | 178 | 178 | 164 | text | bigram | Passage:通过、Provenance:通过 | 三國志、前漢書、史記… |  | PASS |
-| state-04 | state | 秦國 | 秦國 | 默认 | 53 | 53 | 49 | text | bigram | Passage:通过、Provenance:通过 | 前漢書、史記、戰國策… |  | PASS |
-| state-05 | state | 宋國 | 宋國 | 默认 | 53 | 53 | 48 | text | bigram | Passage:通过、Provenance:通过 | 三國志、前漢書、南史… |  | PASS |
-| state-06 | state | 越國 | 越國 | 默认 | 48 | 48 | 46 | text | bigram | Passage:通过、Provenance:通过 | 前漢書、史記、國語… |  | PASS |
-| war-01 | war | 城濮之戰 | 城濮之戰 | 默认 | 1 | 1 | 1 | text | fts | Passage:通过、Provenance:通过 | 春秋左傳 |  | PASS |
-| war-02 | war | 鄢陵 | 鄢陵 | 默认 | 93 | 93 | 91 | text | bigram | Passage:通过、Provenance:通过 | 史記、國語、戰國策… |  | PASS |
-| war-03 | war | 長平 | 長平 | 默认 | 188 | 188 | 176 | text | bigram | Passage:通过、Provenance:通过 | 前漢書、史記、宋書… |  | PASS |
-| war-04 | war | 鉅鹿 | 鉅鹿 | 默认 | 312 | 312 | 281 | text | bigram | Passage:通过、Provenance:通过 | 三國志、前漢書、史記… |  | PASS |
-| war-05 | war | 韓原 | 韓原 | 默认 | 10 | 10 | 10 | text | bigram | Passage:通过、Provenance:通过 | 前漢書、史記、國語… |  | PASS |
-| office-01 | office | 丞相 | 丞相 | 默认 | 2348 | 2348 | 1732 | text | bigram | Passage:通过、Provenance:通过 | 前漢書、史記、宋書… |  | PASS |
-| office-02 | office | 令尹 | 令尹 | 默认 | 222 | 222 | 176 | text | bigram | Passage:通过、Provenance:通过 | 史記、春秋左傳 |  | PASS |
-| office-03 | office | 太尉 | 太尉 | 默认 | 2360 | 2360 | 1776 | text | bigram | Passage:通过、Provenance:通过 | 北史、南史、史記… |  | PASS |
-| office-04 | office | 大夫 | 大夫 | 默认 | 6512 | 6512 | 4901 | text | bigram | Passage:通过、Provenance:通过 | 南齊書、史記、周書… |  | PASS |
-| office-05 | office | 將軍 | 將軍 | 默认 | 17625 | 17625 | 6600 | text | bigram | Passage:通过、Provenance:通过 | 史記、宋書、晉書… |  | PASS |
-| chapter-01 | chapter | 秦本紀 | 秦本紀 | 默认 | 9 | 9 | 10 | section、text | fts | Passage:通过、Provenance:通过 | 三國志、前漢書、史記… |  | PASS |
-| chapter-02 | chapter | 周本紀 | 周本紀 | 默认 | 5 | 5 | 7 | section、text | fts | Passage:通过、Provenance:通过 | 前漢書、北史、史記… |  | PASS |
-| chapter-03 | chapter | 晉世家 | 晉世家 | 默认 | 3 | 3 | 4 | section、text | fts | Passage:通过、Provenance:通过 | 前漢書、史記 |  | PASS |
-| chapter-04 | chapter | 十二諸侯年表 | 十二諸侯年表 | 默认 | 2 | 2 | 3 | section、text | fts | Passage:通过、Provenance:通过 | 前漢書、史記 |  | PASS |
-| event-01 | event | 焚書 | 焚書 | 默认 | 22 | 22 | 20 | text | bigram | Passage:通过、Provenance:通过 | 前漢書、南史、史記… |  | PASS |
-| event-02 | event | 三家分晉 | 三家分晉 | 默认 | 2 | 2 | 2 | text | fts | Passage:通过、Provenance:通过 | 前漢書、史記 |  | PASS |
-| single-01 | single | 尧 | 堯 | 默认 | 1183 | 1183 | 956 | text | like | Passage:通过、Provenance:通过 | 三國志、前漢書、史記… |  | PASS |
-| single-02 | single | 舜 | 舜 | 默认 | 1193 | 1193 | 935 | both、text | like | Passage:通过、Provenance:通过 | 三國志、史記、宋書… |  | PASS |
-| single-03 | single | 禹 | 禹 | 默认 | 1454 | 1454 | 1156 | both、text | like | Passage:通过、Provenance:通过 | 前漢書、史記、宋書… |  | PASS |
-| single-04 | single | 郢 | 郢 | 默认 | 1287 | 1287 | 853 | text | like | Passage:通过、Provenance:通过 | 南史、南齊書、史記… |  | PASS |
-| single-05 | single | 絳 | 絳 | 默认 | 715 | 715 | 550 | text | like | Passage:通过、Provenance:通过 | 三國志、南齊書、史記… |  | PASS |
-| multi-01 | multi | 齊桓公 管仲 | 齊桓公 管仲 | 默认 | 11 | 11 | 11 | text | fts | Passage:通过、Provenance:通过 | 前漢書、史記、後漢書… |  | PASS |
-| multi-02 | multi | 蘇秦 張儀 | 蘇秦 張儀 | 默认 | 21 | 21 | 19 | text | bigram | Passage:通过、Provenance:通过 | 前漢書、史記、後漢書… |  | PASS |
+| person-01 | person | 齐桓公 | 齊桓公 | 默认 | 159 | 159 | 133 | text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 史記、戰國策 |  | PASS |
+| person-02 | person | 管仲 | 管仲 | 默认 | 219 | 219 | 170 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、史記、後漢書… |  | PASS |
+| person-03 | person | 楚庄王 | 楚莊王 | 默认 | 57 | 57 | 47 | text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 史記 |  | PASS |
+| person-04 | person | 郑庄公 | 鄭莊公 | 默认 | 21 | 21 | 19 | text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、北史、史記… |  | PASS |
+| person-05 | person | 秦始皇 | 秦始皇 | 默认 | 141 | 141 | 138 | both、text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、史記、宋書… |  | PASS |
+| person-06 | person | 晋文公 | 晉文公 | 默认 | 112 | 112 | 90 | text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 史記、國語、春秋左傳 |  | PASS |
+| person-07 | person | 重耳 | 重耳 | 默认 | 238 | 238 | 142 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 史記、春秋左傳 |  | PASS |
+| person-08 | person | 秦穆公 | 秦穆公 | 默认 | 50 | 50 | 48 | text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、史記、國語… |  | PASS |
+| person-09 | person | 百里奚 | 百里奚 | 默认 | 29 | 29 | 26 | text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、前漢書、南史… |  | PASS |
+| person-10 | person | 伍子胥 | 伍子胥 | 默认 | 69 | 69 | 59 | both、text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、史記、後漢書… |  | PASS |
+| person-11 | person | 孙武 | 孫武 | 默认 | 40 | 40 | 33 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、北齊書、史記… |  | PASS |
+| person-12 | person | 孔子 | 孔子 | 默认 | 1585 | 1585 | 1226 | both、text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 史記、宋書、晉書 |  | PASS |
+| person-13 | person | 墨子 | 墨子 | 默认 | 58 | 58 | 50 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、史記、後漢書… |  | PASS |
+| person-14 | person | 孟子 | 孟子 | 默认 | 227 | 227 | 184 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、史記、宋書… |  | PASS |
+| person-15 | person | 荀子 | 荀子 | 默认 | 18 | 18 | 17 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、南史、宋書… |  | PASS |
+| person-16 | person | 商鞅 | 商鞅 | 默认 | 32 | 32 | 31 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、史記、後漢書… |  | PASS |
+| person-17 | person | 苏秦 | 蘇秦 | 默认 | 235 | 235 | 167 | both、text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 史記、戰國策 |  | PASS |
+| person-18 | person | 张仪 | 張儀 | 默认 | 357 | 357 | 230 | both、text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 史記、戰國策 |  | PASS |
+| place-01 | place | 城濮 | 城濮 | 默认 | 40 | 40 | 38 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、史記、國語… |  | PASS |
+| place-02 | place | 長勺 | 長勺 | 默认 | 8 | 8 | 7 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、國語、春秋左傳… |  | PASS |
+| place-03 | place | 邯鄲 | 邯鄲 | 默认 | 446 | 446 | 352 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、史記、後漢書… |  | PASS |
+| place-04 | place | 曲沃 | 曲沃 | 默认 | 155 | 155 | 105 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、史記、春秋左傳 |  | PASS |
+| place-05 | place | 葵丘 | 葵丘 | 默认 | 29 | 29 | 26 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、史記、國語… |  | PASS |
+| place-06 | place | 滎陽 | 滎陽 | 默认 | 517 | 517 | 428 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、史記、宋書… |  | PASS |
+| place-07 | place | 垓下 | 垓下 | 默认 | 28 | 28 | 24 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、史記、後漢書 |  | PASS |
+| state-01 | state | 齊國 | 齊國 | 默认 | 199 | 199 | 182 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、北齊書、南史… |  | PASS |
+| state-02 | state | 晉國 | 晉國 | 默认 | 200 | 200 | 180 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 史記、周書、國語… |  | PASS |
+| state-03 | state | 楚國 | 楚國 | 默认 | 178 | 178 | 164 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、前漢書、史記… |  | PASS |
+| state-04 | state | 秦國 | 秦國 | 默认 | 53 | 53 | 49 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、史記、戰國策… |  | PASS |
+| state-05 | state | 宋國 | 宋國 | 默认 | 53 | 53 | 48 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、前漢書、南史… |  | PASS |
+| state-06 | state | 越國 | 越國 | 默认 | 48 | 48 | 46 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、史記、國語… |  | PASS |
+| war-01 | war | 城濮之戰 | 城濮之戰 | 默认 | 1 | 1 | 1 | text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 春秋左傳 |  | PASS |
+| war-02 | war | 鄢陵 | 鄢陵 | 默认 | 93 | 93 | 91 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 史記、國語、戰國策… |  | PASS |
+| war-03 | war | 長平 | 長平 | 默认 | 188 | 188 | 176 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、史記、宋書… |  | PASS |
+| war-04 | war | 鉅鹿 | 鉅鹿 | 默认 | 312 | 312 | 281 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、前漢書、史記… |  | PASS |
+| war-05 | war | 韓原 | 韓原 | 默认 | 10 | 10 | 10 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、史記、國語… |  | PASS |
+| office-01 | office | 丞相 | 丞相 | 默认 | 2348 | 2348 | 1732 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、史記、宋書… |  | PASS |
+| office-02 | office | 令尹 | 令尹 | 默认 | 222 | 222 | 176 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 史記、春秋左傳 |  | PASS |
+| office-03 | office | 太尉 | 太尉 | 默认 | 2360 | 2360 | 1776 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 北史、南史、史記… |  | PASS |
+| office-04 | office | 大夫 | 大夫 | 默认 | 6512 | 6512 | 4901 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 南齊書、史記、周書… |  | PASS |
+| office-05 | office | 將軍 | 將軍 | 默认 | 17625 | 17625 | 6600 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 史記、宋書、晉書… |  | PASS |
+| chapter-01 | chapter | 秦本紀 | 秦本紀 | 默认 | 9 | 9 | 10 | section、text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、前漢書、史記… |  | PASS |
+| chapter-02 | chapter | 周本紀 | 周本紀 | 默认 | 5 | 5 | 7 | section、text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、北史、史記… |  | PASS |
+| chapter-03 | chapter | 晉世家 | 晉世家 | 默认 | 3 | 3 | 4 | section、text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、史記 |  | PASS |
+| chapter-04 | chapter | 十二諸侯年表 | 十二諸侯年表 | 默认 | 2 | 2 | 3 | section、text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、史記 |  | PASS |
+| event-01 | event | 焚書 | 焚書 | 默认 | 22 | 22 | 20 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、南史、史記… |  | PASS |
+| event-02 | event | 三家分晉 | 三家分晉 | 默认 | 2 | 2 | 2 | text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、史記 |  | PASS |
+| single-01 | single | 尧 | 堯 | 默认 | 1183 | 1183 | 956 | text | like | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、前漢書、史記… |  | PASS |
+| single-02 | single | 舜 | 舜 | 默认 | 1193 | 1193 | 935 | both、text | like | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、史記、宋書… |  | PASS |
+| single-03 | single | 禹 | 禹 | 默认 | 1454 | 1454 | 1156 | both、text | like | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、史記、宋書… |  | PASS |
+| single-04 | single | 郢 | 郢 | 默认 | 1287 | 1287 | 853 | text | like | Passage:通过、Provenance:通过、RecallInvariant:通过 | 南史、南齊書、史記… |  | PASS |
+| single-05 | single | 絳 | 絳 | 默认 | 715 | 715 | 550 | text | like | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、南齊書、史記… |  | PASS |
+| multi-01 | multi | 齊桓公 管仲 | 齊桓公 管仲 | 默认 | 11 | 11 | 11 | text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、史記、後漢書… |  | PASS |
+| multi-02 | multi | 蘇秦 張儀 | 蘇秦 張儀 | 默认 | 21 | 21 | 19 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、史記、後漢書… |  | PASS |
 | multi-03 | multi | 秦穆公 百里奚 | 秦穆公 百里奚 | 默认 | 0 | 0 | 0 | — | fts | — | — | Coverage | PASS：预期为空，归因 Coverage 相符 |
-| script-01 | script | 齐桓公 | 齊桓公 | 默认 | 159 | 159 | 133 | text | fts | Passage:通过、Provenance:通过 | 史記、戰國策 |  | PASS |
-| script-02 | script | 齊桓公 | 齊桓公 | 默认 | 159 | 159 | 133 | text | fts | Passage:通过、Provenance:通过 | 史記、戰國策 |  | PASS |
-| script-03 | script | 苏秦 | 蘇秦 | 默认 | 235 | 235 | 167 | both、text | bigram | Passage:通过、Provenance:通过 | 史記、戰國策 |  | PASS |
-| script-04 | script | 蘇秦 | 蘇秦 | 默认 | 235 | 235 | 167 | both、text | bigram | Passage:通过、Provenance:通过 | 史記、戰國策 |  | PASS |
-| script-05 | script | 张仪 | 張儀 | 默认 | 357 | 357 | 230 | both、text | bigram | Passage:通过、Provenance:通过 | 史記、戰國策 |  | PASS |
-| script-06 | script | 張儀 | 張儀 | 默认 | 357 | 357 | 230 | both、text | bigram | Passage:通过、Provenance:通过 | 史記、戰國策 |  | PASS |
-| script-07 | script | 郑庄公 | 鄭莊公 | 默认 | 21 | 21 | 19 | text | fts | Passage:通过、Provenance:通过 | 前漢書、北史、史記… |  | PASS |
-| script-08 | script | 鄭莊公 | 鄭莊公 | 默认 | 21 | 21 | 19 | text | fts | Passage:通过、Provenance:通过 | 前漢書、北史、史記… |  | PASS |
-| script-09 | script | 晋文公 | 晉文公 | 默认 | 112 | 112 | 90 | text | fts | Passage:通过、Provenance:通过 | 史記、國語、春秋左傳 |  | PASS |
-| script-10 | script | 晉文公 | 晉文公 | 默认 | 112 | 112 | 90 | text | fts | Passage:通过、Provenance:通过 | 史記、國語、春秋左傳 |  | PASS |
-| section-01 | section | 秦始皇本紀 | 秦始皇本紀 | recall=section | 2 | 2 | 3 | section、text | fts | Passage:通过、Provenance:通过 | 前漢書、史記 |  | PASS |
-| section-02 | section | 大禹謨 | 大禹謨 | recall=section | 1 | 1 | 2 | section、text | fts | Passage:通过、Provenance:通过 | 前漢書、尚書 |  | PASS |
-| section-03 | section | 五帝本紀 | 五帝本紀 | recall=section | 2 | 2 | 3 | section、text | fts | Passage:通过、Provenance:通过 | 前漢書、史記 |  | PASS |
-| section-04 | section | 秦本紀 | 秦本紀 | recall=section | 9 | 9 | 10 | section、text | fts | Passage:通过、Provenance:通过 | 三國志、前漢書、史記… |  | PASS |
-| section-05 | section | 尚書逸文 | 尚書逸文 | recall=section | 0 | 0 | 11 | section | fts | Passage:通过、Provenance:通过 | 尚書 |  | PASS |
-| section-06 | section | 晉語 | 晉語 | recall=section | 8 | 8 | 16 | section、text | bigram | Passage:通过、Provenance:通过 | 前漢書、國語、戰國策 |  | PASS |
+| script-01 | script | 齐桓公 | 齊桓公 | 默认 | 159 | 159 | 133 | text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 史記、戰國策 |  | PASS |
+| script-02 | script | 齊桓公 | 齊桓公 | 默认 | 159 | 159 | 133 | text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 史記、戰國策 |  | PASS |
+| script-03 | script | 苏秦 | 蘇秦 | 默认 | 235 | 235 | 167 | both、text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 史記、戰國策 |  | PASS |
+| script-04 | script | 蘇秦 | 蘇秦 | 默认 | 235 | 235 | 167 | both、text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 史記、戰國策 |  | PASS |
+| script-05 | script | 张仪 | 張儀 | 默认 | 357 | 357 | 230 | both、text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 史記、戰國策 |  | PASS |
+| script-06 | script | 張儀 | 張儀 | 默认 | 357 | 357 | 230 | both、text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 史記、戰國策 |  | PASS |
+| script-07 | script | 郑庄公 | 鄭莊公 | 默认 | 21 | 21 | 19 | text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、北史、史記… |  | PASS |
+| script-08 | script | 鄭莊公 | 鄭莊公 | 默认 | 21 | 21 | 19 | text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、北史、史記… |  | PASS |
+| script-09 | script | 晋文公 | 晉文公 | 默认 | 112 | 112 | 90 | text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 史記、國語、春秋左傳 |  | PASS |
+| script-10 | script | 晉文公 | 晉文公 | 默认 | 112 | 112 | 90 | text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 史記、國語、春秋左傳 |  | PASS |
+| section-01 | section | 秦始皇本紀 | 秦始皇本紀 | recall=section | 2 | 2 | 3 | section、text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、史記 |  | PASS |
+| section-02 | section | 大禹謨 | 大禹謨 | recall=section | 1 | 1 | 2 | section、text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、尚書 |  | PASS |
+| section-03 | section | 五帝本紀 | 五帝本紀 | recall=section | 2 | 2 | 3 | section、text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、史記 |  | PASS |
+| section-04 | section | 秦本紀 | 秦本紀 | recall=section | 9 | 9 | 10 | section、text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、前漢書、史記… |  | PASS |
+| section-05 | section | 尚書逸文 | 尚書逸文 | recall=section | 0 | 0 | 11 | section | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 尚書 |  | PASS |
+| section-06 | section | 晉語 | 晉語 | recall=section | 8 | 8 | 16 | section、text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、國語、戰國策 |  | PASS |
 | pagination-01 | pagination | 之 | 之 | page_size=100 | 158417 | 158417 | 40566 | text | like | — | 三國志、北史、北齊書… | Pagination | WARN：命中 158417 段，触发组装上限，结果不完整 |
-| pagination-02 | pagination | 大夫 | 大夫 | 默认 | 6512 | 6512 | 4901 | text | bigram | Pagination:通过、Passage:通过、Provenance:通过 | 南齊書、史記、周書… |  | PASS |
-| pagination-03 | pagination | 齊 | 齊 | 默认 | 14918 | 14918 | 8891 | text | like | Pagination:通过、Passage:通过、Provenance:通过 | 北史、南史、史記… |  | PASS |
-| pagination-04 | pagination | 將軍 | 將軍 | 默认 | 17625 | 17625 | 6600 | text | bigram | Pagination:通过、Passage:通过、Provenance:通过 | 史記、宋書、晉書… |  | PASS |
-| passage-01 | passage | 齊桓公 | 齊桓公 | mode=long | 159 | 159 | 122 | text | fts | Passage:通过、Provenance:通过 | 史記 |  | PASS |
-| passage-02 | passage | 管仲 | 管仲 | mode=long、page_size=50 | 219 | 219 | 162 | text | bigram | Passage:通过、Provenance:通过 | 三國志、前漢書、史記… |  | PASS |
+| pagination-02 | pagination | 大夫 | 大夫 | 默认 | 6512 | 6512 | 4901 | text | bigram | Pagination:通过、Passage:通过、Provenance:通过、RecallInvariant:通过 | 南齊書、史記、周書… |  | PASS |
+| pagination-03 | pagination | 齊 | 齊 | 默认 | 14918 | 14918 | 8891 | text | like | Pagination:通过、Passage:通过、Provenance:通过、RecallInvariant:通过 | 北史、南史、史記… |  | PASS |
+| pagination-04 | pagination | 將軍 | 將軍 | 默认 | 17625 | 17625 | 6600 | text | bigram | Pagination:通过、Passage:通过、Provenance:通过、RecallInvariant:通过 | 史記、宋書、晉書… |  | PASS |
+| passage-01 | passage | 齊桓公 | 齊桓公 | mode=long | 159 | 159 | 122 | text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 史記 |  | PASS |
+| passage-02 | passage | 管仲 | 管仲 | mode=long、page_size=50 | 219 | 219 | 162 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、前漢書、史記… |  | PASS |
 | neg-02 | negative | 坑儒 | 坑儒 | book=史記 | 0 | 0 | 0 | — | bigram | — | — | Coverage | PASS：预期为空，归因 Coverage 相符 |
 | neg-03 | negative | 商鞅變法 | 商鞅變法 | 默认 | 0 | 0 | 0 | — | fts | — | — | Coverage | PASS：预期为空，归因 Coverage 相符 |
 | neg-04 | negative | 秦策一 | 秦策一 | 默认 | 0 | 0 | 0 | — | fts | — | — | Coverage | PASS：预期为空，归因 Coverage 相符 |
 | neg-05 | negative | 燕策 | 燕策 | 默认 | 0 | 0 | 0 | — | bigram | — | — | Coverage | PASS：预期为空，归因 Coverage 相符 |
 | neg-06 | negative | 重耳 秦穆公 | 重耳 秦穆公 | 默认 | 0 | 0 | 0 | — | fts | — | — | Coverage | PASS：预期为空，归因 Coverage 相符 |
-| qh-person-01 | person | 李斯 | 李斯 | 默认 | 112 | 112 | 90 | both、text | bigram | Passage:通过、Provenance:通过 | 三國志、前漢書、史記… |  | PASS |
-| qh-person-02 | person | 赵高 | 趙高 | 默认 | 99 | 99 | 70 | text | bigram | Passage:通过、Provenance:通过 | 前漢書、史記、魏書 |  | PASS |
-| qh-person-03 | person | 项羽 | 項羽 | 默认 | 496 | 496 | 326 | text | bigram | Passage:通过、Provenance:通过 | 南史、史記 |  | PASS |
-| qh-person-04 | person | 韩信 | 韓信 | 默认 | 304 | 304 | 246 | text | bigram | Passage:通过、Provenance:通过 | 前漢書、史記 |  | PASS |
-| qh-person-05 | person | 萧何 | 蕭何 | 默认 | 204 | 204 | 175 | text | bigram | Passage:通过、Provenance:通过 | 三國志、前漢書、北史… |  | PASS |
-| qh-person-06 | person | 张良 | 張良 | 默认 | 140 | 140 | 120 | text | bigram | Passage:通过、Provenance:通过 | 前漢書、史記、宋書 |  | PASS |
-| qh-person-07 | person | 司马迁 | 司馬遷 | 默认 | 92 | 92 | 93 | text | fts | Passage:通过、Provenance:通过 | 前漢書、史記、宋書… |  | PASS |
-| qh-person-08 | person | 班超 | 班超 | 默认 | 31 | 31 | 26 | text | bigram | Passage:通过、Provenance:通过 | 後漢書 |  | PASS |
-| qh-person-09 | person | 卫青 | 衛青 | 默认 | 54 | 54 | 49 | text | bigram | Passage:通过、Provenance:通过 | 前漢書、史記 |  | PASS |
-| qh-person-10 | person | 霍去病 | 霍去病 | 默认 | 45 | 45 | 45 | text | fts | Passage:通过、Provenance:通过 | 前漢書、史記、後漢書… |  | PASS |
-| qh-person-11 | person | 张骞 | 張騫 | 默认 | 55 | 55 | 52 | both、text | bigram | Passage:通过、Provenance:通过 | 前漢書、史記、隋書 |  | PASS |
-| qh-person-12 | person | 苏武 | 蘇武 | 默认 | 45 | 45 | 40 | text | bigram | Passage:通过、Provenance:通过 | 前漢書、南史、史記… |  | PASS |
-| qh-person-13 | person | 王莽 | 王莽 | 默认 | 629 | 629 | 595 | text | bigram | Passage:通过、Provenance:通过 | 前漢書、宋書、後漢書 |  | PASS |
-| qh-person-14 | person | 刘秀 | 劉秀 | 默认 | 47 | 47 | 41 | text | bigram | Passage:通过、Provenance:通过 | 宋書、後漢書、晉書 |  | PASS |
-| qh-person-15 | person | 吕后 | 呂后 | 默认 | 186 | 186 | 127 | text | bigram | Passage:通过、Provenance:通过 | 史記、宋書 |  | PASS |
-| qh-person-16 | person | 董卓 | 董卓 | 默认 | 254 | 254 | 220 | both、text | bigram | Passage:通过、Provenance:通过 | 三國志、後漢書 |  | PASS |
-| qh-alias-01 | alias | 高祖 | 高祖 | 默认 | 2080 | 2080 | 997 | text | bigram | Passage:通过、Provenance:通过 | 北史、史記、宋書… |  | PASS |
-| qh-alias-02 | alias | 沛公 | 沛公 | 默认 | 435 | 435 | 222 | text | bigram | Passage:通过、Provenance:通过 | 前漢書、史記 |  | PASS |
-| qh-alias-03 | alias | 汉武帝 | 漢武帝 | 默认 | 122 | 122 | 106 | text | fts | Passage:通过、Provenance:通过 | 南齊書、宋書、後漢書… |  | PASS |
-| qh-alias-04 | alias | 武帝 | 武帝 | 默认 | 4024 | 4024 | 2450 | text | bigram | Passage:通过、Provenance:通过 | 南史、宋書、晉書 |  | PASS |
-| qh-alias-05 | alias | 汉文帝 | 漢文帝 | 默认 | 37 | 37 | 35 | text | fts | Passage:通过、Provenance:通过 | 三國志、宋書、晉書… |  | PASS |
-| qh-alias-06 | alias | 文帝 | 文帝 | 默认 | 2359 | 2359 | 1567 | text | bigram | Passage:通过、Provenance:通过 | 北史、南史、史記… |  | PASS |
-| qh-alias-07 | alias | 景帝 | 景帝 | 默认 | 493 | 493 | 385 | text | bigram | Passage:通过、Provenance:通过 | 前漢書、南齊書、史記 |  | PASS |
-| qh-alias-08 | alias | 光武 | 光武 | 默认 | 946 | 946 | 792 | both、text | bigram | Passage:通过、Provenance:通过 | 宋書、後漢書 |  | PASS |
-| qh-alias-09 | alias | 元后 | 元后 | 默认 | 101 | 101 | 80 | text | bigram | Passage:通过、Provenance:通过 | 三國志、前漢書、北齊書… |  | PASS |
-| qh-alias-10 | alias | 吕太后 | 呂太后 | 默认 | 61 | 61 | 51 | both、text | fts | Passage:通过、Provenance:通过 | 前漢書、史記 |  | PASS |
-| qh-place-01 | place | 马邑 | 馬邑 | 默认 | 134 | 134 | 107 | text | bigram | Passage:通过、Provenance:通过 | 前漢書、北齊書、史記… |  | PASS |
-| qh-place-02 | place | 河西 | 河西 | 默认 | 390 | 390 | 312 | text | bigram | Passage:通过、Provenance:通过 | 北史、史記、宋書… |  | PASS |
-| qh-place-03 | place | 西域 | 西域 | 默认 | 491 | 491 | 388 | text | bigram | Passage:通过、Provenance:通过 | 前漢書、北史、後漢書… |  | PASS |
-| qh-war-01 | war | 白登 | 白登 | 默认 | 51 | 51 | 44 | text | bigram | Passage:通过、Provenance:通过 | 三國志、前漢書、北史… |  | PASS |
-| qh-event-01 | event | 党锢 | 黨錮 | 默认 | 25 | 25 | 25 | text | bigram | Passage:通过、Provenance:通过 | 南齊書、宋書、後漢書 |  | PASS |
-| qh-event-02 | event | 黄巾 | 黃巾 | 默认 | 28 | 28 | 26 | text | bigram | Passage:通过、Provenance:通过 | 三國志、後漢書、魏書 |  | PASS |
-| qh-event-03 | event | 推恩 | 推恩 | 默认 | 26 | 26 | 25 | text | bigram | Passage:通过、Provenance:通过 | 前漢書、南史、史記… |  | PASS |
-| qh-office-01 | office | 骠骑将军 | 驃騎將軍 | 默认 | 332 | 332 | 270 | text | fts | Passage:通过、Provenance:通过 | 南史、史記、宋書… |  | PASS |
-| qh-office-02 | office | 西域都护 | 西域都護 | 默认 | 7 | 7 | 7 | text | fts | Passage:通过、Provenance:通过 | 前漢書、後漢書 |  | PASS |
-| qh-office-03 | office | 侍中 | 侍中 | 默认 | 3757 | 3757 | 2431 | text | bigram | Passage:通过、Provenance:通过 | 北史、南史、南齊書… |  | PASS |
-| qh-section-01 | section | 光武帝纪第一上 | 光武帝紀第一上 | recall=section | 0 | 0 | 1 | section | fts | Passage:通过、Provenance:通过 | 後漢書 |  | PASS |
-| qh-section-02 | section | 艺文志第十 | 藝文志第十 | recall=section | 0 | 0 | 1 | section | fts | Passage:通过、Provenance:通过 | 前漢書 |  | PASS |
-| qh-section-03 | section | 地理志第八上 | 地理志第八上 | recall=section | 0 | 0 | 1 | section | fts | Passage:通过、Provenance:通过 | 前漢書 |  | PASS |
-| qh-section-04 | section | 班梁列传第三十七 | 班梁列傳第三十七 | recall=section | 0 | 0 | 1 | section | fts | Passage:通过、Provenance:通过 | 後漢書 |  | PASS |
-| qh-section-05 | section | 高帝纪第一上 | 高帝紀第一上 | recall=section | 1 | 1 | 2 | section、text | fts | Passage:通过、Provenance:通过 | 前漢書 |  | PASS |
-| qh-section-06 | section | 西周 | 西周 | book=戰國策、recall=section | 73 | 73 | 54 | both、text | bigram | Passage:通过、Provenance:通过 | 戰國策 |  | PASS |
-| qh-section-07 | section | 东周 | 東周 | book=戰國策、page_size=100、recall=section | 68 | 68 | 51 | section、text | bigram | Passage:通过、Provenance:通过 | 戰國策 |  | PASS |
-| qh-multi-01 | multi | 卫青 霍去病 | 衛青 霍去病 | 默认 | 4 | 4 | 4 | text | fts | Passage:通过、Provenance:通过 | 前漢書、史記、後漢書 |  | PASS |
-| qh-multi-02 | multi | 王莽 光武 | 王莽 光武 | 默认 | 13 | 13 | 13 | text | bigram | Passage:通过、Provenance:通过 | 宋書、後漢書、晉書… |  | PASS |
-| qh-multi-03 | multi | 苏武 匈奴 | 蘇武 匈奴 | 默认 | 8 | 8 | 8 | text | bigram | Passage:通过、Provenance:通过 | 前漢書、後漢書 |  | PASS |
-| qh-multi-04 | multi | 匈奴 西域 | 匈奴 西域 | 默认 | 48 | 48 | 45 | text | bigram | Passage:通过、Provenance:通过 | 前漢書、史記、後漢書 |  | PASS |
-| qh-multi-05 | multi | 萧何 韩信 | 蕭何 韓信 | 默认 | 6 | 6 | 6 | text | bigram | Passage:通过、Provenance:通过 | 前漢書、後漢書 |  | PASS |
-| qh-multi-06 | multi | 高祖 项羽 | 高祖 項羽 | 默认 | 8 | 8 | 8 | text | bigram | Passage:通过、Provenance:通过 | 前漢書、後漢書 |  | PASS |
-| qh-script-01 | script | 卫青 | 衛青 | 默认 | 54 | 54 | 49 | text | bigram | Passage:通过、Provenance:通过 | 前漢書、史記 |  | PASS |
-| qh-script-02 | script | 衛青 | 衛青 | 默认 | 54 | 54 | 49 | text | bigram | Passage:通过、Provenance:通过 | 前漢書、史記 |  | PASS |
-| qh-script-03 | script | 张骞 | 張騫 | 默认 | 55 | 55 | 52 | both、text | bigram | Passage:通过、Provenance:通过 | 前漢書、史記、隋書 |  | PASS |
-| qh-script-04 | script | 張騫 | 張騫 | 默认 | 55 | 55 | 52 | both、text | bigram | Passage:通过、Provenance:通过 | 前漢書、史記、隋書 |  | PASS |
-| qh-script-05 | script | 苏武 | 蘇武 | 默认 | 45 | 45 | 40 | text | bigram | Passage:通过、Provenance:通过 | 前漢書、南史、史記… |  | PASS |
-| qh-script-06 | script | 蘇武 | 蘇武 | 默认 | 45 | 45 | 40 | text | bigram | Passage:通过、Provenance:通过 | 前漢書、南史、史記… |  | PASS |
-| qh-script-07 | script | 吕后 | 呂后 | 默认 | 186 | 186 | 127 | text | bigram | Passage:通过、Provenance:通过 | 史記、宋書 |  | PASS |
-| qh-script-08 | script | 呂后 | 呂后 | 默认 | 186 | 186 | 127 | text | bigram | Passage:通过、Provenance:通过 | 史記、宋書 |  | PASS |
-| qh-script-09 | script | 刘秀 | 劉秀 | 默认 | 47 | 47 | 41 | text | bigram | Passage:通过、Provenance:通过 | 宋書、後漢書、晉書 |  | PASS |
-| qh-script-10 | script | 劉秀 | 劉秀 | 默认 | 47 | 47 | 41 | text | bigram | Passage:通过、Provenance:通过 | 宋書、後漢書、晉書 |  | PASS |
-| qh-script-11 | script | 党锢 | 黨錮 | 默认 | 25 | 25 | 25 | text | bigram | Passage:通过、Provenance:通过 | 南齊書、宋書、後漢書 |  | PASS |
-| qh-script-12 | script | 黨錮 | 黨錮 | 默认 | 25 | 25 | 25 | text | bigram | Passage:通过、Provenance:通过 | 南齊書、宋書、後漢書 |  | PASS |
-| qh-single-01 | single | 羌 | 羌 | 默认 | 1398 | 1398 | 990 | text | like | Passage:通过、Provenance:通过 | 三國志、前漢書、北齊書… |  | PASS |
-| qh-single-02 | single | 鲜卑 | 鮮卑 | 默认 | 433 | 433 | 316 | text | bigram | Passage:通过、Provenance:通过 | 三國志、宋書、後漢書… |  | PASS |
-| qh-pagination-01 | pagination | 汉 | 漢 | 默认 | 15434 | 15434 | 9836 | text | like | Pagination:通过、Passage:通过、Provenance:通过 | 南齊書、史記、宋書… |  | PASS |
-| qh-pagination-02 | pagination | 单于 | 單于 | 默认 | 1454 | 1454 | 919 | text | bigram | Pagination:通过、Passage:通过、Provenance:通过 | 前漢書、史記、後漢書 |  | PASS |
-| qh-pagination-03 | pagination | 大将军 | 大將軍 | 默认 | 3678 | 3678 | 2214 | text | fts | Pagination:通过、Passage:通过、Provenance:通过 | 北史、史記、周書… |  | PASS |
-| qh-passage-01 | passage | 王莽 | 王莽 | mode=long | 629 | 629 | 591 | text | bigram | Passage:通过、Provenance:通过 | 前漢書、宋書、後漢書… |  | PASS |
-| qh-passage-02 | passage | 匈奴 | 匈奴 | mode=long、page_size=50 | 2208 | 2208 | 1458 | text | bigram | Passage:通过、Provenance:通过 | 三國志、前漢書、史記… |  | PASS |
+| qh-person-01 | person | 李斯 | 李斯 | 默认 | 112 | 112 | 90 | both、text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、前漢書、史記… |  | PASS |
+| qh-person-02 | person | 赵高 | 趙高 | 默认 | 99 | 99 | 70 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、史記、魏書 |  | PASS |
+| qh-person-03 | person | 项羽 | 項羽 | 默认 | 496 | 496 | 326 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 南史、史記 |  | PASS |
+| qh-person-04 | person | 韩信 | 韓信 | 默认 | 304 | 304 | 246 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、史記 |  | PASS |
+| qh-person-05 | person | 萧何 | 蕭何 | 默认 | 204 | 204 | 175 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、前漢書、北史… |  | PASS |
+| qh-person-06 | person | 张良 | 張良 | 默认 | 140 | 140 | 120 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、史記、宋書 |  | PASS |
+| qh-person-07 | person | 司马迁 | 司馬遷 | 默认 | 92 | 92 | 93 | text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、史記、宋書… |  | PASS |
+| qh-person-08 | person | 班超 | 班超 | 默认 | 31 | 31 | 26 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 後漢書 |  | PASS |
+| qh-person-09 | person | 卫青 | 衛青 | 默认 | 54 | 54 | 49 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、史記 |  | PASS |
+| qh-person-10 | person | 霍去病 | 霍去病 | 默认 | 45 | 45 | 45 | text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、史記、後漢書… |  | PASS |
+| qh-person-11 | person | 张骞 | 張騫 | 默认 | 55 | 55 | 52 | both、text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、史記、隋書 |  | PASS |
+| qh-person-12 | person | 苏武 | 蘇武 | 默认 | 45 | 45 | 40 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、南史、史記… |  | PASS |
+| qh-person-13 | person | 王莽 | 王莽 | 默认 | 629 | 629 | 595 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、宋書、後漢書 |  | PASS |
+| qh-person-14 | person | 刘秀 | 劉秀 | 默认 | 47 | 47 | 41 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 宋書、後漢書、晉書 |  | PASS |
+| qh-person-15 | person | 吕后 | 呂后 | 默认 | 186 | 186 | 127 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 史記、宋書 |  | PASS |
+| qh-person-16 | person | 董卓 | 董卓 | 默认 | 254 | 254 | 220 | both、text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、後漢書 |  | PASS |
+| qh-alias-01 | alias | 高祖 | 高祖 | 默认 | 2080 | 2080 | 997 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 北史、史記、宋書… |  | PASS |
+| qh-alias-02 | alias | 沛公 | 沛公 | 默认 | 435 | 435 | 222 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、史記 |  | PASS |
+| qh-alias-03 | alias | 汉武帝 | 漢武帝 | 默认 | 122 | 122 | 106 | text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 南齊書、宋書、後漢書… |  | PASS |
+| qh-alias-04 | alias | 武帝 | 武帝 | 默认 | 4024 | 4024 | 2450 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 南史、宋書、晉書 |  | PASS |
+| qh-alias-05 | alias | 汉文帝 | 漢文帝 | 默认 | 37 | 37 | 35 | text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、宋書、晉書… |  | PASS |
+| qh-alias-06 | alias | 文帝 | 文帝 | 默认 | 2359 | 2359 | 1567 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 北史、南史、史記… |  | PASS |
+| qh-alias-07 | alias | 景帝 | 景帝 | 默认 | 493 | 493 | 385 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、南齊書、史記 |  | PASS |
+| qh-alias-08 | alias | 光武 | 光武 | 默认 | 946 | 946 | 792 | both、text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 宋書、後漢書 |  | PASS |
+| qh-alias-09 | alias | 元后 | 元后 | 默认 | 101 | 101 | 80 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、前漢書、北齊書… |  | PASS |
+| qh-alias-10 | alias | 吕太后 | 呂太后 | 默认 | 61 | 61 | 51 | both、text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、史記 |  | PASS |
+| qh-place-01 | place | 马邑 | 馬邑 | 默认 | 134 | 134 | 107 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、北齊書、史記… |  | PASS |
+| qh-place-02 | place | 河西 | 河西 | 默认 | 390 | 390 | 312 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 北史、史記、宋書… |  | PASS |
+| qh-place-03 | place | 西域 | 西域 | 默认 | 491 | 491 | 388 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、北史、後漢書… |  | PASS |
+| qh-war-01 | war | 白登 | 白登 | 默认 | 51 | 51 | 44 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、前漢書、北史… |  | PASS |
+| qh-event-01 | event | 党锢 | 黨錮 | 默认 | 25 | 25 | 25 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 南齊書、宋書、後漢書 |  | PASS |
+| qh-event-02 | event | 黄巾 | 黃巾 | 默认 | 28 | 28 | 26 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、後漢書、魏書 |  | PASS |
+| qh-event-03 | event | 推恩 | 推恩 | 默认 | 26 | 26 | 25 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、南史、史記… |  | PASS |
+| qh-office-01 | office | 骠骑将军 | 驃騎將軍 | 默认 | 332 | 332 | 270 | text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 南史、史記、宋書… |  | PASS |
+| qh-office-02 | office | 西域都护 | 西域都護 | 默认 | 7 | 7 | 7 | text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、後漢書 |  | PASS |
+| qh-office-03 | office | 侍中 | 侍中 | 默认 | 3757 | 3757 | 2431 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 北史、南史、南齊書… |  | PASS |
+| qh-section-01 | section | 光武帝纪第一上 | 光武帝紀第一上 | recall=section | 0 | 0 | 1 | section | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 後漢書 |  | PASS |
+| qh-section-02 | section | 艺文志第十 | 藝文志第十 | recall=section | 0 | 0 | 1 | section | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書 |  | PASS |
+| qh-section-03 | section | 地理志第八上 | 地理志第八上 | recall=section | 0 | 0 | 1 | section | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書 |  | PASS |
+| qh-section-04 | section | 班梁列传第三十七 | 班梁列傳第三十七 | recall=section | 0 | 0 | 1 | section | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 後漢書 |  | PASS |
+| qh-section-05 | section | 高帝纪第一上 | 高帝紀第一上 | recall=section | 1 | 1 | 2 | section、text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書 |  | PASS |
+| qh-section-06 | section | 西周 | 西周 | book=戰國策、recall=section | 73 | 73 | 54 | both、text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 戰國策 |  | PASS |
+| qh-section-07 | section | 东周 | 東周 | book=戰國策、page_size=100、recall=section | 68 | 68 | 51 | section、text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 戰國策 |  | PASS |
+| qh-multi-01 | multi | 卫青 霍去病 | 衛青 霍去病 | 默认 | 4 | 4 | 4 | text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、史記、後漢書 |  | PASS |
+| qh-multi-02 | multi | 王莽 光武 | 王莽 光武 | 默认 | 13 | 13 | 13 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 宋書、後漢書、晉書… |  | PASS |
+| qh-multi-03 | multi | 苏武 匈奴 | 蘇武 匈奴 | 默认 | 8 | 8 | 8 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、後漢書 |  | PASS |
+| qh-multi-04 | multi | 匈奴 西域 | 匈奴 西域 | 默认 | 48 | 48 | 45 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、史記、後漢書 |  | PASS |
+| qh-multi-05 | multi | 萧何 韩信 | 蕭何 韓信 | 默认 | 6 | 6 | 6 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、後漢書 |  | PASS |
+| qh-multi-06 | multi | 高祖 项羽 | 高祖 項羽 | 默认 | 8 | 8 | 8 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、後漢書 |  | PASS |
+| qh-script-01 | script | 卫青 | 衛青 | 默认 | 54 | 54 | 49 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、史記 |  | PASS |
+| qh-script-02 | script | 衛青 | 衛青 | 默认 | 54 | 54 | 49 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、史記 |  | PASS |
+| qh-script-03 | script | 张骞 | 張騫 | 默认 | 55 | 55 | 52 | both、text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、史記、隋書 |  | PASS |
+| qh-script-04 | script | 張騫 | 張騫 | 默认 | 55 | 55 | 52 | both、text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、史記、隋書 |  | PASS |
+| qh-script-05 | script | 苏武 | 蘇武 | 默认 | 45 | 45 | 40 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、南史、史記… |  | PASS |
+| qh-script-06 | script | 蘇武 | 蘇武 | 默认 | 45 | 45 | 40 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、南史、史記… |  | PASS |
+| qh-script-07 | script | 吕后 | 呂后 | 默认 | 186 | 186 | 127 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 史記、宋書 |  | PASS |
+| qh-script-08 | script | 呂后 | 呂后 | 默认 | 186 | 186 | 127 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 史記、宋書 |  | PASS |
+| qh-script-09 | script | 刘秀 | 劉秀 | 默认 | 47 | 47 | 41 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 宋書、後漢書、晉書 |  | PASS |
+| qh-script-10 | script | 劉秀 | 劉秀 | 默认 | 47 | 47 | 41 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 宋書、後漢書、晉書 |  | PASS |
+| qh-script-11 | script | 党锢 | 黨錮 | 默认 | 25 | 25 | 25 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 南齊書、宋書、後漢書 |  | PASS |
+| qh-script-12 | script | 黨錮 | 黨錮 | 默认 | 25 | 25 | 25 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 南齊書、宋書、後漢書 |  | PASS |
+| qh-single-01 | single | 羌 | 羌 | 默认 | 1398 | 1398 | 990 | text | like | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、前漢書、北齊書… |  | PASS |
+| qh-single-02 | single | 鲜卑 | 鮮卑 | 默认 | 433 | 433 | 316 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、宋書、後漢書… |  | PASS |
+| qh-pagination-01 | pagination | 汉 | 漢 | 默认 | 15434 | 15434 | 9836 | text | like | Pagination:通过、Passage:通过、Provenance:通过、RecallInvariant:通过 | 南齊書、史記、宋書… |  | PASS |
+| qh-pagination-02 | pagination | 单于 | 單于 | 默认 | 1454 | 1454 | 919 | text | bigram | Pagination:通过、Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、史記、後漢書 |  | PASS |
+| qh-pagination-03 | pagination | 大将军 | 大將軍 | 默认 | 3678 | 3678 | 2214 | text | fts | Pagination:通过、Passage:通过、Provenance:通过、RecallInvariant:通过 | 北史、史記、周書… |  | PASS |
+| qh-passage-01 | passage | 王莽 | 王莽 | mode=long | 629 | 629 | 591 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、宋書、後漢書… |  | PASS |
+| qh-passage-02 | passage | 匈奴 | 匈奴 | mode=long、page_size=50 | 2208 | 2208 | 1458 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、前漢書、史記… |  | PASS |
 | qh-neg-01 | negative | 巨鹿 | 巨鹿 | 默认 | 0 | 0 | 0 | — | bigram | — | — | Coverage | PASS：预期为空，归因 Coverage 相符 |
 | qh-neg-02 | negative | 刘邦 | 劉邦 | book=史記 | 0 | 0 | 0 | — | bigram | — | — | Coverage | PASS：预期为空，归因 Coverage 相符 |
 | qh-neg-03 | negative | 王政君 | 王政君 | 默认 | 0 | 0 | 0 | — | fts | — | — | Coverage | PASS：预期为空，归因 Coverage 相符 |
@@ -289,108 +303,108 @@
 | qh-neg-08 | negative | 丝绸之路 | 絲綢之路 | 默认 | 0 | 0 | 0 | — | fts | — | — | Coverage | PASS：预期为空，归因 Coverage 相符 |
 | qh-neg-09 | negative | 河西之战 | 河西之戰 | 默认 | 0 | 0 | 0 | — | fts | — | — | Coverage | PASS：预期为空，归因 Coverage 相符 |
 | qh-neg-10 | negative | 刘邦 项羽 | 劉邦 項羽 | 默认 | 0 | 0 | 0 | — | bigram | — | — | Coverage | PASS：预期为空，归因 Coverage 相符 |
-| sz-person-01 | person | 诸葛亮 | 諸葛亮 | 默认 | 92 | 92 | 82 | text | fts | Passage:通过、Provenance:通过 | 三國志、宋書、晉書… |  | PASS |
-| sz-person-02 | person | 关羽 | 關羽 | 默认 | 33 | 33 | 29 | text | bigram | Passage:通过、Provenance:通过 | 三國志、宋書、晉書… |  | PASS |
-| sz-person-03 | person | 曹操 | 曹操 | 默认 | 186 | 186 | 155 | text | bigram | Passage:通过、Provenance:通过 | 宋書、後漢書 |  | PASS |
-| sz-person-04 | person | 周瑜 | 周瑜 | 默认 | 10 | 10 | 10 | text | bigram | Passage:通过、Provenance:通过 | 三國志、周書、宋書… |  | PASS |
-| sz-person-05 | person | 司马懿 | 司馬懿 | 默认 | 22 | 22 | 14 | text | fts | Passage:通过、Provenance:通过 | 三國志、宋書、後漢書… |  | PASS |
-| sz-person-06 | person | 王祥 | 王祥 | 默认 | 28 | 28 | 22 | text | bigram | Passage:通过、Provenance:通过 | 三國志、南史、宋書… |  | PASS |
-| sz-person-07 | person | 陶侃 | 陶侃 | 默认 | 34 | 34 | 24 | text | bigram | Passage:通过、Provenance:通过 | 南齊書、宋書、晉書… |  | PASS |
-| sz-person-08 | person | 王导 | 王導 | 默认 | 82 | 82 | 67 | text | bigram | Passage:通过、Provenance:通过 | 南齊書、宋書、晉書… |  | PASS |
-| sz-person-09 | person | 祖逖 | 祖逖 | 默认 | 11 | 11 | 8 | text | bigram | Passage:通过、Provenance:通过 | 南史、宋書、晉書… |  | PASS |
-| sz-person-10 | person | 陆逊 | 陸遜 | 默认 | 13 | 13 | 13 | text | bigram | Passage:通过、Provenance:通过 | 三國志、南齊書、宋書… |  | PASS |
-| sz-person-11 | person | 邓艾 | 鄧艾 | 默认 | 65 | 65 | 50 | text | bigram | Passage:通过、Provenance:通过 | 三國志、宋書、晉書… |  | PASS |
-| sz-person-12 | person | 羊祜 | 羊祜 | 默认 | 31 | 31 | 29 | text | bigram | Passage:通过、Provenance:通过 | 宋書、晉書、隋書 |  | PASS |
-| sz-person-13 | person | 嵇康 | 嵇康 | 默认 | 25 | 25 | 25 | text | bigram | Passage:通过、Provenance:通过 | 三國志、南史、南齊書… |  | PASS |
-| sz-person-14 | person | 谢安 | 謝安 | 默认 | 56 | 56 | 52 | text | bigram | Passage:通过、Provenance:通过 | 前漢書、南齊書、史記… |  | PASS |
-| sz-person-15 | person | 张辽 | 張遼 | 默认 | 37 | 37 | 28 | text | bigram | Passage:通过、Provenance:通过 | 三國志、南齊書 |  | PASS |
-| sz-person-16 | person | 马谡 | 馬謖 | 默认 | 7 | 7 | 7 | text | bigram | Passage:通过、Provenance:通过 | 三國志、宋書、戰國策… |  | PASS |
-| sz-person-17 | person | 贾充 | 賈充 | 默认 | 73 | 73 | 61 | text | bigram | Passage:通过、Provenance:通过 | 三國志、前漢書、宋書… |  | PASS |
-| sz-person-18 | person | 石崇 | 石崇 | 默认 | 13 | 13 | 13 | text | bigram | Passage:通过、Provenance:通过 | 三國志、南齊書、宋書… |  | PASS |
-| sz-person-19 | person | 王羲之 | 王羲之 | 默认 | 11 | 11 | 10 | text | fts | Passage:通过、Provenance:通过 | 北史、南史、晉書… |  | PASS |
-| sz-person-20 | person | 刘禅 | 劉禪 | 默认 | 33 | 33 | 31 | text | bigram | Passage:通过、Provenance:通过 | 三國志、宋書、晉書 |  | PASS |
-| sz-person-21 | person | 刘备 | 劉備 | 默认 | 187 | 187 | 157 | text | bigram | Passage:通过、Provenance:通过 | 三國志、南史、後漢書… |  | PASS |
-| sz-person-22 | person | 孙权 | 孫權 | 默认 | 238 | 238 | 189 | text | bigram | Passage:通过、Provenance:通过 | 三國志、宋書、晉書 |  | PASS |
-| sz-person-23 | person | 华佗 | 華佗 | 默认 | 32 | 32 | 29 | text | bigram | Passage:通过、Provenance:通过 | 三國志、後漢書、隋書 |  | PASS |
-| sz-person-24 | person | 陈寿 | 陳壽 | 默认 | 7 | 7 | 4 | text | bigram | Passage:通过、Provenance:通过 | 三國志、隋書、魏書 |  | PASS |
-| sz-alias-01 | alias | 孔明 | 孔明 | 默认 | 19 | 19 | 19 | text | bigram | Passage:通过、Provenance:通过 | 前漢書、周書、宋書… |  | PASS |
-| sz-alias-02 | alias | 雲長 | 雲長 | 默认 | 10 | 10 | 10 | text | bigram | Passage:通过、Provenance:通过 | 前漢書、南史、南齊書… |  | PASS |
-| sz-alias-03 | alias | 孟德 | 孟德 | 默认 | 1 | 1 | 1 | text | bigram | Passage:通过、Provenance:通过 | 三國志 |  | PASS |
-| sz-alias-04 | alias | 仲達 | 仲達 | 默认 | 11 | 11 | 11 | text | bigram | Passage:通过、Provenance:通过 | 南史、宋書、後漢書… |  | PASS |
-| sz-alias-05 | alias | 玄德 | 玄德 | 默认 | 2 | 2 | 2 | text | bigram | Passage:通过、Provenance:通过 | 尚書、晉書 |  | PASS |
-| sz-alias-06 | alias | 太祖 | 太祖 | 默认 | 3963 | 3963 | 1623 | text | bigram | Passage:通过、Provenance:通过 | 三國志、南齊書、周書… |  | PASS |
-| sz-alias-07 | alias | 先主 | 先主 | 默认 | 36 | 36 | 29 | text | bigram | Passage:通过、Provenance:通过 | 三國志、前漢書、史記… |  | PASS |
-| sz-alias-08 | alias | 後主 | 後主 | 默认 | 648 | 648 | 253 | text | bigram | Passage:通过、Provenance:通过 | 南史、陳書 |  | PASS |
-| sz-alias-09 | alias | 昭烈 | 昭烈 | 默认 | 36 | 36 | 31 | text | bigram | Passage:通过、Provenance:通过 | 三國志、南史、宋書… |  | PASS |
-| sz-alias-10 | alias | 晋宣帝 | 晉宣帝 | 默认 | 11 | 11 | 11 | text | fts | Passage:通过、Provenance:通过 | 三國志、南史、周書… |  | PASS |
-| sz-script-01 | script | 诸葛亮 | 諸葛亮 | 默认 | 92 | 92 | 82 | text | fts | Passage:通过、Provenance:通过 | 三國志、宋書、晉書… |  | PASS |
-| sz-script-02 | script | 諸葛亮 | 諸葛亮 | 默认 | 92 | 92 | 82 | text | fts | Passage:通过、Provenance:通过 | 三國志、宋書、晉書… |  | PASS |
-| sz-script-03 | script | 司马懿 | 司馬懿 | 默认 | 22 | 22 | 14 | text | fts | Passage:通过、Provenance:通过 | 三國志、宋書、後漢書… |  | PASS |
-| sz-script-04 | script | 司馬懿 | 司馬懿 | 默认 | 22 | 22 | 14 | text | fts | Passage:通过、Provenance:通过 | 三國志、宋書、後漢書… |  | PASS |
-| sz-script-05 | script | 张飞 | 張飛 | 默认 | 15 | 15 | 15 | text | bigram | Passage:通过、Provenance:通过 | 三國志、南史、後漢書 |  | PASS |
-| sz-script-06 | script | 張飛 | 張飛 | 默认 | 15 | 15 | 15 | text | bigram | Passage:通过、Provenance:通过 | 三國志、南史、後漢書 |  | PASS |
-| sz-script-07 | script | 华佗 | 華佗 | 默认 | 32 | 32 | 29 | text | bigram | Passage:通过、Provenance:通过 | 三國志、後漢書、隋書 |  | PASS |
-| sz-script-08 | script | 華佗 | 華佗 | 默认 | 32 | 32 | 29 | text | bigram | Passage:通过、Provenance:通过 | 三國志、後漢書、隋書 |  | PASS |
-| sz-script-09 | script | 陆逊 | 陸遜 | 默认 | 13 | 13 | 13 | text | bigram | Passage:通过、Provenance:通过 | 三國志、南齊書、宋書… |  | PASS |
-| sz-script-10 | script | 陸遜 | 陸遜 | 默认 | 13 | 13 | 13 | text | bigram | Passage:通过、Provenance:通过 | 三國志、南齊書、宋書… |  | PASS |
-| sz-script-11 | script | 谢安 | 謝安 | 默认 | 56 | 56 | 52 | text | bigram | Passage:通过、Provenance:通过 | 前漢書、南齊書、史記… |  | PASS |
-| sz-script-12 | script | 謝安 | 謝安 | 默认 | 56 | 56 | 52 | text | bigram | Passage:通过、Provenance:通过 | 前漢書、南齊書、史記… |  | PASS |
-| sz-script-13 | script | 荊州 | 荊州 | 默认 | 17 | 17 | 15 | text | bigram | Passage:通过、Provenance:通过 | 北史、南史、史記… |  | PASS |
-| sz-script-14 | script | 荆州 | 荊州 | 默认 | 17 | 17 | 15 | text | bigram | Passage:通过、Provenance:通过 | 北史、南史、史記… |  | PASS |
-| sz-section-01 | section | 魏志卷一 | 魏志卷一 | recall=section | 1 | 1 | 2 | section、text | fts | Passage:通过、Provenance:通过 | 三國志 |  | PASS |
-| sz-section-02 | section | 魏志卷三十 | 魏志卷三十 | recall=section | 0 | 0 | 2 | section | fts | Passage:通过、Provenance:通过 | 三國志 |  | PASS |
-| sz-section-03 | section | 魏志卷十 | 魏志卷十 | recall=section | 21 | 21 | 27 | both、section、text | fts | Passage:通过、Provenance:通过 | 三國志 |  | PASS |
-| sz-section-04 | section | 魏志卷十六 | 魏志卷十六 | recall=section | 2 | 2 | 2 | both、text | fts | Passage:通过、Provenance:通过 | 三國志 |  | PASS |
-| sz-section-05 | section | 魏志卷二十八 | 魏志卷二十八 | recall=section | 4 | 4 | 5 | both、section、text | fts | Passage:通过、Provenance:通过 | 三國志 |  | PASS |
-| sz-section-06 | section | 帝紀第一 | 帝紀第一 | book=晉書、recall=section | 1 | 1 | 2 | section、text | fts | Passage:通过、Provenance:通过 | 晉書 |  | PASS |
-| sz-section-07 | section | 志第十六 | 志第十六 | book=晉書、recall=section | 1 | 1 | 2 | section、text | fts | Passage:通过、Provenance:通过 | 晉書 |  | PASS |
-| sz-section-08 | section | 列傳第三 | 列傳第三 | book=晉書、recall=section | 11 | 11 | 5 | section、text | fts | Passage:通过、Provenance:通过 | 晉書 |  | PASS |
-| sz-single-01 | single | 蜀 | 蜀 | 默认 | 1916 | 1916 | 1357 | text | like | Passage:通过、Provenance:通过 | 三國志、南史、史記… |  | PASS |
-| sz-single-02 | single | 吳 | 吳 | 默认 | 4764 | 4764 | 2849 | text | like | Passage:通过、Provenance:通过 | 史記、宋書、春秋左傳… |  | PASS |
-| sz-single-03 | single | 魏 | 魏 | 默认 | 12877 | 12877 | 7468 | both、text | like | Passage:通过、Provenance:通过 | 北史、南史、史記… |  | PASS |
-| sz-single-04 | single | 晉 | 晉 | 默认 | 12828 | 12828 | 7643 | text | like | Passage:通过、Provenance:通过 | 北史、北齊書、史記… |  | PASS |
-| sz-multi-01 | multi | 曹操 袁紹 | 曹操 袁紹 | 默认 | 9 | 9 | 9 | text | bigram | Passage:通过、Provenance:通过 | 後漢書、魏書 |  | PASS |
-| sz-multi-02 | multi | 周瑜 赤壁 | 周瑜 赤壁 | 默认 | 2 | 2 | 2 | text | bigram | Passage:通过、Provenance:通过 | 周書、後漢書 |  | PASS |
-| sz-multi-03 | multi | 王導 王敦 | 王導 王敦 | 默认 | 2 | 2 | 2 | text | bigram | Passage:通过、Provenance:通过 | 晉書 |  | PASS |
+| sz-person-01 | person | 诸葛亮 | 諸葛亮 | 默认 | 92 | 92 | 82 | text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、宋書、晉書… |  | PASS |
+| sz-person-02 | person | 关羽 | 關羽 | 默认 | 33 | 33 | 29 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、宋書、晉書… |  | PASS |
+| sz-person-03 | person | 曹操 | 曹操 | 默认 | 186 | 186 | 155 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 宋書、後漢書 |  | PASS |
+| sz-person-04 | person | 周瑜 | 周瑜 | 默认 | 10 | 10 | 10 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、周書、宋書… |  | PASS |
+| sz-person-05 | person | 司马懿 | 司馬懿 | 默认 | 22 | 22 | 14 | text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、宋書、後漢書… |  | PASS |
+| sz-person-06 | person | 王祥 | 王祥 | 默认 | 28 | 28 | 22 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、南史、宋書… |  | PASS |
+| sz-person-07 | person | 陶侃 | 陶侃 | 默认 | 34 | 34 | 24 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 南齊書、宋書、晉書… |  | PASS |
+| sz-person-08 | person | 王导 | 王導 | 默认 | 82 | 82 | 67 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 南齊書、宋書、晉書… |  | PASS |
+| sz-person-09 | person | 祖逖 | 祖逖 | 默认 | 11 | 11 | 8 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 南史、宋書、晉書… |  | PASS |
+| sz-person-10 | person | 陆逊 | 陸遜 | 默认 | 13 | 13 | 13 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、南齊書、宋書… |  | PASS |
+| sz-person-11 | person | 邓艾 | 鄧艾 | 默认 | 65 | 65 | 50 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、宋書、晉書… |  | PASS |
+| sz-person-12 | person | 羊祜 | 羊祜 | 默认 | 31 | 31 | 29 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 宋書、晉書、隋書 |  | PASS |
+| sz-person-13 | person | 嵇康 | 嵇康 | 默认 | 25 | 25 | 25 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、南史、南齊書… |  | PASS |
+| sz-person-14 | person | 谢安 | 謝安 | 默认 | 56 | 56 | 52 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、南齊書、史記… |  | PASS |
+| sz-person-15 | person | 张辽 | 張遼 | 默认 | 37 | 37 | 28 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、南齊書 |  | PASS |
+| sz-person-16 | person | 马谡 | 馬謖 | 默认 | 7 | 7 | 7 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、宋書、戰國策… |  | PASS |
+| sz-person-17 | person | 贾充 | 賈充 | 默认 | 73 | 73 | 61 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、前漢書、宋書… |  | PASS |
+| sz-person-18 | person | 石崇 | 石崇 | 默认 | 13 | 13 | 13 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、南齊書、宋書… |  | PASS |
+| sz-person-19 | person | 王羲之 | 王羲之 | 默认 | 11 | 11 | 10 | text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 北史、南史、晉書… |  | PASS |
+| sz-person-20 | person | 刘禅 | 劉禪 | 默认 | 33 | 33 | 31 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、宋書、晉書 |  | PASS |
+| sz-person-21 | person | 刘备 | 劉備 | 默认 | 187 | 187 | 157 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、南史、後漢書… |  | PASS |
+| sz-person-22 | person | 孙权 | 孫權 | 默认 | 238 | 238 | 189 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、宋書、晉書 |  | PASS |
+| sz-person-23 | person | 华佗 | 華佗 | 默认 | 32 | 32 | 29 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、後漢書、隋書 |  | PASS |
+| sz-person-24 | person | 陈寿 | 陳壽 | 默认 | 7 | 7 | 4 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、隋書、魏書 |  | PASS |
+| sz-alias-01 | alias | 孔明 | 孔明 | 默认 | 19 | 19 | 19 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、周書、宋書… |  | PASS |
+| sz-alias-02 | alias | 雲長 | 雲長 | 默认 | 10 | 10 | 10 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、南史、南齊書… |  | PASS |
+| sz-alias-03 | alias | 孟德 | 孟德 | 默认 | 1 | 1 | 1 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志 |  | PASS |
+| sz-alias-04 | alias | 仲達 | 仲達 | 默认 | 11 | 11 | 11 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 南史、宋書、後漢書… |  | PASS |
+| sz-alias-05 | alias | 玄德 | 玄德 | 默认 | 2 | 2 | 2 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 尚書、晉書 |  | PASS |
+| sz-alias-06 | alias | 太祖 | 太祖 | 默认 | 3963 | 3963 | 1623 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、南齊書、周書… |  | PASS |
+| sz-alias-07 | alias | 先主 | 先主 | 默认 | 36 | 36 | 29 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、前漢書、史記… |  | PASS |
+| sz-alias-08 | alias | 後主 | 後主 | 默认 | 648 | 648 | 253 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 南史、陳書 |  | PASS |
+| sz-alias-09 | alias | 昭烈 | 昭烈 | 默认 | 36 | 36 | 31 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、南史、宋書… |  | PASS |
+| sz-alias-10 | alias | 晋宣帝 | 晉宣帝 | 默认 | 11 | 11 | 11 | text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、南史、周書… |  | PASS |
+| sz-script-01 | script | 诸葛亮 | 諸葛亮 | 默认 | 92 | 92 | 82 | text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、宋書、晉書… |  | PASS |
+| sz-script-02 | script | 諸葛亮 | 諸葛亮 | 默认 | 92 | 92 | 82 | text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、宋書、晉書… |  | PASS |
+| sz-script-03 | script | 司马懿 | 司馬懿 | 默认 | 22 | 22 | 14 | text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、宋書、後漢書… |  | PASS |
+| sz-script-04 | script | 司馬懿 | 司馬懿 | 默认 | 22 | 22 | 14 | text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、宋書、後漢書… |  | PASS |
+| sz-script-05 | script | 张飞 | 張飛 | 默认 | 15 | 15 | 15 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、南史、後漢書 |  | PASS |
+| sz-script-06 | script | 張飛 | 張飛 | 默认 | 15 | 15 | 15 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、南史、後漢書 |  | PASS |
+| sz-script-07 | script | 华佗 | 華佗 | 默认 | 32 | 32 | 29 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、後漢書、隋書 |  | PASS |
+| sz-script-08 | script | 華佗 | 華佗 | 默认 | 32 | 32 | 29 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、後漢書、隋書 |  | PASS |
+| sz-script-09 | script | 陆逊 | 陸遜 | 默认 | 13 | 13 | 13 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、南齊書、宋書… |  | PASS |
+| sz-script-10 | script | 陸遜 | 陸遜 | 默认 | 13 | 13 | 13 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、南齊書、宋書… |  | PASS |
+| sz-script-11 | script | 谢安 | 謝安 | 默认 | 56 | 56 | 52 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、南齊書、史記… |  | PASS |
+| sz-script-12 | script | 謝安 | 謝安 | 默认 | 56 | 56 | 52 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、南齊書、史記… |  | PASS |
+| sz-script-13 | script | 荊州 | 荊州 | 默认 | 17 | 17 | 15 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 北史、南史、史記… |  | PASS |
+| sz-script-14 | script | 荆州 | 荊州 | 默认 | 17 | 17 | 15 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 北史、南史、史記… |  | PASS |
+| sz-section-01 | section | 魏志卷一 | 魏志卷一 | recall=section | 1 | 1 | 2 | section、text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志 |  | PASS |
+| sz-section-02 | section | 魏志卷三十 | 魏志卷三十 | recall=section | 0 | 0 | 2 | section | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志 |  | PASS |
+| sz-section-03 | section | 魏志卷十 | 魏志卷十 | recall=section | 21 | 21 | 27 | both、section、text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志 |  | PASS |
+| sz-section-04 | section | 魏志卷十六 | 魏志卷十六 | recall=section | 2 | 2 | 2 | both、text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志 |  | PASS |
+| sz-section-05 | section | 魏志卷二十八 | 魏志卷二十八 | recall=section | 4 | 4 | 5 | both、section、text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志 |  | PASS |
+| sz-section-06 | section | 帝紀第一 | 帝紀第一 | book=晉書、recall=section | 1 | 1 | 2 | section、text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 晉書 |  | PASS |
+| sz-section-07 | section | 志第十六 | 志第十六 | book=晉書、recall=section | 1 | 1 | 2 | section、text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 晉書 |  | PASS |
+| sz-section-08 | section | 列傳第三 | 列傳第三 | book=晉書、recall=section | 11 | 11 | 5 | section、text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 晉書 |  | PASS |
+| sz-single-01 | single | 蜀 | 蜀 | 默认 | 1916 | 1916 | 1357 | text | like | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、南史、史記… |  | PASS |
+| sz-single-02 | single | 吳 | 吳 | 默认 | 4764 | 4764 | 2849 | text | like | Passage:通过、Provenance:通过、RecallInvariant:通过 | 史記、宋書、春秋左傳… |  | PASS |
+| sz-single-03 | single | 魏 | 魏 | 默认 | 12877 | 12877 | 7468 | both、text | like | Passage:通过、Provenance:通过、RecallInvariant:通过 | 北史、南史、史記… |  | PASS |
+| sz-single-04 | single | 晉 | 晉 | 默认 | 12828 | 12828 | 7643 | text | like | Passage:通过、Provenance:通过、RecallInvariant:通过 | 北史、北齊書、史記… |  | PASS |
+| sz-multi-01 | multi | 曹操 袁紹 | 曹操 袁紹 | 默认 | 9 | 9 | 9 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 後漢書、魏書 |  | PASS |
+| sz-multi-02 | multi | 周瑜 赤壁 | 周瑜 赤壁 | 默认 | 2 | 2 | 2 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 周書、後漢書 |  | PASS |
+| sz-multi-03 | multi | 王導 王敦 | 王導 王敦 | 默认 | 2 | 2 | 2 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 晉書 |  | PASS |
 | sz-multi-04 | multi | 諸葛亮 先主 | 諸葛亮 先主 | 默认 | 0 | 0 | 0 | — | fts | — | — | Coverage | PASS：预期为空，归因 Coverage 相符 |
 | sz-multi-05 | multi | 關羽 荊州 | 關羽 荊州 | 默认 | 0 | 0 | 0 | — | bigram | — | — | Coverage | PASS：预期为空，归因 Coverage 相符 |
 | sz-multi-06 | multi | 諸葛亮 北伐 | 諸葛亮 北伐 | 默认 | 0 | 0 | 0 | — | fts | — | — | Coverage | PASS：预期为空，归因 Coverage 相符 |
 | sz-multi-07 | multi | 司馬懿 公孫淵 | 司馬懿 公孫淵 | book=晉書 | 0 | 0 | 0 | — | fts | — | — | Coverage | PASS：预期为空，归因 Coverage 相符 |
-| sz-book-01 | book | 诸葛亮 | 諸葛亮 | book=三國志 | 37 | 37 | 34 | text | fts | Passage:通过、Provenance:通过 | 三國志 |  | PASS |
-| sz-book-02 | book | 王祥 | 王祥 | book=晉書 | 16 | 16 | 10 | text | bigram | Passage:通过、Provenance:通过 | 晉書 |  | PASS |
-| sz-book-03 | book | 关羽 | 關羽 | book=三國志 | 24 | 24 | 21 | text | bigram | Passage:通过、Provenance:通过 | 三國志 |  | PASS |
-| sz-book-04 | book | 謝安 | 謝安 | book=晉書 | 17 | 17 | 14 | text | bigram | Passage:通过、Provenance:通过 | 晉書 |  | PASS |
-| sz-book-05 | book | 曹操 | 曹操 | book=晉書 | 2 | 2 | 2 | text | bigram | Passage:通过、Provenance:通过 | 晉書 |  | PASS |
-| sz-edition-01 | edition | 管仲 | 管仲 | edition=tls | 80 | 80 | 38 | text | bigram | Passage:通过、Provenance:通过 | 史記、春秋左傳 |  | PASS |
-| sz-edition-02 | edition | 管仲 | 管仲 | edition=sbck | 22 | 22 | 22 | text | bigram | Passage:通过、Provenance:通过 | 國語、戰國策 |  | PASS |
-| sz-edition-03 | edition | 諸葛亮 | 諸葛亮 | edition=sbck | 1 | 1 | 1 | text | fts | Passage:通过、Provenance:通过 | 戰國策 |  | PASS |
-| sz-edition-04 | edition | 王祥 | 王祥 | edition=WYG | 28 | 28 | 22 | text | bigram | Passage:通过、Provenance:通过 | 三國志、南史、宋書… |  | PASS |
-| sz-edition-05 | edition | 管仲 | 管仲 | edition=WYG | 219 | 219 | 170 | text | bigram | Passage:通过、Provenance:通过 | 前漢書、史記、後漢書… |  | PASS |
-| sz-place-01 | place | 汉中 | 漢中 | 默认 | 572 | 572 | 472 | text | bigram | Passage:通过、Provenance:通过 | 三國志、南齊書、史記… |  | PASS |
-| sz-place-02 | place | 许都 | 許都 | 默认 | 13 | 13 | 12 | text | bigram | Passage:通过、Provenance:通过 | 三國志、北齊書、宋書… |  | PASS |
-| sz-place-03 | place | 建康 | 建康 | 默认 | 387 | 387 | 334 | text | bigram | Passage:通过、Provenance:通过 | 南史、南齊書、宋書… |  | PASS |
-| sz-place-04 | place | 洛阳 | 洛陽 | 默认 | 1271 | 1271 | 1027 | text | bigram | Passage:通过、Provenance:通过 | 北史、北齊書、南史… |  | PASS |
-| sz-place-05 | place | 五丈原 | 五丈原 | 默认 | 5 | 5 | 4 | text | fts | Passage:通过、Provenance:通过 | 晉書、隋書、魏書 |  | PASS |
-| sz-place-06 | place | 合肥 | 合肥 | 默认 | 169 | 169 | 128 | text | bigram | Passage:通过、Provenance:通过 | 三國志、南史、南齊書… |  | PASS |
-| sz-place-07 | place | 成都 | 成都 | 默认 | 330 | 330 | 252 | text | bigram | Passage:通过、Provenance:通过 | 三國志、前漢書、南齊書… |  | PASS |
-| sz-place-08 | place | 街亭 | 街亭 | 默认 | 4 | 4 | 4 | text | bigram | Passage:通过、Provenance:通过 | 三國志、隋書 |  | PASS |
-| sz-war-01 | war | 官渡 | 官渡 | 默认 | 67 | 67 | 51 | text | bigram | Passage:通过、Provenance:通过 | 三國志、宋書、後漢書… |  | PASS |
-| sz-war-02 | war | 赤壁 | 赤壁 | 默认 | 14 | 14 | 14 | text | bigram | Passage:通过、Provenance:通过 | 三國志、周書、後漢書… |  | PASS |
-| sz-war-03 | war | 淝水 | 淝水 | 默认 | 7 | 7 | 7 | text | bigram | Passage:通过、Provenance:通过 | 北齊書、宋書、晉書 |  | PASS |
-| sz-office-01 | office | 丞相 | 丞相 | 默认 | 2348 | 2348 | 1732 | text | bigram | Passage:通过、Provenance:通过 | 前漢書、史記、宋書… |  | PASS |
-| sz-office-02 | office | 都督 | 都督 | 默认 | 3321 | 3321 | 1732 | text | bigram | Passage:通过、Provenance:通过 | 北齊書、南史、南齊書… |  | PASS |
-| sz-office-03 | office | 侍中 | 侍中 | 默认 | 3757 | 3757 | 2431 | text | bigram | Passage:通过、Provenance:通过 | 北史、南史、南齊書… |  | PASS |
-| sz-office-04 | office | 录尚书事 | 錄尚書事 | 默认 | 162 | 162 | 132 | text | fts | Passage:通过、Provenance:通过 | 三國志、北史、南史… |  | PASS |
-| sz-event-01 | event | 永嘉 | 永嘉 | 默认 | 391 | 391 | 336 | text | bigram | Passage:通过、Provenance:通过 | 南齊書、宋書、後漢書… |  | PASS |
-| sz-event-02 | event | 八王 | 八王 | 默认 | 19 | 19 | 20 | section、text | bigram | Passage:通过、Provenance:通过 | 三國志、前漢書、北史… |  | PASS |
-| sz-event-03 | event | 建安 | 建安 | 默认 | 814 | 814 | 701 | text | bigram | Passage:通过、Provenance:通过 | 三國志、前漢書、南史… |  | PASS |
-| sz-event-04 | event | 太康 | 太康 | 默认 | 728 | 728 | 357 | text | bigram | Passage:通过、Provenance:通过 | 宋書 |  | PASS |
-| sz-page-01 | pagination | 蜀 | 蜀 | page_size=100 | 1916 | 1916 | 1357 | text | like | Pagination:通过、Passage:通过、Provenance:通过 | 三國志、前漢書、南史… |  | PASS |
-| sz-page-02 | pagination | 将军 | 將軍 | book=三國志 | 818 | 818 | 417 | text | bigram | Pagination:通过、Passage:通过、Provenance:通过 | 三國志 |  | PASS |
-| sz-page-03 | pagination | 王導 | 王導 | page_size=10 | 82 | 82 | 67 | text | bigram | Pagination:通过、Passage:通过、Provenance:通过 | 宋書、晉書、魏書 |  | PASS |
-| sz-passage-01 | passage | 諸葛亮 | 諸葛亮 | mode=long | 92 | 92 | 80 | text | fts | Passage:通过、Provenance:通过 | 三國志、宋書、晉書… |  | PASS |
-| sz-passage-02 | passage | 曹操 | 曹操 | mode=long | 186 | 186 | 155 | text | bigram | Passage:通过、Provenance:通过 | 宋書、後漢書 |  | PASS |
-| sz-passage-03 | passage | 王導 | 王導 | mode=long | 82 | 82 | 55 | text | bigram | Passage:通过、Provenance:通过 | 南齊書、宋書、晉書… |  | PASS |
+| sz-book-01 | book | 诸葛亮 | 諸葛亮 | book=三國志 | 37 | 37 | 34 | text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志 |  | PASS |
+| sz-book-02 | book | 王祥 | 王祥 | book=晉書 | 16 | 16 | 10 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 晉書 |  | PASS |
+| sz-book-03 | book | 关羽 | 關羽 | book=三國志 | 24 | 24 | 21 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志 |  | PASS |
+| sz-book-04 | book | 謝安 | 謝安 | book=晉書 | 17 | 17 | 14 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 晉書 |  | PASS |
+| sz-book-05 | book | 曹操 | 曹操 | book=晉書 | 2 | 2 | 2 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 晉書 |  | PASS |
+| sz-edition-01 | edition | 管仲 | 管仲 | edition=tls | 80 | 80 | 38 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 史記、春秋左傳 |  | PASS |
+| sz-edition-02 | edition | 管仲 | 管仲 | edition=sbck | 22 | 22 | 22 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 國語、戰國策 |  | PASS |
+| sz-edition-03 | edition | 諸葛亮 | 諸葛亮 | edition=sbck | 1 | 1 | 1 | text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 戰國策 |  | PASS |
+| sz-edition-04 | edition | 王祥 | 王祥 | edition=WYG | 28 | 28 | 22 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、南史、宋書… |  | PASS |
+| sz-edition-05 | edition | 管仲 | 管仲 | edition=WYG | 219 | 219 | 170 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、史記、後漢書… |  | PASS |
+| sz-place-01 | place | 汉中 | 漢中 | 默认 | 572 | 572 | 472 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、南齊書、史記… |  | PASS |
+| sz-place-02 | place | 许都 | 許都 | 默认 | 13 | 13 | 12 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、北齊書、宋書… |  | PASS |
+| sz-place-03 | place | 建康 | 建康 | 默认 | 387 | 387 | 334 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 南史、南齊書、宋書… |  | PASS |
+| sz-place-04 | place | 洛阳 | 洛陽 | 默认 | 1271 | 1271 | 1027 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 北史、北齊書、南史… |  | PASS |
+| sz-place-05 | place | 五丈原 | 五丈原 | 默认 | 5 | 5 | 4 | text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 晉書、隋書、魏書 |  | PASS |
+| sz-place-06 | place | 合肥 | 合肥 | 默认 | 169 | 169 | 128 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、南史、南齊書… |  | PASS |
+| sz-place-07 | place | 成都 | 成都 | 默认 | 330 | 330 | 252 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、前漢書、南齊書… |  | PASS |
+| sz-place-08 | place | 街亭 | 街亭 | 默认 | 4 | 4 | 4 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、隋書 |  | PASS |
+| sz-war-01 | war | 官渡 | 官渡 | 默认 | 67 | 67 | 51 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、宋書、後漢書… |  | PASS |
+| sz-war-02 | war | 赤壁 | 赤壁 | 默认 | 14 | 14 | 14 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、周書、後漢書… |  | PASS |
+| sz-war-03 | war | 淝水 | 淝水 | 默认 | 7 | 7 | 7 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 北齊書、宋書、晉書 |  | PASS |
+| sz-office-01 | office | 丞相 | 丞相 | 默认 | 2348 | 2348 | 1732 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 前漢書、史記、宋書… |  | PASS |
+| sz-office-02 | office | 都督 | 都督 | 默认 | 3321 | 3321 | 1732 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 北齊書、南史、南齊書… |  | PASS |
+| sz-office-03 | office | 侍中 | 侍中 | 默认 | 3757 | 3757 | 2431 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 北史、南史、南齊書… |  | PASS |
+| sz-office-04 | office | 录尚书事 | 錄尚書事 | 默认 | 162 | 162 | 132 | text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、北史、南史… |  | PASS |
+| sz-event-01 | event | 永嘉 | 永嘉 | 默认 | 391 | 391 | 336 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 南齊書、宋書、後漢書… |  | PASS |
+| sz-event-02 | event | 八王 | 八王 | 默认 | 19 | 19 | 20 | section、text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、前漢書、北史… |  | PASS |
+| sz-event-03 | event | 建安 | 建安 | 默认 | 814 | 814 | 701 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、前漢書、南史… |  | PASS |
+| sz-event-04 | event | 太康 | 太康 | 默认 | 728 | 728 | 357 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 宋書 |  | PASS |
+| sz-page-01 | pagination | 蜀 | 蜀 | page_size=100 | 1916 | 1916 | 1357 | text | like | Pagination:通过、Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、前漢書、南史… |  | PASS |
+| sz-page-02 | pagination | 将军 | 將軍 | book=三國志 | 818 | 818 | 417 | text | bigram | Pagination:通过、Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志 |  | PASS |
+| sz-page-03 | pagination | 王導 | 王導 | page_size=10 | 82 | 82 | 67 | text | bigram | Pagination:通过、Passage:通过、Provenance:通过、RecallInvariant:通过 | 宋書、晉書、魏書 |  | PASS |
+| sz-passage-01 | passage | 諸葛亮 | 諸葛亮 | mode=long | 92 | 92 | 80 | text | fts | Passage:通过、Provenance:通过、RecallInvariant:通过 | 三國志、宋書、晉書… |  | PASS |
+| sz-passage-02 | passage | 曹操 | 曹操 | mode=long | 186 | 186 | 155 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 宋書、後漢書 |  | PASS |
+| sz-passage-03 | passage | 王導 | 王導 | mode=long | 82 | 82 | 55 | text | bigram | Passage:通过、Provenance:通过、RecallInvariant:通过 | 南齊書、宋書、晉書… |  | PASS |
 | sz-neg-01 | negative | 安祿山 | 安祿山 | 默认 | 0 | 0 | 0 | — | fts | — | — | Coverage | PASS：预期为空，归因 Coverage 相符 |
 | sz-neg-02 | negative | 三顧茅廬 | 三顧茅廬 | 默认 | 0 | 0 | 0 | — | fts | — | — | Coverage | PASS：预期为空，归因 Coverage 相符 |
 | sz-neg-03 | negative | 桃園結義 | 桃園結義 | 默认 | 0 | 0 | 0 | — | fts | — | — | Coverage | PASS：预期为空，归因 Coverage 相符 |
@@ -399,12 +413,25 @@
 | sz-neg-06 | negative | 姜維 陳壽 | 姜維 陳壽 | 默认 | 0 | 0 | 0 | — | bigram | — | — | Coverage | PASS：预期为空，归因 Coverage 相符 |
 | sz-neg-07 | negative | 臥龍 | 臥龍 | book=晉書 | 0 | 0 | 0 | — | bigram | — | — | Coverage | PASS：预期为空，归因 Coverage 相符 |
 
-## 0 命中清单（48 条）
+## 0 命中清单（61 条）
 
 每条都写明归因。`Coverage` 是语料问题（该扩语料），`Search` 才是引擎问题（该改代码）——两者绝不能混。
 
 | id | 查询 | 语料段 | 归因 | 说明 |
 |---|---|---|---|---|
+| cov-A-01 | 齊桓公 | 23 | - | 情况一（§25）：完整史书 + 有结果。前漢書 100/100 卷。若这条变成 partial_no_hit，说明卷级判据把完整的书也当残缺了 —— 那种「宁滥勿缺」同样是错，会让所有结果都带上无意义的免责声明。 |
+| cov-B-01 | 齊桓公 | 0 | - | 情况二（§25）：完整史书 + 无结果。陳書 36/36 卷收全了，確实没有齊桓公（陳書是陳朝史，齊桓公是春秋人物）。这一态**不是错误**，是正常答案；页面标题应为「所收版本内没有找到」。 |
+| cov-C1-01 | 齊桓公 | 0 | - | 情况三（§25）：残缺史书 + 无结果。北齊書底本只到卷三十五（通行本 50 卷），缺 15 卷。必须同时给出收录范围 —— 只说 partial 不说收了多少卷，用户仍然不知道缺在哪。 |
+| cov-C1-02 | 齊桓公 | 0 | - | 北史 22/100 卷，是 5 部里残缺最严重的（缺 78 卷）。这条守的是「残缺比例不同也要判 partial」—— 22% 与 70% 都叫 partial，判据是 declared < expected，不是某个阈值。 |
+| cov-C1-03 | 嵇康 | 0 | - | 晉書 33/130 卷（只到卷三十三，列傳整片没进来）。嵇康的傳在晉書卷四十九，正是缺的那一段；全库有 25 段（其他书里提到他）。这条是本组最像真实误判的一条：用户搜魏晋人物搜不到，若页面说「晉書里没有」，他会当成史实结论 —— 而事实是那一段我们根本没有。 |
+| cov-C2-01 | 司馬懿 | 1 | - | 残缺史书 + **有**结果 → 仍是 hit。有命中就是有命中，不该因为书残缺就把状态改成 partial_no_hit —— 那样用户会以为「这次结果不可信」。残缺只在无结果时才改变结论。 |
+| cov-D-01 | 齊桓公 | 159 | - | 情况四（§25）：未导入史书。明史 332 卷还没进来。页面标题应为「这部史书尚未收录」，绝不能是「正文中没有」。 |
+| cov-D-02 | 齊桓公 | 159 | - | 新唐書未导入，且上游本身只有 75/225 卷。这条守的是：未导入的书也要报出「这部书有多少卷 / 上游到哪一卷」，用户才知道等它导入之后能搜到什么程度。 |
+| cov-D-03 | 齊桓公 | 159 | - | 舊唐書 187/200 卷（缺 13）。**简体输入**走一遍：未导入这条路上繁简转换不该改变结论。 |
+| cov-E-01 | 齐桓公 | 0 | - | 繁简对照（§14-D）：简体「齐桓公」与繁体「齊桓公」必须给同一个四态。转不转换不该改变「这本书收没收全」这个结论 —— 那是语料事实，不是检索行为。 |
+| cov-E-02 | 齐桓公 | 159 | - | 同上，简体输入走未导入这一态。 |
+| cov-F-01 | 朱元璋 | 0 | - | 朱元璋（明史人物）全库搜不到。整库 19 部里有 5 部底本残缺、9 部正史未导入，所以**没有资格**报 complete_no_hit —— 那句「语料里确实没有」在整库层面是不成立的。这是本组最关键的一条：它是「别把话说满」的机器判据。 |
+| cov-F-02 | 齊桓公 | 159 | - | 全库有结果仍是 hit。注意 summary 里会附一句「全库有 5 部底本残缺」—— 命中也要说明范围，因为用户不知道自己搜的是不是全部。 |
 | nb-script-05 | 高颎 | 0 | Coverage | **已知收窄（B 向，待用户决定是否修）**：简体「颎」（U+988E）→ 转换器不动它，于是查询串是「高颎」，而语料写的是「髙熲」（U+9AD9+U+71B2，主形，84 段）与「高熲」（13 段）→ 用户拿 0。这不是缺书（隋書卷四十一本传在库内），是**字没转过去**。同源问题全库 131 个字符，见文件头 note 第 5 条；对照 nb-script-06 与 nb-person-13/16 |
 | nb-script-08 | 韋孝寬 | 0 | Coverage | **已知收窄（异体字，待用户决定是否修）**：港台通行繁体写「寬」（U+5BEC），而语料（WYG，日韩字形）写「寛」（U+5BDB）64 段 → 查「韋孝寬」全库 0 段。简体输入「韦孝宽」同样 0（宽→寬 转得对，但语料里没有 寬）。不是缺书：周書卷三十一本传在库内，见 nb-person-14 |
 | nb-section-02 | 魏本紀第一 | 0 | - | **纯篇名命中**：hit_total=0（正文里没有「魏本紀第一」这个串），一块 match_type=section（北史魏本紀的正文首行「魏之先岀自黄帝軒轅氏…」）。这条专门证明「命中段数=0 不等于没结果」，所以不设 top_needle（篇题在 label 字段里，不在块 text 里） |
@@ -460,6 +487,8 @@
 
 | 简体 | 繁体 | 简体命中 | 繁体命中 | 一致 |
 |---|---|---|---|---|
+| 齐桓公 | 齊桓公 | 0 | 0 | 是 |
+| 齐桓公 | 齊桓公 | 0 | 0 | 是 |
 | 侯景之乱 | 侯景之亂 | 117 | 117 | 是 |
 | 陈庆之 | 陳慶之 | 31 | 31 | 是 |
 | 齐桓公 | 齊桓公 | 159 | 159 | 是 |
@@ -490,3 +519,13 @@
 `search_cases/` 里的 `baseline_hits` / `baseline_blocks` 是 2026-09-12 在 7 部语料上的实测值（第六点二阶段扩容后重测）。漂移本身不是失败——语料扩充后必然变化——但每条都要能解释。
 
 无漂移，与建立基线时完全一致。
+
+## Recall Invariant 的射程（321 / 373 条）
+
+冻结基线在 `invariant.json` 里，判据是`expected_passage_ids ⊆ actual_passage_ids`：**冻过的片段必须还在**，防的是召回退化（语料只增不减，老结果不该消失）。剩下 52 条不判，三类都不是漏：
+
+- **负例**（`must_hit=false`）：本来就没有片段，冻一个空集等于什么都没说。
+- **四态用例**（`cov-*`）：判的是措辞（`result_status` + 收录范围 + 不许断言「书里没有」），判据走 `diagnose()`，这条路径不取片段表。
+- **超长结果用例**（`nb-single-01` / `pagination-01`）：在分页审计那一步就返回了，走不到冻结那一行；它们本身就是本阶段记录的性能债。
+
+反方向（一条 0 命中的用例以后命中了）不在射程内 —— 那由四态用例自己的 `expect_status` 去守。一条断言管两头，两头都会松。
