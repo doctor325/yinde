@@ -345,6 +345,11 @@ def audit(m: dict, expected: int | None, declared: int | None,
 
     status = ("complete" if declared == expected
               else "partial" if declared < expected else "unknown")
+    # A declared total is not proof of completeness when measured evidence has
+    # unexplained gaps or duplicate ownership. Preserve partial semantics while
+    # preventing an internally contradictory "complete + error" result.
+    if status == "complete" and any(p["level"] == "error" for p in problems):
+        status = "unknown"
     return {
         "witness": witness, "expected": expected, "declared": declared,
         "available": measured, "coverage_ratio": _ratio(measured, expected),

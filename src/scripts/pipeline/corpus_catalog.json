@@ -224,7 +224,8 @@
       "repo": "https://github.com/kanripo/KR2a0026.git", "branch": "master",
       "recall_verified": false,
       "expected_volumes": 200, "declared_volumes": 187,
-      "volume_note": "未导入。上游数字化**止于卷一百八十七下**（文件 `_000`–`_187`，共 188 个 txt），缺 卷一百八十八–二百（列傳第 138–150，13 卷）。**是上游数字化范围问题，不是底本残缺**：`_000.txt` 的目録列出全部 200 卷（实测卷号 1–200 齐备）。导入前须知：进来就是 partial。"
+      "volume_witness": "corpus",
+      "volume_note": "2026-10-21获取 Kanripo master，commit d9dad87d92de19bffeaf97a85c58d2967fafda92，原始txt 188个。卷次现由库内文件头与正文卷题实测，不以文件数代替卷数。登记上游范围187/200卷；实际缺口与异常见新生成的volume_coverage.json。"
     },
     "KR2a0027": {
       "dir": "xintangshu", "title": "新唐書", "dynasty": "北宋", "era_group": "隋唐",
@@ -232,7 +233,8 @@
       "repo": "https://github.com/kanripo/KR2a0027.git", "branch": "master",
       "recall_verified": false,
       "expected_volumes": 225, "declared_volumes": 75,
-      "volume_note": "未导入。上游数字化**止于卷七十五上**（文件 `_000`–`_075`，共 76 个 txt），缺 卷七十六–二百二十五（整部列傳 150 卷，占全书 2/3）。同样**不是底本残缺**：`_000.txt` 的目録列出全部 225 卷。卷七十五正好是表末（本紀 10 + 志 50 + 表 15 = 75），是一个整齐的断点。导入前须知：进来就是 partial，且缺的是最常被检索的列傳。"
+      "volume_witness": "corpus",
+      "volume_note": "2026-10-21获取 Kanripo master，commit 320ec8ace39863ceb2c778178c6074a2348d2973，原始txt 76个。卷次现由库内文件头与正文卷题实测，不以文件数代替卷数。登记上游范围75/225卷；实际缺口与异常见新生成的volume_coverage.json。"
     },
     "KR2a0029": {
       "dir": "jiuwudaishi", "title": "舊五代史", "dynasty": "北宋", "era_group": "五代",
@@ -240,7 +242,8 @@
       "repo": "https://github.com/kanripo/KR2a0029.git", "branch": "master",
       "recall_verified": false,
       "expected_volumes": 150, "declared_volumes": 150,
-      "volume_note": "未导入。上游数字化完整（299 个 txt，卷 1–150 齐）；目次标题带书名前缀「舊五代史 卷N」，每卷正文与攷證各占一个文件 —— 解析前先核对。",
+      "volume_witness": "corpus",
+      "volume_note": "2026-10-21获取 Kanripo master，commit fa76c711603ad5b8e2f779aae96930047f035a13，原始txt 299个。卷次现由库内文件头与正文卷题实测，不以文件数代替卷数。登记上游范围150/150卷；实际缺口与异常见新生成的volume_coverage.json。",
       "note": "首文件 JUAN 为「目錄上」（toc 层），不是卷正文 —— 导入时先核对 section 归层"
     },
     "KR2a0030": {
@@ -249,7 +252,8 @@
       "repo": "https://github.com/kanripo/KR2a0030.git", "branch": "master",
       "recall_verified": false,
       "expected_volumes": 74, "declared_volumes": 74,
-      "volume_note": "未导入。上游数字化完整（75 个 txt，卷 1–74 齐）。"
+      "volume_witness": "corpus",
+      "volume_note": "2026-10-21获取 Kanripo master，commit 1ba26164d4534936112da0b6b755acf824c43691，原始txt 75个。卷次现由库内文件头与正文卷题实测，不以文件数代替卷数。登记上游范围74/74卷；实际缺口与异常见新生成的volume_coverage.json。"
     },
     "KR2a0032": {
       "dir": "songshi", "title": "宋史", "dynasty": "元", "era_group": "宋",
@@ -257,7 +261,8 @@
       "repo": "https://github.com/kanripo/KR2a0032.git", "branch": "master",
       "recall_verified": false,
       "expected_volumes": 496, "declared_volumes": 496,
-      "volume_note": "未导入。上游数字化完整（497 个 txt，卷 1–496 齐）—— 本批里最大的一部（496 卷）。"
+      "volume_witness": "corpus",
+      "volume_note": "2026-10-21获取 Kanripo master，commit 144d5640186b8e519673e5603a18667e55b1f449，原始txt 497个。卷次现由库内文件头与正文卷题实测，不以文件数代替卷数。登记上游范围496/496卷；实际缺口与异常见新生成的volume_coverage.json。"
     },
     "KR2a0033": {
       "dir": "liaoshi", "title": "遼史", "dynasty": "元", "era_group": "宋",
@@ -265,7 +270,8 @@
       "repo": "https://github.com/kanripo/KR2a0033.git", "branch": "master",
       "recall_verified": false,
       "expected_volumes": 116, "declared_volumes": 115,
-      "volume_note": "未导入。上游数字化**止于卷一百十五**（文件 `_000`–`_115`，共 116 个 txt），缺 卷一百十六（國語解）。已逐文件核对：末文件 `KR2a0033_115.txt` 是「遼史卷一百十五」+ 其考證，正文里没有「國語解」三字。该书上游没有目録文件（`_000` 只有御製序/進表），所以**无法从上游目録反证它是缺的** —— 按 Readme 目次与文件集登记为缺 1 卷。"
+      "volume_witness": "corpus",
+      "volume_note": "2026-10-21获取 Kanripo master，commit 2c59d52c69d372fd9c80e8fd2a7d0c484303726d，原始txt 116个。卷次现由库内文件头与正文卷题实测，不以文件数代替卷数。登记上游范围115/116卷；实际缺口与异常见新生成的volume_coverage.json。"
     },
     "KR2a0035": {
       "dir": "jinshi", "title": "金史", "dynasty": "元", "era_group": "宋",
@@ -273,7 +279,8 @@
       "repo": "https://github.com/kanripo/KR2a0035.git", "branch": "master",
       "recall_verified": false,
       "expected_volumes": 135, "declared_volumes": 135,
-      "volume_note": "未导入。上游数字化完整（136 个 txt，卷 1–135 齐）；目次标题带书名前缀「金史 卷N」。"
+      "volume_witness": "corpus",
+      "volume_note": "2026-10-21获取 Kanripo master，commit 9790acac1ae5e9e1cd36f467ebcbace38a7169c6，原始txt 136个。卷次现由库内文件头与正文卷题实测，不以文件数代替卷数。登记上游范围135/135卷；实际缺口与异常见新生成的volume_coverage.json。"
     },
     "KR2a0036": {
       "dir": "yuanshi", "title": "元史", "dynasty": "明", "era_group": "元",
@@ -281,7 +288,8 @@
       "repo": "https://github.com/kanripo/KR2a0036.git", "branch": "master",
       "recall_verified": false,
       "expected_volumes": 210, "declared_volumes": 210,
-      "volume_note": "未导入。上游数字化完整（211 个 txt，卷 1–210 齐）；目次标题带书名前缀「元史 卷N」，各卷含考證。"
+      "volume_witness": "corpus",
+      "volume_note": "2026-10-21获取 Kanripo master，commit e2cf641b7f57ad9847edca32c2b851c0e875ee4c，原始txt 211个。卷次现由库内文件头与正文卷题实测，不以文件数代替卷数。登记上游范围210/210卷；实际缺口与异常见新生成的volume_coverage.json。"
     },
     "KR2a0038": {
       "dir": "mingshi", "title": "明史", "dynasty": "清", "era_group": "明",
@@ -289,7 +297,8 @@
       "repo": "https://github.com/kanripo/KR2a0038.git", "branch": "master",
       "recall_verified": false,
       "expected_volumes": 332, "declared_volumes": 332,
-      "volume_note": "未导入。上游数字化完整（548 个 txt，卷 1–332 齐，卷目与考證分文件）。这是「未收录」的样板：搜《明史》里的人物时，系统必须说「《明史》尚未收录」，不能说「正文中没有」。",
+      "volume_witness": "corpus",
+      "volume_note": "2026-10-21获取 Kanripo master，commit eccd6fe93126bde61b837240e6142e1343c22639，原始txt 548个。卷次现由库内文件头与正文卷题实测，不以文件数代替卷数。登记上游范围332/332卷；实际缺口与异常见新生成的volume_coverage.json。",
       "note": "实测文件头 JUAN 用阿拉伯数字（`JUAN 1`），与其余 WYG 书的汉字卷次不同 —— 导入前先核对卷题正则"
     }
   },

@@ -43,8 +43,31 @@ _NON_FOLLOW = "(?![族子孫女弟主室家甸后妃母])"
 # 国名 + 亲属/封号字 + 爵位，如 楚公子/晉公子/楚太子/燕太子/魏公子/魯夫人。
 # 这类是「某国的公子/太子」，**不是某一个人**，不能当实体——否则「楚公子」会把
 # 楚国历代所有公子揉成一个词条。判据是中间那个字：凡亲属/位号字一律排除。
-_NON_KIN = set("公太世王長次幼少夫母女弟兄孫族室主后妃妾")
-_STATE_CLS = "[" + "".join(STATES + STATES_EXTRA) + "]"
+#
+# Phase 8 补四字（之/諸/大/天）。理由是**同一个判据**：_PAT_FULL 的中间槽接受任何
+# 一字，于是虚词也冒充谥号。实测这四字共产出 17 项假实体，逐条查过原文，无一例外
+# 都不是人名（实体池 341 → 324）：
+#   · 之 —— 「丕鄭**之子**曰豹」「實臨照周**之子**孫」：所属关系，不是名字。
+#   · 諸 —— 「以討召**諸侯**」「徧召**諸子**相之」：复数。"晉諸公" 更是**书名**
+#           《晉諸公贊》的片段。
+#   · 大 —— 「鄭**大子**忽帥師救齊」「晉**大子**圉為質於秦」：就是「太子」，
+#           主体是忽/圉，不是「鄭大子」这个人。**与上面已有的「太」是同一个词
+#           的另一种写法**——只收「太」不收「大」正是本文件反复出现的那个病根：
+#           同一个判断在两处写法不一致。
+#   · 天 —— 「周**天子**」「侍衛**天子**」：职名，不是某一个人。
+# **未动的**：縣侯/郡公/國公/陽侯（如 晉陽侯、魏其侯）是真封号，语料就是用它称呼
+# 具体的人，误杀会丢真召回；「將」「尉」「其」「二」同样真假混居。这 90 余项需要
+# 逐条人读裁决，不在本阶段做（见 phase8_relation_audit.md §实体层）。
+_NON_KIN = set("公太世王長次幼少夫母女弟兄孫族室主后妃妾之諸大天")
+# 只用**单字**国名拼字符类。「中山」是双字国名，若把它的两个字原样并进字符类，
+# 「中」「山」就各自成了国名 —— 实测污染 34 个假实体（中庶子/山陽公/中國子/
+# 中丞侯/中以子…），全是跨词边界切出来的：「御史中丞」+「侯史光」→ 中丞侯，
+# 「軍中以子城未克」→ 中以子，「侍中」+「元子思」→ 中元子。
+# 这与 _STATE_CHARS（bare_hit 用）是**同一个判断**，那一处早已排除中/山
+# （见其注释「宁可漏判，不可错杀」）；此处此前漏改，两处不一致就是病根。
+# 代价：中山公/山陽公这类**确实存在**的封号也不再被识别 —— 已知且可接受，
+# 它们的字面仍会经 _topic_terms 进检索，只是不再冒充「人物实体」。
+_STATE_CLS = "[" + "".join(s for s in STATES + STATES_EXTRA if len(s) == 1) + "]"
 # 全称 → 实体。**字序是 国名 + 谥号 + 爵位**，不是 国名 + 爵位 + 谥号：
 # 「齊桓公」= 齊 + 桓 + 公，中间的桓是谥号，末尾的公才是爵位。
 # 写成 [公侯伯子男] 打头会把「晉侯使」「公曰」这类散文当人名收进来（实测就是这个
@@ -54,6 +77,7 @@ _STATE_CLS = "[" + "".join(STATES + STATES_EXTRA) + "]"
 # 于是字符类变成 {\, u, 4, e, 0, -, 9, f} 这种垃圾，漢字一个都匹配不上。
 _PAT_FULL = re.compile(
     _STATE_CLS + "([一-鿿])" + "([" + _TITLE + "])" + _NON_FOLLOW)
+_PAT_TITLE = re.compile("[" + _TITLE + "]")
 # 两句短称（晉侯/齊侯/鄭伯/楚子/宋公，以及全称截出来的 齊桓公→桓公）**没有**
 # 正则：两字窗格的裸计数在建库扫描里直接数（见 _corpus_scan）。
 # 试过两种写法，都不能用：
@@ -87,9 +111,15 @@ def _corpus_scan(db_path: str) -> tuple[dict[str, int], dict[str, dict[str, int]
             # 不用正则：finditer 非重叠，在「齊桓公」里只匹到「齊桓」而跳过
             # offset 1 的「桓公」（短称统计整批丢光）；改用先行断言又要求匹配
             # 后面还有一个字符，句末的「桓公」匹不上。两字窗格直接数最稳。
-            n = len(text)
-            for i in range(n - 1):
-                raw[text[i:i + 2]] = raw.get(text[i:i + 2], 0) + 1
+            # Every possible short form ends in _TITLE by construction above.
+            # Count only those windows; all others were discarded below anyway.
+            # Match one ending character at a time so adjacent/overlapping title
+            # pairs and a title at the end of a passage retain identical counts.
+            for m in _PAT_TITLE.finditer(text):
+                i = m.start()
+                if i:
+                    pair = text[i - 1:i + 1]
+                    raw[pair] = raw.get(pair, 0) + 1
         # 短称（全称去掉国名，于是齊桓公 → 桓公）及其来源分布
         short: dict[str, dict[str, int]] = {}
         for name, n in full.items():

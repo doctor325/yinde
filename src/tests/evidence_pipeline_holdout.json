@@ -1,0 +1,83 @@
+{
+  "policy": "首次上下文模型评测前冻结；手选新主体6例，非随机/非穷尽gold，失败不删改。",
+  "cases": [
+    {
+      "id": "new-kou-time",
+      "query": "寇准何时去世？",
+      "gold": [
+        {
+          "chunk_id": 108416,
+          "page_id": 29542,
+          "source_sha256": "37e56b53dba44428fe427871d43731974b6586dbb0703302990f2eef4e179e67",
+          "revision_id": 7908328,
+          "evidence": "戊戌，寇准卒于雷州。"
+        }
+      ]
+    },
+    {
+      "id": "new-fan-military",
+      "query": "范仲淹出兵塞门的史料有哪些？",
+      "gold": [
+        {
+          "chunk_id": 108487,
+          "page_id": 29543,
+          "source_sha256": "6369cda639ea2c67d727fd8781e5c40a6a0c86cfdd86050c7c69695f65a51a17",
+          "revision_id": 2285039,
+          "evidence": "詔范仲淹、葛懷敏領兵驅逐塞門等砦蕃騎出境"
+        }
+      ]
+    },
+    {
+      "id": "new-wei-place",
+      "query": "卫青出兵的地点在哪里？",
+      "gold": [
+        {
+          "chunk_id": 46124,
+          "page_id": 19626,
+          "source_sha256": "559eba39e2f0b2443f4ceed10b1eadc3481c3f75e340c37092e99d0290d8ac82",
+          "revision_id": 2631854,
+          "evidence": "遣將軍衛青出雁門"
+        }
+      ]
+    },
+    {
+      "id": "new-xie-time",
+      "query": "谢安什么时候去世？",
+      "gold": [
+        {
+          "chunk_id": 39328,
+          "page_id": 18409,
+          "source_sha256": "19cd4fedf8e7f3a3e0ea9d1bd8cbbca3acb9e53bc14a208ee0e091bc3554bb97",
+          "revision_id": 1768039,
+          "evidence": "八月，以疾還，是月薨。"
+        }
+      ]
+    },
+    {
+      "id": "new-sima-book",
+      "query": "司马迁撰写史记的记载有哪些？",
+      "gold": [
+        {
+          "chunk_id": 60182,
+          "page_id": 19734,
+          "source_sha256": "738c390f654e712515dfdb7659b867703d36f8dbc830fb0c452b83ff0961a79b",
+          "revision_id": 5979030,
+          "evidence": "司馬遷作《史記》"
+        }
+      ]
+    },
+    {
+      "id": "new-lu-battle",
+      "query": "陆逊击败刘备的记载有哪些？",
+      "gold": [
+        {
+          "chunk_id": 7675,
+          "page_id": 8520,
+          "source_sha256": "8bc2076ba31052c04c70204ac931fa655ed6b4e11c842ae2742ba05bb7b9aa10",
+          "revision_id": 2131313,
+          "evidence": "陸遜春秋方壯，威名未著，摧而克之"
+        }
+      ]
+    }
+  ]
+}

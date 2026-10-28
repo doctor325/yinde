@@ -12,17 +12,85 @@ const num = v => (typeof v === "number" ? v : parseInt(String(v).replace(/,/g, "
 const jp = (s, fb) => { try { return s ? JSON.parse(s) : fb; } catch { return fb; } };
 const fam = f => (f === "sbck" ? "四部丛刊（SBCK）" : (f || "tls"));
 
+// 显示偏好独立于检索参数；每个片段保留自己的原始字串，切回原文无需逆转换。
+let readingMode = "simplified";
+let readingSave = Promise.resolve();
+try {
+  const saved = localStorage.getItem("historyai.readingMode");
+  if (saved === "orig" || saved === "simplified") readingMode = saved;
+} catch (_) { /* 存储不可用时仍可在当前页面切换。 */ }
+if (["orig", "simplified"].includes(window.YindeDesktopMode)) readingMode = window.YindeDesktopMode;
+function readingContent(source, opts, terms) {
+  let text = source;
+  let ok = true;
+  if (readingMode === "simplified") {
+    // 页码和缺字编码是定位标记，不参与字形转换。
+    text = source.split(/(<pb:[^>]*>|&KR[A-Za-z0-9]+;)/g).map(part => {
+      if (/^(<pb:|&KR)/.test(part)) return part;
+      const converted = window.YindeEngine?.dualText?.simplify(part);
+      if (!converted || !converted.ok) { ok = false; return part; }
+      return converted.text;
+    }).join("");
+    if (!ok) text = source;
+  }
+  const highlights = readingMode === "simplified" && ok && window.YindeEngine?.dualText
+    ? terms.map(t => window.YindeEngine.dualText.simplify(t).text) : terms;
+  return mark(rich(text, opts), highlights) + (!ok
+    ? '<small class="hit-notes">转换未能可靠完成，本段显示原文。</small>' : "");
+}
+function readingTextHtml(source, opts = { pb: false }, terms = []) {
+  source = String(source ?? "");
+  const stored = esc(source).replace(/\r/g, '&#13;').replace(/\n/g, '&#10;').replace(/\t/g, '&#9;');
+  return `<span data-reading-source="${stored}" data-reading-options="${esc(JSON.stringify(opts))}" data-reading-terms="${esc(JSON.stringify(terms))}">${readingContent(source, opts, terms)}</span>`;
+}
+function updateReadingControls() {
+  for (const id of ["readingMode", "stext", "atext"]) {
+    const control = $("#" + id);
+    if (control) control.value = readingMode;
+  }
+  const note = $("#readingModeNote");
+  if (note) note.textContent = readingMode === "simplified"
+    ? "简体为程序转换，仅供阅读；引用请切换原文核对。"
+    : "按收录底本显示，保留原有字形。";
+}
+window.setReadingMode = value => {
+  readingMode = value === "orig" ? "orig" : "simplified";
+  try { localStorage.setItem("historyai.readingMode", readingMode); } catch (_) { /* 可选持久化 */ }
+  if (window.YindeDesktopMode !== undefined) {
+    const selectedMode = readingMode;
+    readingSave = readingSave.then(() => fetch("/api/desktop/preferences", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ readingMode: selectedMode }) })).then(r => {
+        if (!r.ok) throw new Error("显示偏好未保存");
+      }).catch(() => {
+        const note = $("#readingModeNote");
+        if (note) note.textContent += " 下次启动的显示偏好未能保存。";
+      });
+  }
+  searchState.text = readingMode;
+  askState.text = readingMode;
+  document.querySelectorAll("[data-reading-source]").forEach(node => {
+    node.innerHTML = readingContent(node.dataset.readingSource,
+      JSON.parse(node.dataset.readingOptions), JSON.parse(node.dataset.readingTerms));
+  });
+  updateReadingControls();
+};
+updateReadingControls();
+
 /* 唯一的取数接缝。两种模式在这里分流，其余代码一行都不知道自己跑在哪：
  *   · API 模式 —— 本地 `python -m api.main` 在跑，原样 fetch（第一到第四阶段的行为）；
  *   · 静态模式 —— 公开站上没有 Python 进程，由 engine/static_api.js 在浏览器里
  *     重放同一组接口，数据结构、错误消息都与真 API 一致（对拍见
  *     scripts/site/check_engine.py 的 static-api 检查）。
  * 模式由 boot.js 探测一次，此后不再逐请求回退 —— 详见 boot.js 的说明。 */
-async function api(path) {
+async function api(path, options = {}) {
   const boot = window.YindeBoot ? await window.YindeBoot : { mode: "api" };
+  if (options.signal?.aborted) throw new DOMException("请求已取消", "AbortError");
   if (boot.mode === "api") {
-    const r = await fetch(path);
-    const j = await r.json().catch(() => ({ error: `响应非 JSON（HTTP ${r.status}）` }));
+    const r = await fetch(path, options);
+    const j = await r.json().catch(() => ({ error: r.status === 501
+      ? "当前本地服务不支持此请求，请重启引得后端服务后重试（HTTP 501）。"
+      : `响应非 JSON（HTTP ${r.status}）` }));
     if (!r.ok || j.error) throw new Error(j.error || `HTTP ${r.status}`);
     return j;
   }
@@ -36,13 +104,13 @@ const qs = obj => { const u = new URLSearchParams(); for (const k in obj)
  * 本地静态导出）没有 Python 进程，回答不了「语料里到底有没有这个串」——那要全表
  * 计数。那边保持原有文案与横幅（boot.js），本函数返回 null，调用方什么都不做。
  * 出错一律吞掉：归因是锦上添花，不能让它把「没有结果」变成「检索失败」。 */
-async function tryDiagnose(q, book, edition) {
+async function tryDiagnose(q, book, edition, options = {}) {
   const boot = window.YindeBoot ? await window.YindeBoot : { mode: "api" };
   if (boot.mode !== "api" || !q) return null;
   // book/edition 必须一起传：归因的「收录范围」是**按这次检索的范围**算的。
   // 只传 q 会让「在《北齊書》里搜不到」被答成「全库 19 部里没有」——
   // 那正是本阶段要消灭的那种含糊话（§25 情况三）。
-  try { return await api(`/api/diagnose?${qs({ q, book, edition })}`); }
+  try { return await api(`/api/diagnose?${qs({ q, book, edition })}`, options); }
   catch (e) { return null; }
 }
 
@@ -166,21 +234,32 @@ function parseHash() {
   return { path, seg: path.split("/").filter(Boolean), params };
 }
 function navActive() {
-  const key = parseHash().seg[0] || "home";
+  const section = parseHash().seg[0] || "home";
+  const key = ["book", "read", "file", "punctuated"].includes(section) ? "books" : section === "semantic" ? "search" : section;
   document.querySelectorAll("nav a").forEach(a =>
     a.classList.toggle("active",
       a.dataset.nav === key || (key === "p" && a.dataset.nav === "search")));
 }
+let routeRevision = 0;
+let historyQaRequest = null;
 async function route() {
+  const revision = ++routeRevision;
+  const hash = location.hash;
+  cancelSearch();
+  if (historyQaRequest) historyQaRequest.abort();
+  historyQaRequest = null;
   navActive();
   const { seg, params } = parseHash();
   const view = $("#view");
   try {
     if (!seg.length || seg[0] === "home") return await homeView();
-    if (seg[0] === "search") return await searchView(params);
+    if (seg[0] === "search") return await searchView(params, revision, hash);
     if (seg[0] === "ask") return await askView(params);
+    if (seg[0] === "history-qa") return await historyQaView(revision);
+    if (seg[0] === "semantic") return await semanticView(revision);
     if (seg[0] === "p") return await passageView(+seg[1], params);
     if (seg[0] === "books") return await booksView();
+    if (seg[0] === "punctuated") return await punctuatedView(seg[1], params, revision);
     if (seg[0] === "coverage") return await coverageView();
     if (seg[0] === "book") return await bookView(seg[1]);
     if (seg[0] === "file") return await fileView(+seg[1], params);
@@ -189,6 +268,7 @@ async function route() {
     if (seg[0] === "about") return await aboutView();
     view.innerHTML = `<div class="card">页面不存在：${esc(seg.join("/"))}</div>`;
   } catch (e) {
+    if (revision !== routeRevision || hash !== location.hash) return;
     view.innerHTML = `<div class="card"><b>出错了</b><br>${esc(e.message)}<br>
       <a class="backlink" href="#/">← 回首页</a></div>`;
   }
@@ -198,46 +278,235 @@ window.addEventListener("hashchange", route);
 /* ================= 首页 ================= */
 async function homeView() {
   const view = $("#view");
+  const revision = routeRevision;
   const [st, books] = await Promise.all([getStats(), getBooks()]);
+  if (revision !== routeRevision) return;
   let html = `<div class="hero">
-    <h1>引得</h1>
-    <div class="sub">已收录 ${books.length} 部史书 · ${num(st.passages).toLocaleString()} 条正文 — 检索人物、事件、地名或原文词句</div>
+    <div class="eyebrow">古籍检索与阅读</div>
+    <h1>循字入史</h1>
+    <div class="sub">优先阅读标点史料，保留原底本对照与出处。</div>
     <div class="searchline">
-      <input id="q" placeholder="输入关键词，如：齐桓公　城濮之战　孔子" autocomplete="off">
-      <button class="btn primary" onclick="homeSearch()">搜索</button>
+      <input id="q" type="search" aria-label="检索关键词" placeholder="输入人物、地名或原文词句" autocomplete="off">
+      <button class="btn primary" onclick="homeSearch()">检索原文 <span aria-hidden="true">→</span></button>
     </div>
     <div class="examples"><b>试试：</b>
-      <a onclick="homeSearch('齐桓公')">齐桓公</a><a onclick="homeSearch('管仲')">管仲</a>
-      <a onclick="homeSearch('晋文公')">晋文公</a><a onclick="homeSearch('伍子胥')">伍子胥</a>
-      <a onclick="homeSearch('苏秦')">苏秦</a><a onclick="homeSearch('张仪')">张仪</a>
-      <a onclick="homeSearch('城濮')">城濮</a><a onclick="homeSearch('长勺')">长勺</a>
-      <a onclick="homeSearch('鸿门宴')">鸿门宴</a>
+      <a href="#/search?q=齐桓公">齐桓公</a><a href="#/search?q=管仲">管仲</a>
+      <a href="#/search?q=城濮">城濮</a>
     </div>
   </div>
   <div class="home-books">
-    <h2>${books.length} 部史书</h2><div class="book-grid">`;
-  for (const b of books) {
+    <div class="section-heading"><h2>从书中开始</h2><a href="#/books">浏览全部 ${books.length} 部 →</a></div><div class="book-grid">`;
+  for (const b of books.slice(0, 6)) {
     html += `<a class="book-card" href="#/book/${encodeURIComponent(b.book_id)}">
       <div class="t">《${esc(b.title)}》</div>
-      <div class="n">${esc(b.book_id)} · ${esc(fam(b.family))}</div>
-      <div class="m"><span>正文 ${num(b.main_passages).toLocaleString()}</span>
-        <span>${b.pending ? `待确认 ${num(b.pending).toLocaleString()}` : "无待确认"}</span></div>
+      <div class="n">${esc(b.edition || fam(b.family))}</div>
+      <div class="m">浏览收录文本 <span aria-hidden="true">↗</span></div>
     </a>`;
   }
   html += `</div>
-    <p class="quiet" style="margin-top:14px">共 ${num(st.records).toLocaleString()} 条原文记录 ·
-      文本以原始文件为准；数据库由解析管线重建，原始史料文件零改动。
-      <a class="backlink" href="#/about">项目说明 →</a></p>
+    <p><a href="#/semantic">语义搜索实验：按问题含义寻找史料 →</a></p>
+    <p><a href="#/history-qa?source=original">原底本问答实验：按问题查找史料与上下文 →</a></p>
+    <p><a href="#/punctuated">标点本书库：按卷阅读新增版本 →</a></p>
+    <p class="collection-note">原底本收录 ${books.length} 部 · ${num(st.passages).toLocaleString()} 个检索片段（含正文、括注等）；标点版范围在检索页单独列明。
+      收录可能不完整，未命中不代表原书没有记载。<a href="#/about">了解来源与范围</a></p>
   </div>`;
   view.innerHTML = html;
   const qi = $("#q");
   qi.addEventListener("keydown", e => { if (e.key === "Enter") homeSearch(); });
-  qi.focus();
 }
 function homeSearch(word) {
   const v = word ?? $("#q").value.trim();
   if (!v) { $("#q").focus(); return; }
   location.hash = `#/search?q=${encodeURIComponent(v)}`;
+}
+
+/* Independent local-only evidence/answer experiment. No generated HTML is trusted. */
+async function semanticView(revision) {
+  if (typeof punctuatedSearchView === 'function' && await punctuatedSearchView(parseHash().params,revision,true)) return;
+  const view = $("#view");
+  view.innerHTML = '<div class="load">正在检查本地语义索引…</div>';
+  let status;
+  try { status = await api('/api/experimental/semantic/status'); }
+  catch (_) { status = {ready: false, reason: '当前服务未提供本地语义检索，请使用更新后的桌面版。'}; }
+  if (revision !== routeRevision) return;
+  const books = await getBooks();
+  if (revision !== routeRevision) return;
+  const supportsExpanded = (status.modes || []).includes('expanded');
+  const supportsContextual = (status.modes || []).includes('contextual');
+  view.innerHTML = `<div class="page-heading"><p class="eyebrow">原底本 · 本地模型 · 实验</p><h1>按含义寻找史料</h1>
+    <p class="quiet">描述想找的人物关系或事件。相似性不能证明史实，结果仍需核对原文。</p></div>
+    <p class="collection-note">${esc(status.reason)}${status.ready
+      ? ` · ${num(status.manifest.books)}部书，${num(status.manifest.chunks).toLocaleString()}个正文／括注片段` : ''}
+      · 仅覆盖已收录语料，<a href="#/about">缺卷与来源说明</a></p>
+    <form id="semanticForm" class="card"><label for="semanticQuery">想查什么</label>
+      <textarea id="semanticQuery" rows="3" maxlength="300" required style="width:100%;font:inherit"
+        placeholder="可以用现代汉语描述事件或关系，不必先猜原文措辞"></textarea>
+      <div class="controls"><label>范围 <select id="semanticBook"><option value="">全部史书</option>
+        ${books.map(b => `<option value="${esc(b.book_id)}">${esc(b.title)}</option>`).join('')}</select></label>
+      <label>方式 <select id="semanticStrategy">${supportsContextual ? '<option value="contextual">片段增强：语义＋上下文</option>' : ''}
+        <option value="expanded" ${supportsExpanded ? 'selected' : 'disabled'}>增强：语义＋规则扩展${supportsExpanded ? '' : '（需更新桌面版）'}</option>
+        <option value="hybrid" ${supportsExpanded ? '' : 'selected'}>原始混合：语义＋关键词</option>
+        <option value="semantic">仅语义</option></select></label>
+      <button class="btn primary" ${status.ready ? '' : 'disabled'}>查找史料</button></div>
+      <p class="quiet">模型在本机CPU运行；首次加载较慢。此入口不调用生成式模型，也不会上传问题和史料。</p></form>
+    <div id="semanticResult" aria-live="polite"></div>`;
+  $('#semanticForm').addEventListener('submit', async event => {
+    event.preventDefault();
+    const query = $('#semanticQuery').value.trim();
+    if (!query) return;
+    if (historyQaRequest) historyQaRequest.abort();
+    const controller = historyQaRequest = new AbortController();
+    const box = $('#semanticResult');
+    const current = () => revision === routeRevision && historyQaRequest === controller && box === $('#semanticResult');
+    box.setAttribute('aria-busy', 'true');
+    box.textContent = '正在查找候选并比较相关性…首次查询需要加载本地模型。';
+    try {
+      const path = '/api/experimental/semantic/search?q=' + encodeURIComponent(query)
+        + '&book=' + encodeURIComponent($('#semanticBook').value)
+        + '&strategy=' + encodeURIComponent($('#semanticStrategy').value);
+      const result = await api(path, {signal: controller.signal});
+      if (current()) box.innerHTML = semanticResultsHtml(result);
+    } catch (error) {
+      if (current() && error.name !== 'AbortError') box.textContent = error.message;
+    } finally {
+      if (current()) box.setAttribute('aria-busy', 'false');
+    }
+  });
+}
+
+function semanticResultsHtml(result) {
+  let html = `<p class="quiet">语义候选 ${num(result.candidate_counts.semantic)} 个，${result.query_plan ? '规则检索' : '关键词'}片段 ${num(result.candidate_counts.keyword_chunks)} 个；
+    耗时 ${num(result.elapsed_ms)} ms · ${esc(result.model)} · 未生成回答</p>`;
+  for (const hit of result.hits) {
+    const c = hit.chunk;
+    const first = c.parts[0];
+    html += `<article class="card"><h3>《${esc(c.book_title)}》 ${esc(c.section || c.juan || '')}</h3>
+      <p class="quiet">${esc(c.edition || '版本未提供')} · ${c.layer === 'commentary_candidate' ? '原刊括注候选，归属未核定' : '正文'}
+        ${c.boundary_known ? '' : ' · 篇章边界未知'}</p>
+      <div class="blk-text">${readingTextHtml(c.text_orig)}</div>
+      <p class="quiet">通道：${hit.channels.map(x => x === 'semantic' ? '语义' : result.query_plan ? '规则检索' : '关键词').join('＋')}
+        ${hit.semantic_score == null ? '' : ` · 语义分 ${Number(hit.semantic_score).toFixed(3)}（不是正确概率）`}</p>
+      <a class="btn" href="#/p/${Number(first.passage_id)}?ctx=1">原文出处与上下文</a>
+      <details class="source-detail"><summary>定位与检索信息</summary><p>${esc(c.origin_path)} · 行 ${num(c.row_first)}–${num(c.row_last)}</p>
+        <p>来源校验 ${esc(c.sha256)} · 片段 ${num(c.chunk_id)} · ${c.parts.length}条记录或记录切片</p>
+        <p>通道内名次 ${esc(JSON.stringify(hit.ranks))}；融合分 ${Number(hit.rrf).toFixed(5)}</p>
+        ${hit.context_clues ? `<p>片段内线索：${esc(hit.context_clues.anchors_present.join('、'))}；动作表达：${esc(hit.context_clues.relations_present.join('、') || '未命中')}；主体与关系尚未核实。</p>` : ''}</details></article>`;
+  }
+  if (!result.hits.length) html += '<p>当前范围没有可展示的候选。</p>';
+  if (result.query_plan) {
+    const plan = result.query_plan;
+    html += `<details><summary>本次检索线索</summary><p>字面线索：${esc((plan.literal_hypotheses || []).join('、') || '未提取到')}</p>
+      <p>关系表达：${esc((plan.relation_terms || []).join('、') || '未识别')}</p>
+      ${result.lexical_backend === 'variant-like-prefilter-v1' ? '<p>索引加速：保留原匹配规则与排序。</p>' : ''}
+      ${plan.retrieval_unit === 'source_chunk' ? '<p>检索单位：原文片段（保留出处与层级边界）。</p>' : ''}
+      ${plan.substring_ambiguities?.length ? '<p>部分线索来自词组切分，身份或指代仍有歧义。</p>' : ''}</details>`;
+  }
+  html += result.notes.map(note => `<p class="quiet">${esc(note)}</p>`).join('');
+  if (result.trace_id) html += `<details><summary>本机查询记录</summary><p class="quiet">${esc(result.trace_id)}</p></details>`;
+  return html;
+}
+
+async function historyQaView(revision) {
+  if (typeof punctuatedSearchView === 'function' && await punctuatedSearchView(parseHash().params,revision,true)) return;
+  const view = $("#view");
+  const boot = window.YindeBoot ? await window.YindeBoot : { mode: "api" };
+  if (revision !== routeRevision) return;
+  if (boot.mode !== "api") {
+    view.innerHTML = `<h1>历史问答实验</h1><p>此功能需要本地 Python 服务。静态站点不调用模型，也不读取真实史料。</p>`;
+    return;
+  }
+  const books = await getBooks();
+  if (revision !== routeRevision) return;
+  view.innerHTML = `<h1>历史问答实验</h1><p class="quiet">本入口检索原底本。<a href="#/semantic">返回标点版检索</a></p>
+    <p class="quiet">先查看候选史料与上下文，再根据证据形成回答。</p>
+    <form id="historyQaForm">
+      <label for="historyQaQuestion">你想了解什么历史问题？</label>
+      <textarea id="historyQaQuestion" rows="3" maxlength="500" required
+        style="width:100%;box-sizing:border-box" placeholder="描述事件、人物，以及你想了解的时间、经过或原因"></textarea>
+      <div class="filters"><label>史料范围 <select id="historyQaBook"><option value="">全部收录</option>
+        ${books.map(b => `<option value="${esc(b.book_id)}">${esc(b.title)}</option>`).join("")}</select></label>
+        <label><input type="checkbox" id="historyQaGenerate"> 使用已配置的 AI 生成回答草稿</label>
+      </div>
+      <p class="quiet">默认仅本地检索。勾选 AI 后会把问题及选中的原文发送给服务端配置的模型；未配置时不可调用。</p>
+      <button class="btn primary" type="submit">查找史料</button>
+    </form><div id="historyQaResult" aria-live="polite"></div>`;
+  $("#historyQaForm").addEventListener("submit", async event => {
+    event.preventDefault();
+    const text = $("#historyQaQuestion").value.trim();
+    if (!text) return;
+    if (historyQaRequest) historyQaRequest.abort();
+    const controller = new AbortController();
+    historyQaRequest = controller;
+    const box = $("#historyQaResult");
+    const current = () => revision === routeRevision && historyQaRequest === controller
+      && box === $("#historyQaResult");
+    box.setAttribute("aria-busy", "true");
+    box.textContent = "正在查找史料与上下文…";
+    try {
+      const result = await api("/api/experimental/history-qa", {
+        method: "POST", signal: controller.signal,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: text, book: $("#historyQaBook").value,
+                               generate: $("#historyQaGenerate").checked })
+      });
+      if (current()) box.innerHTML = historyQaHtml(result);
+    } catch (error) {
+      if (current() && error.name !== "AbortError") box.textContent = error.message;
+    } finally {
+      if (current()) box.setAttribute("aria-busy", "false");
+    }
+  });
+}
+
+function historyQaHtml(result) {
+  const plan = result.plan;
+  let html = `<h2>${result.answer ? "回答草稿" : "候选史料"}</h2>`;
+  if (plan.clarification) html += `<p>${esc(plan.clarification)}</p>`;
+  if (result.answer) {
+    html += `<p class="quiet">引文存在性及逐字匹配已检查；结论是否受史料支持尚未核验。</p>`;
+    for (const claim of result.answer.claims) {
+      const label = { record: "记载概述", inference: "解释性推断", disagreement: "记载差异" }[claim.kind];
+      html += `<div class="card"><span class="quiet">${esc(label)}</span><p>${esc(claim.text)}</p>`;
+      for (const cite of claim.citations) {
+        // Build only local links from validated numeric IDs, never model URLs.
+        html += `<blockquote>${esc(cite.quote)} <a href="#/p/${Number(cite.passage_id)}?ctx=1">查看原文</a></blockquote>`;
+      }
+      html += `</div>`;
+    }
+    html += result.answer.limitations.map(x => `<p class="quiet">${esc(x)}</p>`).join("");
+  } else {
+    html += `<p class="quiet">本次没有生成回答。以下为检索候选，出现相关文字不等于已证明事件或因果关系。</p>`;
+  }
+  html += `<details><summary>查看检索计划与取样范围</summary>
+    <p>计划来源：${result.planner === "model" ? "模型检索假设" : "本地规则（未接入语义理解）"}</p>
+    <p>实体：${esc(plan.entities.join("、") || "未可靠识别")}；关系词：${esc(plan.relation_terms.join("、") || "未识别")}</p>
+    <p>语料中存在的检索词：${esc((plan.lexical_anchors || []).join("、") || "无额外词项")}（词面命中，不表示人物或事件已消歧）</p>
+    ${result.searches.map(s => `<p>${esc(s.query)}：命中 ${num(s.total)} 条，取样 ${num(s.sampled)} 条</p>`).join("")}
+    ${result.trace ? `<p>查询记录：${esc(result.trace.id)} · ${result.trace.saved ? "已保存本机日志" : "日志未保存"}</p>` : ""}
+    <p>上下文词面检查保留在证据包中；时间、地点与人物归属尚未作语义核验。</p></details>`;
+  for (const evidence of result.evidence) {
+    html += `<article class="card"><h3>《${esc(evidence.book_title)}》 ${esc(evidence.edition || "版本未提供")}</h3>
+      <p class="quiet">${esc([evidence.juan, evidence.section].filter(Boolean).join(" · ") || "篇卷信息未提供")}
+      ${evidence.boundary_known ? "" : " · 上下文篇章边界未核定"}</p>`;
+    // Preserve original order and annotation boundaries, while avoiding one
+    // paragraph per database fragment. Every original record remains accessible.
+    const runs = [];
+    for (const row of evidence.records) {
+      const annotation = row.layer === "commentary_candidate";
+      if (!runs.length || runs[runs.length - 1].annotation !== annotation)
+        runs.push({ annotation, text: "" });
+      runs[runs.length - 1].text += row.text_orig || "";
+    }
+    for (const run of runs) html += `<p>${run.annotation ? '<span class="quiet">原刊括注（归属未核定）</span> ' : ""}
+      ${readingTextHtml(run.text, { pb: false, cand: run.annotation })}</p>`;
+    html += `<details><summary>逐条原文与出处</summary>${evidence.records.map(row =>
+      `<p>${esc(row.text_orig || "")} <a href="#/p/${Number(row.passage_id)}?ctx=1">出处</a></p>`).join("")}</details>`;
+    html += `</article>`;
+  }
+  if (!result.evidence.length) html += `<p>本轮未找到可展示的候选史料，可以补充人物、事件名或缩小史料范围。</p>`;
+  html += result.notes.map(x => `<p class="quiet">${esc(x)}</p>`).join("");
+  html += `<p class="quiet">耗时 ${num(result.metrics.elapsed_ms)} ms · 模型调用 ${num(result.metrics.model_calls)} 次</p>`;
+  return html;
 }
 
 /* ================= 全文检索 ================= */
@@ -250,9 +519,22 @@ const MODE_TIP = {
   long: "完整：每段尽量给到约 1200 字，接近一整段史料的完整体量",
 };
 let searchState = { q: "", book: "", edition: "", page: 1, pageSize: 20,
-                    mode: "standard", text: "orig", total: 0, hitTotal: 0,
+                    mode: "standard", text: readingMode, total: 0, hitTotal: 0,
                     terms: [], simpleTerms: [], results: [], items: [] };
-let searchLoading = false;
+let activeSearch = null;
+function cancelSearch() {
+  if (activeSearch) {
+    activeSearch.controller.abort();
+    activeSearch.box.setAttribute("aria-busy", "false");
+  }
+  activeSearch = null;
+  searchState.lastRes = null;
+}
+function isCurrentSearch(request) {
+  return request && activeSearch === request &&
+    request.revision === routeRevision && request.hash === location.hash &&
+    request.box === $("#result");
+}
 /* 在册未入库的书（第六点四阶段 §25 情况四）。数据来自 /api/catalog 的 planned；
  * 演示模式下拿不到目录，集合为空 —— 于是公开站的下拉里只有演示书，
  * **真实书名一个都不进产物**（§22）。 */
@@ -264,21 +546,28 @@ let plannedBooks = [];
 const isPlannedBook = (id, list = plannedBooks) =>
   !!id && (list || []).some(p => p.book_id === id);
 
-async function searchView(params) {
+async function searchView(params, revision = routeRevision, hash = location.hash) {
+  if (typeof punctuatedSearchView === 'function' && await punctuatedSearchView(params,revision,false)) return;
   const view = $("#view");
   const books = await getBooks();
+  if (revision !== routeRevision || hash !== location.hash) return;
   // §25 情况四：把「在册未入库」的书也列进下拉。**必须能选中它们** —— 否则
   // 「这部史书尚未收录」这句话在浏览器里根本没有入口，「情况四」也就无从验收。
   const cat = await tryCatalog();
+  if (revision !== routeRevision || hash !== location.hash) return;
   plannedBooks = (cat && cat.planned) || [];
   searchState = { ...searchState, q: params.q ?? "", book: params.book ?? "",
                   edition: params.edition ?? "", page: +(params.page || 1),
                   mode: params.mode || searchState.mode || "standard",
-                  text: params.text || searchState.text || "orig",
+                  text: readingMode,
                   total: 0, hitTotal: 0, results: [], items: [] };
-  view.innerHTML = `<div class="searchbar">
+    view.innerHTML = `<div class="page-heading"><p class="eyebrow">原底本对照检索</p><h1>在原文中寻找</h1><p><a href="#/search?${qs({q:searchState.q,book:searchState.book})}">返回标点版检索</a></p></div><div class="searchbar">
+      <div class="search-main">
       <input id="sq" type="text" value="${esc(searchState.q)}"
-        placeholder="人物 · 事件 · 地名 · 原文词句">
+        aria-label="检索关键词" placeholder="人物、地名或原文词句">
+      <button class="btn primary" onclick="doSearch()">检索原文</button></div>
+      <details class="search-options"${searchState.book || searchState.edition ? " open" : ""}><summary>筛选与阅读设置</summary><div class="search-filters">
+      <label class="filter-label">史书
       <select id="sbook">
         <option value="">全部史书</option>
         ${books.map(b => `<option value="${esc(b.book_id)}"
@@ -287,12 +576,13 @@ async function searchView(params) {
           plannedBooks.map(p => `<option value="${esc(p.book_id)}"
             ${searchState.book === p.book_id ? "selected" : ""}>《${esc(p.title)}》</option>`).join("")
         }</optgroup>` : ""}
-      </select>
+      </select></label>
+      <label class="filter-label">版本
       <select id="sedition">
         <option value="">全部版本</option>
         <option value="sbck" ${searchState.edition === "sbck" ? "selected" : ""}>四部丛刊（SBCK）</option>
         <option value="tls" ${searchState.edition === "tls" ? "selected" : ""}>tls</option>
-      </select>
+      </select></label>
       <label class="modepick" title="每个史料片段展示多长；只影响取多少相邻原文，不改动原文">
         显示长度
         <select id="smode" onchange="onModeChange(this.value)">
@@ -301,13 +591,13 @@ async function searchView(params) {
         </select>
       </label>
       <label class="modepick" title="${esc(TEXT_MODE_TIP[searchState.text])}">
-        字体
+        史料显示
         <select id="stext" onchange="onTextChange(this.value)">
           ${TEXT_MODES.map(([v, t]) => `<option value="${v}"
             ${searchState.text === v ? "selected" : ""}>${t}</option>`).join("")}
         </select>
       </label>
-      <button class="btn primary" onclick="doSearch()">搜索</button>
+      </div></details>
     </div>
     <div id="result"><div class="load">输入关键词开始检索<br>例：「齐桓公」「城濮」「殽之战」均可；空结果可换用更短词（如「殽」）</div></div>`;
   $("#sq").addEventListener("keydown", e => { if (e.key === "Enter") doSearch(); });
@@ -319,50 +609,60 @@ window.onModeChange = v => {
   try { localStorage.setItem("historyai.mode", searchState.mode); } catch (e) { /* 隐私模式 */ }
   if (searchState.q) doSearch(1);
 };
-window.onTextChange = v => {
-  searchState.text = v || "orig";
-  try { localStorage.setItem("historyai.text", searchState.text); } catch (e) { /* 隐私模式 */ }
-  // 字体切换不重新请求：繁简两份正文响应里都已经带回来了（见 search.dual_text）。
-  if (searchState.q) renderResults(searchState.lastRes);
-};
+window.onTextChange = v => window.setReadingMode(v);
 try { const m = localStorage.getItem("historyai.mode");
       if (BLOCK_MODES.some(x => x[0] === m)) searchState.mode = m; } catch (e) { /* 忽略 */ }
-try { const t = localStorage.getItem("historyai.text");
-      if (TEXT_MODES.some(x => x[0] === t)) searchState.text = t; } catch (e) { /* 忽略 */ }
 
-function doSearch(page) {
-  if (searchLoading) return;
+
+async function doSearch(page) {
+  const box = $("#result");
+  if (!box || parseHash().seg[0] !== "search") return;
+  cancelSearch();
   if (page != null) searchState.page = page;
   const sq = $("#sq"); if (sq) searchState.q = sq.value.trim();
   const sb = $("#sbook"); if (sb) searchState.book = sb.value;
   const se = $("#sedition"); if (se) searchState.edition = se.value;
   const sm = $("#smode"); if (sm) searchState.mode = sm.value;
   const sx = $("#stext"); if (sx) searchState.text = sx.value;
-  if (!searchState.q) { $("#sq").focus(); return; }
-  const rp = { q: searchState.q, book: searchState.book, edition: searchState.edition,
+  if (!searchState.q) {
+    box.innerHTML = `<div class="load">输入关键词开始检索</div>`;
+    if (sq) sq.focus();
+    return;
+  }
+  const rp = { q: searchState.q, book: searchState.book, edition: searchState.edition, source: 'original',
                page: searchState.page, page_size: searchState.pageSize,
                mode: searchState.mode, text: searchState.text };
   history.replaceState(null, "", `#/search?${qs(rp)}`);
-  const box = $("#result");
+  const request = {
+    controller: new AbortController(), box, hash: location.hash, revision: routeRevision,
+  };
+  activeSearch = request;
+  box.setAttribute("aria-busy", "true");
   // §25 情况四：**在册未入库的书不送去 /api/search** —— engine.resolve_book 只认
   // 库里的书，会抛「未识别的史书」（engine 没错，它的职责就只管库里的书）。
   // 正确答案是 diagnose 的四态之一 not_imported：「这部史书尚未收录」，还带上
   // 它有多少卷。送去 /api/search 的话，用户看到的是一个错误框 —— 那等于把
   // 「我还没收这本书」说成了「这次检索坏了」。
-  if (isPlannedBook(searchState.book)) {
-    box.innerHTML = `<div class="load">正在查收录范围…</div>`;
-    renderNotImported(box, rp);
-    return;
+  try {
+    if (isPlannedBook(searchState.book)) {
+      box.innerHTML = `<div class="load">正在查收录范围…</div>`;
+      await renderNotImported(box, rp, request);
+      return;
+    }
+    box.innerHTML = `<div class="load">正在查找史料…</div>`;
+    const res = await api(`/api/search?${qs(rp)}`, { signal: request.controller.signal });
+    if (!isCurrentSearch(request)) return;
+    renderResults(res);
+  } catch (e) {
+    if (!isCurrentSearch(request) || e.name === "AbortError") return;
+    box.innerHTML = `<div class="card"><b>检索失败</b><br>${esc(e.message)}</div>`;
+  } finally {
+    if (isCurrentSearch(request)) box.setAttribute("aria-busy", "false");
   }
-  box.innerHTML = `<div class="load">正在查找史料…</div>`;
-  searchLoading = true;
-  api(`/api/search?${qs(rp)}`).then(res => { searchLoading = false; renderResults(res); })
-    .catch(e => { searchLoading = false;
-      box.innerHTML = `<div class="card"><b>检索失败</b><br>${esc(e.message)}</div>`; });
 }
 function renderResults(res) {
   const box = $("#result");
-  if (!res) return;                      // 字体切换时若还没有结果，什么都不做
+  if (!res || !box) return;              // 字体切换时若还没有结果，什么都不做
   searchState.lastRes = res;
   searchState.simpleTerms = res.terms_simplified || [];
   searchState.total = res.total; searchState.page = res.page;
@@ -371,8 +671,8 @@ function renderResults(res) {
   const terms = (res.q_traditional || "").split(/\s+/).filter(Boolean);
   searchState.terms = terms;          // 展开更多上下文时也要继续高亮
   if (!res.results || !res.results.length) {
-    box.innerHTML = `<div class="empty"><b>没有找到相关史料</b><br>
-      换个写法（如「殽之战」→「殽」）、缩短关键词，或先选「全部史书」再搜</div>`;
+    box.innerHTML = `<div class="empty"><b>没有找到匹配片段</b><br>
+      可缩短关键词，或选择“全部史书”再搜。<br>检索仅覆盖已收录文本，未命中不代表原书没有记载。</div>`;
     renderDiagnosis(box, res);
     return;
   }
@@ -386,7 +686,7 @@ function renderResults(res) {
   let html = `<div class="resulthead">
       共 <b>${blocks.toLocaleString()}</b> 段史料${scope.length ? `（${scope.join("、")}）` : ""}
       · 第 ${(res.page - 1) * res.page_size + 1}–${Math.min(blocks, res.page * res.page_size)} 段
-      <span class="quiet">· 原始命中 ${hits.toLocaleString()} 条，已按上下文合并为完整片段</span>
+      <span class="quiet">· 命中 ${hits.toLocaleString()} 条记录</span>
       ${res.truncated ? `<br><span class="quiet">命中过多，本次只组装了前 ${blocks.toLocaleString()} 段</span>` : ""}
       ${res.section_truncated ? `<br><span class="quiet">命中的篇名过多，篇名结果只列了前若干条（正文结果不受影响）</span>` : ""}
     </div>`;
@@ -394,19 +694,20 @@ function renderResults(res) {
   searchState.results.forEach((b, i) => {
     html += blockCard(b, terms, i, searchState.text, searchState.simpleTerms); });
   html += pagerBlock(blocks, res.page, res.page_size, "doSearch");
-  html += `<p class="quiet">每段正文由数据库原始记录（<span class="mono">text_orig</span>）依序相接，
-    不改写、不补标点；相邻原文只按同一文件内的真实次序读取，不作任何推测。
-    简体输入自动转繁体匹配（齐桓公 → 齊桓公）。</p>`;
+  html += `<p class="collection-note">片段按相邻原文展示，可能包含括注；引用前请核对版本与上下文。
+    <a href="#/about">来源与使用范围</a></p>`;
   box.innerHTML = html;
 }
 
 /* 空结果的逐层归因（第六点三阶段 6.3-H）。判据与测试报告同源（search/diagnose.py），
  * 所以页面上说「语料尚未收录」时，`tests/recall.py` 的报告里也是同一句话。
  * 只在本地 API 模式下拿得到（见 tryDiagnose）；拿不到就保持上面那句通用提示。 */
-async function renderDiagnosis(box, res) {
-  const d = await tryDiagnose(res.q || searchState.q, res.book, res.edition);
+async function renderDiagnosis(box, res, request = activeSearch) {
+  if (!isCurrentSearch(request)) return;
+  const d = await tryDiagnose(res.q || searchState.q, res.book, res.edition,
+    { signal: request.controller.signal });
   // 竞态：等回来时用户可能已经搜了别的 —— 那一格已经被覆盖，别再写回去。
-  if (!d || !d.summary || searchState.lastRes !== res) return;
+  if (!isCurrentSearch(request) || !d || !d.summary || searchState.lastRes !== res) return;
   const mark = ok => (ok === true ? "✓" : (ok === false ? "✗" : "–"));
   // 标题由**归因给的 result_status** 决定，不在这里另判一次（§7~§9）。
   // 六点三时这里写死「没有找到相关史料」—— 那句话在 5 部残缺正史和 9 部未导入
@@ -419,11 +720,11 @@ async function renderDiagnosis(box, res) {
   let html = `<div class="empty"><b>${esc(head)}</b><br>${esc(d.summary)}</div>`;
   html += scopeCard(d.scope);
   if ((d.layers || []).length) {
-    html += `<div class="card"><b>逐层排查</b>
+    html += `<details class="card maintenance"><summary>检索依据与诊断详情</summary>
       <div class="quiet">从「语料在册」到「块组装」，每层给结论与证据：</div>
       <ul class="diag">${d.layers.map(l =>
         `<li><span class="mono">${mark(l.ok)} ${esc(l.title)}</span> ${esc(l.detail)}</li>`
-      ).join("")}</ul></div>`;
+      ).join("")}</ul></details>`;
   }
   if ((d.suggestions || []).length) {
     html += `<div class="card"><b>可以试试</b><ul class="diag">${d.suggestions
@@ -436,12 +737,12 @@ async function renderDiagnosis(box, res) {
  * 直接问 diagnose 并复用 renderDiagnosis —— 四态标题、收录范围卡、逐层排查都在
  * 那一处；两处各写一套，早晚会给出两个说法。
  *
- * 这里只塞一个最小 res：renderDiagnosis 只用 q/book/edition 三个字段，以及
- * lastRes 的同一性做竞态守卫（先记下这个 res，守卫才放行）。 */
-function renderNotImported(box, rp) {
+ * 这里只塞一个最小 res：renderDiagnosis 使用 q/book/edition，
+ * 并同时核对请求、路由、结果节点和 lastRes，防止过期诊断写回。 */
+function renderNotImported(box, rp, request = activeSearch) {
   const res = { q: rp.q, book: rp.book, edition: rp.edition };
   searchState.lastRes = res;
-  renderDiagnosis(box, res);
+  return renderDiagnosis(box, res, request);
 }
 
 /* 有结果时的残缺提示（第六点四阶段 §28）。
@@ -521,8 +822,8 @@ const MATCH_TIP = {
   both: ["正文 + 篇名命中", "这一篇既命中了篇名，正文里也出现了检索词"],
 };
 const LAYER_TIP = {
-  commentary_candidate: ["原刊括注 · 待确认",
-    "原书行内括号里的内容，是否为注文待人工确认；系统不自动归属任何注者，也不与正文混排"],
+  commentary_candidate: ["原刊括注",
+    "按括号自动分离，注者与正文归属未经逐条核定；保留原文，不据此认定作者"],
   preface: ["序跋", "第一阶段判定的序/跋部分，与正文分列"],
   appendix: ["附录", "第一阶段判定的附录部分"],
   backmatter: ["后附", "第一阶段判定的书末附载内容"],
@@ -534,23 +835,7 @@ const LAYER_TIP = {
  * 转换不可靠时接口会把 text_simplified 回退成原文并置 simplified_ok=false，
  * 这里就不再声称它是简体。 */
 function dualTextHtml(b, tmode, terms, sterms) {
-  const origHtml = mark(rich(b.text || ""), terms);
-  if (tmode !== "simplified" && tmode !== "both")
-    return `<div class="blk-text">${origHtml}</div>`;
-  if (b.simplified_ok === false) {
-    return `<div class="blk-text">${origHtml}</div>
-      <div class="hit-notes">这段文字的系统转换结果不可靠（转换前后字数不一致），
-        这里按原文显示，不提供简体。</div>`;
-  }
-  const simpHtml = mark(rich(b.text_simplified || ""), sterms || []);
-  const note = `简体由程序按系统字符表转换（改动 ${num(b.simplified_chars)} 字），
-    仅供阅读；原文以繁体为准。`;
-  if (tmode === "simplified")
-    return `<div class="blk-text simple">${simpHtml}</div>
-      <div class="hit-notes">${note}</div>`;
-  return `<div class="blk-text">${origHtml}</div>
-    <div class="blk-text simple"><span class="dualtag">简</span>${simpHtml}</div>
-    <div class="hit-notes">${note}</div>`;
+  return `<div class="blk-text">${readingTextHtml(b.text || "", { pb: false }, terms || [])}</div>`;
 }
 
 function blockCard(b, terms, idx, tmode, sterms) {
@@ -564,33 +849,34 @@ function blockCard(b, terms, idx, tmode, sterms) {
   const btns = [];
   if (b.more_before) btns.push(`<button class="btn" onclick="expandBlock(${idx},'before',this)">← 继续向上文</button>`);
   if (b.more_after) btns.push(`<button class="btn" onclick="expandBlock(${idx},'after',this)">继续向下文 →</button>`);
-  btns.push(`<a class="btn" href="#/p/${b.hit_passage_id}?ctx=1">定位到命中句 · 单条原文</a>`);
+  btns.push(`<a class="btn" href="#/p/${b.hit_passage_id}?ctx=1">出处与上下文</a>`);
   // 读全文（§17）：搜索页只是「找到哪里」，读整篇要换一页——那一页没有表格、
   // 没有行号，只有连续的正文，落点就在这一段的起始行。
   // 说的是「全文」而不是「本篇全文」：那一页按**文件**连续读（先秦一文件即一卷），
   // 篇的边界在那里并没有标出来，写「本篇」会承诺一个页面上不存在的范围。
   if (b.file_id && b.row_first != null)
-    btns.push(`<a class="btn" href="#/read/${b.file_id}?row=${b.row_first}"
-      title="按原文件连续读全文，从这一段的开头进入">查看全文</a>`);
+    btns.unshift(`<a class="btn read-link" href="#/read/${b.file_id}?row=${b.row_first}"
+      title="按原文件连续阅读，从这一段的开头进入">阅读全文 →</a>`);
   return `<div class="card blk${b.layer && b.layer !== "main" ? " blk-side" : ""}" id="blk${idx}">
     <div class="hit-head">
       <span class="hit-book">《${esc(b.book_title || "暂无")}》</span>
       ${loc ? `<span class="hit-loc">${esc(loc)}</span>` : `<span class="chip structure">卷/篇暂无</span>`}
       ${pageSpan ? chip(pageSpan, "page") : ""}
-      ${ly ? chip(ly[0], b.layer === "commentary_candidate" ? "cand" : "structure", ly[1]) : ""}
+      ${ly && b.layer !== "main" ? chip(ly[0], b.layer === "commentary_candidate" ? "cand" : "structure", ly[1]) : ""}
       ${mt ? chip(mt[0], "cand", mt[1]) : ""}
       ${b.match_count > 1
         ? chip(`本段命中 ${num(b.match_count)} 处`, "main", "该片段内命中检索词的记录条数")
-        : chip("命中 1 处", "main")}
+        : ""}
     </div>
     ${b.layer === "commentary_candidate"
-      ? `<div class="hit-notes">（原刊括号内容 — 是否注文待人工确认，系统不作正文判定）</div>` : ""}
+      ? `<div class="hit-notes">括号内原文，按形式自动分离；注者及正文归属未核定。</div>` : ""}
     ${dualTextHtml(b, tmode, terms, sterms)}
     <div class="hit-meta">
       <span>出处：${esc(b.juan || "暂无")}${b.section ? ` · ${esc(b.section)}` : ""}${b.subsection ? ` · ${esc(b.subsection)}` : ""}</span>
       <span>版本：${esc(fam(b.family))}</span>
-      <span>原文件：${esc(b.file_name || "暂无")}</span>
-      <span>片段：${num(b.n_passages)} 条记录 · ${num(b.n_chars)} 字</span>
+      <details class="source-detail"><summary>原文件与定位信息</summary>
+        <span>原文件：${esc(b.file_name || "未提供")} · 行号 ${b.row_first != null ? esc(b.row_first) : "未提供"}${b.row_last != null ? `–${esc(b.row_last)}` : ""}</span>
+      </details>
     </div>
     <div class="hit-actions">${btns.join("")}</div>
   </div>`;
@@ -615,7 +901,7 @@ window.expandBlock = async function (idx, dir, btn) {
     if (!r.rows || !r.rows.length) { btn.textContent = "已读到本段开头"; btn.disabled = true; return; }
     const add = document.createElement("span");
     add.className = dir === "before" ? "blk-add lead" : "blk-add";
-    add.innerHTML = mark(rich(r.rows.map(x => x.text_orig || "").join("")), searchState.terms);
+    add.innerHTML = readingTextHtml(r.rows.map(x => x.text_orig || "").join(""), { pb: true }, searchState.terms);
     if (dir === "before") textEl.insertBefore(add, textEl.firstChild);
     else textEl.appendChild(add);
     // 更新锚点与状态，让按钮可反复点（读到尽头则换成提示）
@@ -674,20 +960,19 @@ async function passageView(id, params) {
         <span class="hit-book">《${esc(it.book_title)}》</span>
         ${loc ? `<span class="hit-loc">${esc(loc)}</span>` : `<span class="chip structure">卷/篇暂无</span>`}
         ${it.page ? chip(`第 ${esc(it.page)} 页`, "page") : ""}
-        ${it.commentary_candidate ? chip("原刊括号内容 · 待确认", "cand") : ""}
+        ${it.commentary_candidate ? chip("原刊括注（归属未核定）", "cand") : ""}
         <span class="quiet">原文行 ${it.row_no} · ${esc(fam(it.family))}</span>
       </div>
-      <div class="readingtext">${rich(it.text_orig, { pb: false })}</div>
+      <div class="readingtext">${readingTextHtml(it.text_orig, { pb: false })}</div>
       <div class="hit-meta">
         <span>出处：《${esc(it.book_title)}》${it.juan ? ` · ${esc(it.juan)}` : ""}${it.section ? ` · ${esc(it.section)}` : ""}${it.subsection ? ` · ${esc(it.subsection)}` : ""}</span>
         <span>版本：${esc(fam(it.family))}</span>
         <span>原文件：${esc(it.file_name || "暂无")}</span>
         ${sr ? `<span title="${esc(sr.raw || "")}">出处注：${esc((sr.raw || "").slice(0, 60))}</span>` : ""}
-        <span class="quiet mono">${esc(it.book_id)} · 行 ${it.row_no}</span>
       </div>
     </div>
     <div id="ctxzone"></div>
-    <details class="card"><summary class="sum">数据详情（默认折叠）</summary>${dataTable(m)}</details>`;
+    <details class="card maintenance"><summary class="sum">技术定位信息</summary>${dataTable(m)}</details>`;
   renderCtx(ctx);
   if (params.ctx != null) setTimeout(() => {
     const z = $("#ctxzone"); if (z) z.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -698,7 +983,7 @@ function renderCtx(ctx) {
   const z = $("#ctxzone");
   if (!z) return;
   const item = (x, cur) => `<div class="ctx-item ${cur ? "ctx-cur" : ""}"
-      onclick="location.hash='#/p/${x.passage_id}${cur ? '?ctx=1' : ''}'">${rich(x.text_orig, { pb: false })}</div>`;
+      onclick="location.hash='#/p/${x.passage_id}${cur ? '?ctx=1' : ''}'">${readingTextHtml(x.text_orig, { pb: false })}</div>`;
   const para = xs => xs.length ? `<div class="ctxlist">${xs.map(x => item(x)).join("")}</div>`
     : `<p class="quiet">（该文件内无相邻记录）</p>`;
   z.innerHTML = `<div class="ctxcap">— 上文 · 同文件前 ${ctx.before.length} 段 —</div>
@@ -710,26 +995,26 @@ function renderCtx(ctx) {
 }
 
 /* ================= 数据检查（保留第一阶段检查台） ================= */
+function collectionStatus(volume) {
+  if (!volume || !volume.known || volume.status === "unknown") return "卷次信息不全";
+  if (volume.status === "partial") return "收录不全";
+  if (volume.status === "complete") return "已收卷次齐备";
+  return "收录范围见说明";
+}
 async function booksView() {
-  const view = $("#view");
-  const books = await getBooks();
-  let html = `<a class="backlink" href="#/">← 首页</a>
-    <h3>数据检查 · ${books.length} 部史书</h3>
-    <p class="quiet">原始文件解析入库的忠实度检查；普通阅读请用顶部「全文检索」。</p>
-    <div class="overflow"><table class="dev"><tr>
-      <th>书名</th><th>书号</th><th>版本</th><th>文件</th><th>正文</th>
-      <th>待确认</th><th>出处块</th><th>缺字行</th><th></th></tr>`;
-  for (const b of books) {
-    html += `<tr><td><b>《${esc(b.title)}》</b></td><td class="mono">${esc(b.book_id)}</td>
-      <td>${chip(fam(b.family), b.family === "sbck" ? "structure" : "")}</td>
-      <td>${num(b.files).toLocaleString()}</td><td>${num(b.main_passages).toLocaleString()}</td>
-      <td>${b.pending ? chip(num(b.pending).toLocaleString(), "cand") : "—"}</td>
-      <td>${num(b.src_blocks).toLocaleString()}</td><td>${num(b.kr_rows).toLocaleString()}</td>
-      <td><a class="backlink" href="#/book/${encodeURIComponent(b.book_id)}">文件列表 →</a></td></tr>`;
-  }
-  html += `</table></div>
-    <p class="quiet">「待确认」= 状态待定的原刊括号注候选（國語/戰國策），见<a class="backlink" href="#/pending">待确认注释</a>。</p>`;
-  view.innerHTML = html;
+  const view = $("#view"), revision = routeRevision;
+  const [books, catalog] = await Promise.all([getBooks(), tryCatalog()]);
+  if (revision !== routeRevision) return;
+  const volumes = new Map(((catalog && catalog.books) || []).map(b => [b.book_id, b.volume]));
+  view.innerHTML = `<div class="page-heading"><p class="eyebrow">收录书目</p><h1>书库 <span>${books.length}</span></h1>
+    <p>按收录版本阅读。卷次齐备不代表已经校勘。</p></div>
+    <p><a class="btn" href="#/punctuated">标点本书库 →</a></p>
+    ${catalog ? `<p class="collection-note">卷次信息来自目录快照 ${esc((catalog.volume_generated_at || catalog.generated_at || "日期未提供").slice(0, 10))}。</p>`
+      : `<p class="collection-note">当前模式未提供卷次完整性资料，不据此认定收录完整。</p>`}
+    <div class="book-grid library-grid">${books.map(b => `<a class="book-card" href="#/book/${encodeURIComponent(b.book_id)}">
+      <div class="t">《${esc(b.title)}》</div><div class="n">${esc(b.edition || fam(b.family))}</div>
+      <div class="m"><span>${esc(collectionStatus(volumes.get(b.book_id)))}</span><span>阅读 →</span></div></a>`).join("")}</div>
+    <p class="collection-note">搜索只覆盖已收录文本。<a href="#/about">查看来源与局限</a></p>`;
 }
 
 /* -------- 收录进度（#/coverage 顶部，6.3-I）--------
@@ -951,29 +1236,27 @@ function covChip(status) {
 }
 
 async function bookView(bookId) {
-  const view = $("#view");
-  const [files, books] = await Promise.all(
-    [api(`/api/books/${encodeURIComponent(bookId)}/files`), getBooks()]);
-  if (!files.length) { view.innerHTML = `<div class="card">该书无文件</div>`; return; }
-  const b0 = books.find(x => x.book_id === bookId) || {};
-  let html = `<a class="backlink" href="#/books">← 数据检查</a>
-    <h3>《${esc(b0.title || bookId)}》 · ${files.length} 个原始文件
-      <span class="quiet">${esc(bookId)} · ${esc(fam(b0.family || ""))}</span></h3>
-    <div class="overflow"><table class="dev"><tr>
-      <th>原始文件</th><th>页范围</th><th>正文</th><th>括号注</th><th>序/跋/目</th>
-      <th>待确认</th><th>记录</th><th>sha256</th><th>检查</th></tr>`;
-  for (const f of files) {
-    html += `<tr><td class="mono">${esc(f.file_name)}</td>
-      <td class="mono">${esc(f.pb_range || "—")}</td><td>${num(f.main).toLocaleString()}</td>
-      <td>${f.commentary ? chip(num(f.commentary).toLocaleString(), "cand") : "—"}</td>
-      <td>${(f.preface || f.back) ? `序${f.preface}/跋${f.back}` : "—"}</td>
-      <td>${f.pending ? chip(num(f.pending).toLocaleString(), "cand") : "—"}</td>
-      <td>${num(f.records).toLocaleString()}</td><td class="mono">${esc((f.sha256 || "").slice(0, 10))}…</td>
-      <td><a class="backlink" href="#/file/${f.file_id}">检查</a> ·
-          <a class="backlink" href="#/file/${f.file_id}?tab=raw">原文对照</a></td></tr>`;
-  }
-  html += `</table></div>`;
-  view.innerHTML = html;
+  const view = $("#view"), revision = routeRevision;
+  const [files, books, catalog] = await Promise.all([
+    api(`/api/books/${encodeURIComponent(bookId)}/files`), getBooks(), tryCatalog()]);
+  if (revision !== routeRevision) return;
+  if (!files.length) { view.innerHTML = `<div class="empty">暂无可阅读的收录文本。</div>`; return; }
+  const b = books.find(x => x.book_id === bookId) || {};
+  const entry = ((catalog && catalog.books) || []).find(x => x.book_id === bookId);
+  const volume = entry && entry.volume;
+  view.innerHTML = `<a class="backlink" href="#/books">← 书库</a>
+    <div class="page-heading"><p class="eyebrow">${esc(b.edition || fam(b.family))}</p>
+      <h1>《${esc(b.title || bookId)}》</h1><p>${esc(collectionStatus(volume))} · 按收录文件阅读</p></div>
+    ${volume && volume.status === "partial" ? `<p class="scope-notice">本版本收录不全。未收部分不参与检索，未命中不代表原书没有记载。</p>` : ""}
+    ${volume && volume.note ? `<p class="collection-note">${esc(volume.note)}</p>` : ""}
+    <div class="book-actions"><a class="btn primary" href="#/search?${qs({book:bookId})}">在本书中检索</a>
+      <a class="btn" href="#/punctuated?${qs({book:bookId})}">查看标点版</a></div>
+    <p class="collection-note">以下按原文件排列；文件名不是篇名或卷号，页面不据此推断章节。</p>
+    <div class="file-list">${files.map((f,i) => `<a class="file-item" href="#/read/${f.file_id}">
+      <span class="file-number">${String(i+1).padStart(2,"0")}</span><span><strong>${esc(f.file_name)}</strong>
+      <small>${f.pb_range ? `页码 ${esc(f.pb_range)}` : "页码信息未提供"}</small></span><span aria-hidden="true">→</span></a>`).join("")}</div>
+    <details class="maintenance"><summary>版本与技术资料</summary><p>${esc(bookId)} · ${esc(fam(b.family))}</p>
+      ${files.map(f => `<p><a href="#/file/${f.file_id}?tab=raw">${esc(f.file_name)} · 原文对照</a></p>`).join("")}</details>`;
 }
 
 /* -------- 文件页（解析记录 | 原文对照 两页签） -------- */
@@ -1142,14 +1425,12 @@ async function readView(fileId, params) {
   rv.total = num(d0.total);
   rv.offset = rv.anchorRow ? await offsetOfRow(fileId, rv.anchorRow) : 0;
   rv.offset = Math.max(0, Math.min(rv.offset, Math.max(0, rv.total - 1)));
-  view.innerHTML = `<a class="backlink" href="#/file/${fileId}">← 解析记录 / 原文对照（检查台）</a>
+  view.innerHTML = `<a class="backlink" href="#/book/${encodeURIComponent(f.book_id)}">← 返回书目</a>
     <div class="card">
       <div class="passage-top"><b style="font-size:15px">${esc(f.file_name)}</b>
         <span class="quiet">${esc(f.book_id)}</span></div>
-      <div class="quiet" style="margin-top:4px">连续正文，一页 ${rv.limit} 条记录
-        （只显示 <span class="mono">kind=passage</span> 的史料正文）。
-        ${searchState.text !== "orig"
-          ? "本页按原文（繁体）显示，不带繁简双轨。" : ""}</div>
+      <div class="quiet" style="margin-top:4px">按原文件连续阅读，保留正文与括注的区分。
+        可通过页面顶部切换原文与简体阅读。</div>
     </div>
     <div id="rbody"><div class="load">正在加载…</div></div>`;
   loadReadPage();
@@ -1175,14 +1456,15 @@ async function loadReadPage() {
       <span class="quiet">第 ${shownFrom.toLocaleString()}–${shownTo.toLocaleString()} 条 /
         共 ${rv.total.toLocaleString()} 条</span></div>
     ${skipped ? `<p class="quiet">本页另有 ${skipped} 条非正文记录（标题/注释/解析元数据），
-      不在阅读流里显示；要看它们请用「检查台」。</p>` : ""}
+      不在当前阅读流中显示。</p>` : ""}
     <div class="read-body">`;
   let hitAnchor = false;
   for (const r of body) {
     const isAnchor = rv.anchorRow !== null && !hitAnchor && num(r.row_no) >= rv.anchorRow;
     if (isAnchor) hitAnchor = true;
     html += `<span class="read-rec${isAnchor ? " read-anchor" : ""}"
-      ${isAnchor ? 'id="readAnchor"' : ""}>${rich(r.text_orig || "")}</span>`;
+      ${r.layer === "commentary_candidate" ? 'title="原刊括注，自动识别；归属未核定"' : ""}
+      ${isAnchor ? 'id="readAnchor"' : ""}>${readingTextHtml(r.text_orig || "", {pb:false, cand:r.layer === "commentary_candidate"})}</span>`;
   }
   if (!body.length) html += `<p class="quiet">本页没有正文记录。</p>`;
   html += `</div>`;
@@ -1220,10 +1502,9 @@ async function pendingView() {
   }
   if (!pv.bookId || !withCand.some(b => b.book_id === pv.bookId)) pv.bookId = withCand[0].book_id;
   view.innerHTML = `<a class="backlink" href="#/books">← 数据检查</a>
-    <h3>待确认注释（原刊括号）</h3>
-    <p class="quiet">國語/戰國策 行内圆括号是否为注文尚未人工确认：状态保持 pending_commentary，
-    系统绝不自动归属韦昭/高诱等注者。此页逐条核对括号切分与「是否注文」，结论由人工记录；
-    展示与判定一律以 text_orig（含原刊括号）为准。</p>
+    <h3>括注识别记录（维护）</h3>
+    <p class="quiet">这些内容按原刊括号自动分离，注者与正文归属未核定。
+    本页供追溯识别结果，不是读者需要完成的校对任务；原文及内部状态保持不变。</p>
     <div class="controls">
       <label>史书</label><select id="pv-book">${withCand.map(b =>
         `<option value="${esc(b.book_id)}" ${b.book_id === pv.bookId ? "selected" : ""}>
@@ -1281,40 +1562,34 @@ async function pvGo(page) {
 
 /* ================= 项目说明 ================= */
 async function aboutView() {
-  const view = $("#view");
-  const [st, books] = await Promise.all([getStats(), getBooks()]);
-  const fts = st.fts || {};
-  const bookRows = books.map(b => `<tr><td>《${esc(b.title)}》</td>
-    <td>${num(b.files).toLocaleString()}</td><td>${num(b.main_passages).toLocaleString()}</td>
-    <td>${b.pending ? num(b.pending).toLocaleString() : "—"}</td>
-    <td>${num(b.src_blocks).toLocaleString()}</td></tr>`).join("");
-  view.innerHTML = `<h3>项目说明</h3>
-    <div class="card"><h3>这套系统是什么</h3>
-      <p>对已收录的 ${books.length} 部史料（${books.map(b => b.title).join("、")}，共
-      ${books.reduce((s, b) => s + (b.files || 0), 0).toLocaleString()} 个原始文件）做忠实
-      解析、存库与检索的本地工具。定位：找到真正古籍原文，并说清「出自哪本书哪一卷哪一行」。</p>
-      <p>原则：<b>原始史料 &gt; 解析 &gt; 数据库 &gt; 检索 &gt; AI</b>。检索与上下文来自数据库真实记录，
-      不接入任何模型，不做猜测性改写；拿不准就标待确认。</p>
-      <p class="quiet">國語/戰國策 行内圆括号注一律标「待确认」，系统不自动判定韦昭注/高诱注——
-      原刊括号内容 · 待确认，由人工逐条核对。</p></div>
-    <div class="card"><h3>当前数据</h3>
-      <div class="overflow"><table class="dev"><tr>
-        <th>史书</th><th>txt 文件</th><th>正文记录</th><th>待确认</th><th>出处块</th></tr>
-        ${bookRows}</table></div>
-      <p class="quiet">全库 ${num(st.records).toLocaleString()} 条记录；正文 ${num(st.passages).toLocaleString()} 条；
-      原件 SHA-256 校验通过；全文索引 ${fts.docs ? num(fts.docs).toLocaleString() : 0} 条（${esc(fts.tokenizer || "未建")}）</p></div>
-    <div class="card"><h3>使用提示</h3>
-      <p>· 检索输入简体自动转繁体匹配（「齐桓公」≡「齊桓公」）。<br>
-      · 每张史料的「出处」取自数据库真实字段：书名/卷/篇/节/版本/原文件/页码；确实没有的显示「暂无」——
-      系统不用文件名猜章节。<br>
-      · 「查看原文 · 上下文」展示该句在同文件中的真实相邻记录（前 3 / 后 3），可判断上下文义。<br>
-      · 紫色「括号注候选」为原刊行内括号切出片段，是否注文待人工确认；系统不变更其状态。<br>
-      · 本页为本地只读：数据库可随时从原始文件重建（<span class="mono">python -m scripts.pipeline.run_all</span>），
-      原始史料零写入。</p></div>
-    <div class="card"><h3>开发检查入口</h3>
-      <p><a class="backlink" href="#/books">数据检查</a>（逐书/逐文件统计与行内核对）·
-      <a class="backlink" href="#/pending">待确认注释</a>（逐条过括号注）·
-      文件内「原文对照」页签 = 原件与解析层逐行对账。</p></div>`;
+  const view = $("#view"), revision = routeRevision;
+  const [books, catalog, boot] = await Promise.all([
+    getBooks(), tryCatalog(), window.YindeBoot || Promise.resolve({mode:"api"})]);
+  if (revision !== routeRevision) return;
+  const demo = boot.kind === "demo";
+  const summary = catalog && catalog.volume_totals && catalog.volume_totals.in_library;
+  view.innerHTML = `<div class="page-heading"><p class="eyebrow">来源与使用范围</p><h1>原文有出处，使用有边界</h1>
+    <p>这里说明文本从哪里来、收录了多少，以及哪些判断尚不能替你作出。</p></div>
+    <section class="prose-section"><h2>文本来源</h2>
+      <p>${demo ? "当前为自制演示样例，不含真实史料，不能用于史料引用。" : "本地文本来自收录的 Kanripo 数字文本，具体版本随书目与出处展示。它们是数字转录文本，不等同于原刻扫描或经过人工逐字校勘的版本。"}</p>
+      <p>书名、版本、原文件和页码有记录时会随结果提供；缺失时明确显示未提供，不推测补齐。
+      <a href="#/books">浏览当前 ${books.length} 部收录书目 →</a></p></section>
+    <section class="prose-section"><h2>收录完整性</h2>
+      ${summary ? `<p>目录快照记载：${num((summary.by_status || {}).partial)} 部收录不全，${num((summary.by_status || {}).unknown)} 部卷次信息不全。
+        快照日期：${esc((catalog.volume_generated_at || catalog.generated_at || "未提供").slice(0,10))}。这不是本次实时校验结果。</p>`
+      : `<p>当前模式没有提供可核验的卷次完整性资料，不能据书目数量认定收录完整。</p>`}
+      <p>未收录的部分不会参与检索。没有搜到，只能说明本次查询没有在收录范围内命中。</p>
+      ${catalog ? `<p><a href="#/coverage">查看详细收录范围 →</a></p>` : ""}</section>
+    <section class="prose-section"><h2>正文与括注</h2><p>部分括号内容由程序自动分离，显示为“原刊括注”。
+      这种标记只描述文本形式，不能确定注者或正文归属；原文仍保留，你无需承担逐条校对任务。</p>
+      <p>正文阅读流会包含自动识别的括注，并使用独立样式提示，不会把它们无声混入正文。
+      简体显示是阅读辅助，引用应核对收录原文。</p></section>
+    <section class="prose-section"><h2>如何判断可用性</h2><p>文件哈希和字符对账只能验证解析结果与所收录文件一致，
+      不能证明上游转录无误、史实正确或版本完整。本页不将历史校验报告当成实时“已通过”认证。</p>
+      <p>引用前请查看版本、出处和上下文；需要严谨校勘时，还应对照相应底本或影印本。</p></section>
+    <details class="maintenance"><summary>维护工具与实验功能</summary><p>以下入口供维护与诊断，不属于日常阅读步骤。</p>
+      <p><a href="#/coverage">篇卷覆盖资料</a> · <a href="#/pending">括注识别记录</a> ·
+      <a href="#/ask">提问检索（实验）</a></p></details>`;
 }
 
 /* ================= 提问（第四阶段） ================= */
@@ -1322,25 +1597,23 @@ async function aboutView() {
  * → 召回 → 排序 → 事件级聚合 → 不同史书对照。
  * **不生成答案**：页面上出现的每一段正文都是数据库里的 text_orig 原样相接，
  * 系统只负责把线索摆出来，判断留给读者。 */
-const TEXT_MODES = [["orig", "只看繁体"], ["simplified", "只看简体"],
-                    ["both", "繁简对照"]];
+const TEXT_MODES = [["simplified", "简体阅读"], ["orig", "原文"]];
 const TEXT_MODE_TIP = {
-  orig: "原文原样。史料本来的字形，一字不改",
-  simplified: "程序按系统字符表转换的简体，只作阅读辅助；原文仍是繁体",
-  both: "上行繁体原文、下行程序转换的简体，可逐字对照",
+  orig: "保留收录底本的原有字形",
+  simplified: "程序转换，仅供阅读；引用请核对原文",
 };
 const INTENT_LABEL = {
   death: "死亡", flight: "出亡/流亡", duration: "时长", birth: "出身",
   identity: "身份", relation: "关系", event: "事件", reason: "原因",
   time: "时间", place: "地点",
 };
-let askState = { q: "", mode: "standard", text: "orig", loading: false,
+let askState = { q: "", mode: "standard", text: readingMode, loading: false,
                  terms: [], simpleTerms: [], blocks: [] };
 
 async function askView(params) {
   const view = $("#view");
   askState = { ...askState, q: params.q ?? "", mode: params.mode || "standard",
-               text: params.text || "orig" };
+               text: readingMode };
   view.innerHTML = `<div class="searchbar">
       <input id="aq" type="text" value="${esc(askState.q)}"
         placeholder="用一句话问，如：齐桓公是什么时候死的？">
@@ -1350,7 +1623,7 @@ async function askView(params) {
             ${askState.mode === v ? "selected" : ""}>${t}</option>`).join("")}
         </select>
       </label>
-      <label class="modepick" title="${esc(TEXT_MODE_TIP[askState.text])}">字体
+      <label class="modepick" title="${esc(TEXT_MODE_TIP[askState.text])}">史料显示
         <select id="atext" onchange="onAskText(this.value)">
           ${TEXT_MODES.map(([v, t]) => `<option value="${v}"
             ${askState.text === v ? "selected" : ""}>${t}</option>`).join("")}
@@ -1360,7 +1633,7 @@ async function askView(params) {
     </div>
     <div id="result"><div class="load">直接问一句试试：<br>
       「齐桓公是什么时候死的？」「晋文公重耳流亡了多少年？」「商鞅变法是怎么回事？」<br>
-      <span class="quiet">系统只检索并聚合史料原文，不生成答案；语料里没有的会如实说没有。</span></div></div>`;
+      <span class="quiet">系统只检索并聚合史料原文，不生成答案；未命中不代表原书没有记载。</span></div></div>`;
   const aq = $("#aq");
   aq.addEventListener("keydown", e => { if (e.key === "Enter") doAsk(); });
   if (askState.q) doAsk(); else aq.focus();
@@ -1369,11 +1642,7 @@ window.onAskMode = v => {
   askState.mode = v || "standard";
   if (askState.q) doAsk();
 };
-window.onAskText = v => {
-  askState.text = v || "orig";
-  // 字体切换不重新请求：繁简两份文本响应里都已经带回来了（见 dual_text）。
-  if (askState.last) renderAsk(askState.last);
-};
+window.onAskText = v => window.setReadingMode(v);
 
 function doAsk() {
   if (askState.loading) return;
@@ -1479,7 +1748,7 @@ function renderAsk(res) {
   });
   html += `<p class="quiet">以上正文全部来自数据库 <span class="mono">text_orig</span>，
     按同一文件内的真实次序相接，不改写、不补标点、不摘要。相关度是排序用的分数，
-    不是对史料可信度的评判。简体为程序按系统字符表转换所得，原文以繁体为准。</p>`;
+    不是对史料可信度的评判。简体为程序按系统字符表转换所得，引用以收录底本原文为准。</p>`;
   box.innerHTML = html;
 }
 
@@ -1497,7 +1766,7 @@ async function headerStats() {
   try {
     const st = await getStats();
     const el = $("#statsMini");
-    if (el) el.textContent = `${st.books} 部书 · ${st.files} 文件 · ${num(st.records).toLocaleString()} 记录`;
+    if (el) el.textContent = `${st.books} 部收录`;
   } catch (e) { /* 服务器未就绪时静默 */ }
 }
 
@@ -1511,7 +1780,7 @@ async function footBooks() {
   if (!el || boot.mode !== "api") return;
   try {
     const books = await getBooks();
-    el.textContent = books.map(b => b.title).join(" · ") + "　|　";
+    el.textContent = `${books.length} 部收录 · `;
   } catch (e) { /* 取不到就留空，通用说明那句话还在 */ }
 }
 route();

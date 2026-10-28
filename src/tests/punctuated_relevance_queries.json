@@ -1,0 +1,347 @@
+{
+  "policy": "2026-10-27首次新排序评测前冻结。6开发+12迁移，问题来自先前原本测试；标点本证据另行逐字核对。迁移题并非从未见过的盲测，不是全皇帝时期随机验收。病例及失败不得删除。",
+  "cases": [
+    {
+      "id": "han-western-regions",
+      "query": "张骞与开通西域有什么关系？",
+      "relation_class": "movement",
+      "split": "development",
+      "gold": [
+        {
+          "chunk_id": 58006,
+          "page_id": 19697,
+          "book_id": "KR2a0007",
+          "title": "漢書/卷070",
+          "evidence": "自張騫通西域，李廣利征伐之後，初置校尉，屯田渠黎。",
+          "source_sha256": "6b8d20fbf6dda53bacc8ddf05416e319936bc965da8b1538cf600e773b4625c3",
+          "revision_id": 1471989
+        }
+      ],
+      "expected_behavior": "返回含该关系证据的标点本片段，不要求唯一答案；仅同名或无关动作不算支持",
+      "gold_policy": "非穷尽已知证据：人工阅读标点本候选并确认上述引文；原库gold不覆盖、不改写"
+    },
+    {
+      "id": "jin-death",
+      "query": "王导去世的记载是什么？",
+      "relation_class": "death",
+      "split": "development",
+      "gold": [
+        {
+          "chunk_id": 78724,
+          "page_id": 20474,
+          "book_id": "KR2a0015",
+          "title": "晉書/卷013",
+          "evidence": "是月庚申，丞相王導薨，庾冰代輔政。",
+          "source_sha256": "c3f57767151c161d4586a70e0c8c9961597fce369d7b7559ac37e44abd334235",
+          "revision_id": 2646586
+        }
+      ],
+      "expected_behavior": "返回含该关系证据的标点本片段，不要求唯一答案；仅同名或无关动作不算支持",
+      "gold_policy": "非穷尽已知证据：人工阅读标点本候选并确认上述引文；原库gold不覆盖、不改写"
+    },
+    {
+      "id": "tang-accession",
+      "query": "唐太宗在什么地方即位？",
+      "relation_class": "accession",
+      "split": "development",
+      "gold": [
+        {
+          "chunk_id": 77768,
+          "page_id": 20440,
+          "book_id": "KR2a0026",
+          "title": "舊唐書/卷2",
+          "evidence": "八月癸亥，高祖傳位於皇太子，太宗即位於東宮顯德殿。",
+          "source_sha256": "9157459f068ad4c5c30fa14977a1812120db7ea5f3eaa1e9bb186d2d499aa134",
+          "revision_id": 2588511
+        }
+      ],
+      "expected_behavior": "返回含该关系证据的标点本片段，不要求唯一答案；仅同名或无关动作不算支持",
+      "gold_policy": "非穷尽已知证据：人工阅读标点本候选并确认上述引文；原库gold不覆盖、不改写"
+    },
+    {
+      "id": "song-appointment",
+      "query": "王安石出任宰相的记载有哪些？",
+      "relation_class": "appointment",
+      "split": "development",
+      "gold": [
+        {
+          "chunk_id": 109722,
+          "page_id": 30019,
+          "book_id": "KR2a0032",
+          "title": "宋史/卷016",
+          "evidence": "未幾，王安石入相。",
+          "source_sha256": "74904e5fb3ba910f7f65b05914201bbfc63146e9e283760b1a0850dc0b73b0a1",
+          "revision_id": 2285107
+        }
+      ],
+      "expected_behavior": "返回含该关系证据的标点本片段，不要求唯一答案；仅同名或无关动作不算支持",
+      "gold_policy": "非穷尽已知证据：人工阅读标点本候选并确认上述引文；原库gold不覆盖、不改写"
+    },
+    {
+      "id": "song-resignation-reason",
+      "query": "岳飞为什么因母亲的事离开官职？",
+      "relation_class": "reason",
+      "split": "development",
+      "gold": [
+        {
+          "chunk_id": 101271,
+          "page_id": 27037,
+          "book_id": "KR2a0032",
+          "title": "宋史/卷028",
+          "evidence": "岳飛以母喪去官。",
+          "source_sha256": "1e52630fe512f626fff3daae8dab98ad0af1c7a21a569e7fcec308f91eb17f0e",
+          "revision_id": 2285124
+        }
+      ],
+      "expected_behavior": "返回含该关系证据的标点本片段，不要求唯一答案；仅同名或无关动作不算支持",
+      "gold_policy": "非穷尽已知证据：人工阅读标点本候选并确认上述引文；原库gold不覆盖、不改写"
+    },
+    {
+      "id": "ming-office",
+      "query": "张居正担任司业的史料在哪里？",
+      "relation_class": "appointment",
+      "split": "development",
+      "gold": [
+        {
+          "chunk_id": 122365,
+          "page_id": 47110,
+          "book_id": "KR2a0038",
+          "title": "明史/卷213",
+          "evidence": "始拱為祭酒，居正為司業，相友善，拱亟稱居正才。",
+          "source_sha256": "58fa9dd92d14311d300116bb8352d0d6cb5c7ced3029cdd39c571e33b606b74c",
+          "revision_id": 2602514
+        }
+      ],
+      "expected_behavior": "返回含该关系证据的标点本片段，不要求唯一答案；仅同名或无关动作不算支持",
+      "gold_policy": "非穷尽已知证据：人工阅读标点本候选并确认上述引文；原库gold不覆盖、不改写"
+    },
+    {
+      "id": "holdout-han-death",
+      "query": "萧何去世的记载在哪里？",
+      "relation_class": "death",
+      "split": "transfer",
+      "gold": [
+        {
+          "chunk_id": 9656,
+          "page_id": 9466,
+          "book_id": "KR2a0001",
+          "title": "史記/卷054",
+          "evidence": "惠帝二年，蕭何卒。",
+          "source_sha256": "c463af043ce7284d723364d09278c4b16adcabe1e07d81d4d6e2854416ff53e9",
+          "revision_id": 1490182
+        }
+      ],
+      "expected_behavior": "返回含该关系证据的标点本片段，不要求唯一答案；仅同名或无关动作不算支持",
+      "gold_policy": "非穷尽已知证据：人工阅读标点本候选并确认上述引文；原库gold不覆盖、不改写"
+    },
+    {
+      "id": "holdout-han-enfeoff",
+      "query": "韩信被立为齐王有哪些记载？",
+      "relation_class": "politics",
+      "split": "transfer",
+      "gold": [
+        {
+          "chunk_id": 256,
+          "page_id": 7542,
+          "book_id": "KR2a0001",
+          "title": "史記/卷008",
+          "evidence": "乃遣張良操印綬立韓信為齊王。",
+          "source_sha256": "225bc4a43606c79bb2e914d7e5dc416d16f0a7624a126db2f865e020d90651fb",
+          "revision_id": 2440965
+        }
+      ],
+      "expected_behavior": "返回含该关系证据的标点本片段，不要求唯一答案；仅同名或无关动作不算支持",
+      "gold_policy": "非穷尽已知证据：人工阅读标点本候选并确认上述引文；原库gold不覆盖、不改写"
+    },
+    {
+      "id": "holdout-shu-succession",
+      "query": "刘禅即位之前是谁去世了？",
+      "relation_class": "politics",
+      "split": "transfer",
+      "gold": [
+        {
+          "chunk_id": 80760,
+          "page_id": 20533,
+          "book_id": "KR2a0015",
+          "title": "晉書/卷028",
+          "evidence": "劉備卒，劉禪即位，未葬，亦未逾月，而改元為建興",
+          "source_sha256": "45afeb68e0815a6e7f514c5e772bbd12e653b0f2b80ba046e0339e41b7e4415d",
+          "revision_id": 2687295
+        }
+      ],
+      "expected_behavior": "返回含该关系证据的标点本片段，不要求唯一答案；仅同名或无关动作不算支持",
+      "gold_policy": "非穷尽已知证据：人工阅读标点本候选并确认上述引文；原库gold不覆盖、不改写"
+    },
+    {
+      "id": "holdout-tang-transfer",
+      "query": "韩愈从潮州改任袁州刺史的记载是什么？",
+      "relation_class": "movement",
+      "split": "transfer",
+      "gold": [
+        {
+          "chunk_id": 183139,
+          "page_id": 61172,
+          "book_id": "KR2a0026",
+          "title": "舊唐書/卷15",
+          "evidence": "潮州刺史韓愈為袁州刺史。",
+          "source_sha256": "9511be42e01fff892eecaa384b53d28ed254f1015d37dfacb7c2d7be3fab71aa",
+          "revision_id": 2348866
+        }
+      ],
+      "expected_behavior": "返回含该关系证据的标点本片段，不要求唯一答案；仅同名或无关动作不算支持",
+      "gold_policy": "非穷尽已知证据：人工阅读标点本候选并确认上述引文；原库gold不覆盖、不改写"
+    },
+    {
+      "id": "holdout-song-transfer",
+      "query": "欧阳修改任蔡州的记载有哪些？",
+      "relation_class": "movement",
+      "split": "transfer",
+      "gold": [
+        {
+          "chunk_id": 109626,
+          "page_id": 30018,
+          "book_id": "KR2a0032",
+          "title": "宋史/卷015",
+          "evidence": "秋七月辛卯，歐陽修徙知蔡州。",
+          "source_sha256": "79f50c143bc92c8ce37a2e3bade7b45626b763ae8cea696b1cfdacf0b4c4c2e7",
+          "revision_id": 2285105
+        }
+      ],
+      "expected_behavior": "返回含该关系证据的标点本片段，不要求唯一答案；仅同名或无关动作不算支持",
+      "gold_policy": "非穷尽已知证据：人工阅读标点本候选并确认上述引文；原库gold不覆盖、不改写"
+    },
+    {
+      "id": "holdout-song-document",
+      "query": "司马光进呈资治通鉴的史料在哪里？",
+      "relation_class": "document",
+      "split": "transfer",
+      "gold": [
+        {
+          "chunk_id": 109719,
+          "page_id": 30019,
+          "book_id": "KR2a0032",
+          "title": "宋史/卷016",
+          "evidence": "十二月戊辰，端明殿學士司馬光上《資治通鑒》",
+          "source_sha256": "74904e5fb3ba910f7f65b05914201bbfc63146e9e283760b1a0850dc0b73b0a1",
+          "revision_id": 2285107
+        }
+      ],
+      "expected_behavior": "返回含该关系证据的标点本片段，不要求唯一答案；仅同名或无关动作不算支持",
+      "gold_policy": "非穷尽已知证据：人工阅读标点本候选并确认上述引文；原库gold不覆盖、不改写"
+    },
+    {
+      "id": "holdout-ming-office",
+      "query": "徐达被任命为大将军的记载有哪些？",
+      "relation_class": "appointment",
+      "split": "transfer",
+      "gold": [
+        {
+          "chunk_id": 27964,
+          "page_id": 11452,
+          "book_id": "KR2a0038",
+          "title": "明史/卷1",
+          "evidence": "辛亥，命徐達為大將軍，常遇春為副將軍，帥師二十萬討張士誠。",
+          "source_sha256": "d443c63e32a7403dec050fbcec4316d7226c8e26432715b3aa46b563cc2f156d",
+          "revision_id": 2594614
+        }
+      ],
+      "expected_behavior": "返回含该关系证据的标点本片段，不要求唯一答案；仅同名或无关动作不算支持",
+      "gold_policy": "非穷尽已知证据：人工阅读标点本候选并确认上述引文；原库gold不覆盖、不改写"
+    },
+    {
+      "id": "holdout-ming-local-office",
+      "query": "哪些史料记载海瑞担任淳安知县？",
+      "relation_class": "appointment",
+      "split": "transfer",
+      "gold": [
+        {
+          "chunk_id": 97322,
+          "page_id": 25709,
+          "book_id": "KR2a0038",
+          "title": "明史/卷308",
+          "evidence": "淳安知縣海瑞、慈谿知縣霍與瑕，以抗忤罷去。",
+          "source_sha256": "9ae87ae35541f3181ab78b65df57480425f8b14216e0cd302ee79d7c26877323",
+          "revision_id": 11119350
+        }
+      ],
+      "expected_behavior": "返回含该关系证据的标点本片段，不要求唯一答案；仅同名或无关动作不算支持",
+      "gold_policy": "非穷尽已知证据：人工阅读标点本候选并确认上述引文；原库gold不覆盖、不改写"
+    },
+    {
+      "id": "holdout-song-exam",
+      "query": "文天祥考中进士的史料在哪里？",
+      "relation_class": "event",
+      "split": "transfer",
+      "gold": [
+        {
+          "chunk_id": 111091,
+          "page_id": 32269,
+          "book_id": "KR2a0032",
+          "title": "宋史/卷044",
+          "evidence": "甲寅，賜禮部進士文天祥以下六百一人及第、出身有差。",
+          "source_sha256": "c87bb9587ba813a663af7eb7124a755c6a5abb94a4dc4cbae23159b2767b0638",
+          "revision_id": 2307562
+        }
+      ],
+      "expected_behavior": "返回含该关系证据的标点本片段，不要求唯一答案；仅同名或无关动作不算支持",
+      "gold_policy": "非穷尽已知证据：人工阅读标点本候选并确认上述引文；原库gold不覆盖、不改写"
+    },
+    {
+      "id": "holdout-han-authorship",
+      "query": "班固与汉书撰写的关系有哪些记载？",
+      "relation_class": "document",
+      "split": "transfer",
+      "gold": [
+        {
+          "chunk_id": 7250,
+          "page_id": 8482,
+          "book_id": "KR2a0012",
+          "title": "三國志/卷65",
+          "evidence": "昔班固作《漢書》，文辭典雅",
+          "source_sha256": "d48048d732ab04c88bf288cf4677c322d55f0f02d341fb028c1e6ef884494939",
+          "revision_id": 2589669
+        }
+      ],
+      "expected_behavior": "返回含该关系证据的标点本片段，不要求唯一答案；仅同名或无关动作不算支持",
+      "gold_policy": "非穷尽已知证据：人工阅读标点本候选并确认上述引文；原库gold不覆盖、不改写"
+    },
+    {
+      "id": "holdout-tang-battle",
+      "query": "李靖在阴山击败突厥的记载有哪些？",
+      "relation_class": "military",
+      "split": "transfer",
+      "gold": [
+        {
+          "chunk_id": 77789,
+          "page_id": 20441,
+          "book_id": "KR2a0026",
+          "title": "舊唐書/卷3",
+          "evidence": "甲辰，李靖又破突厥於陰山，頡利可汗輕騎遠遁。",
+          "source_sha256": "c57ee4df6ed494ee9ad64295eb0af2a178b3c7084dca433f195007b48657e9b9",
+          "revision_id": 2488779
+        }
+      ],
+      "expected_behavior": "返回含该关系证据的标点本片段，不要求唯一答案；仅同名或无关动作不算支持",
+      "gold_policy": "非穷尽已知证据：人工阅读标点本候选并确认上述引文；原库gold不覆盖、不改写"
+    },
+    {
+      "id": "holdout-ming-voyage",
+      "query": "郑和再次出使西洋的记载有哪些？",
+      "relation_class": "event",
+      "split": "transfer",
+      "gold": [
+        {
+          "chunk_id": 97220,
+          "page_id": 25238,
+          "book_id": "KR2a0038",
+          "title": "明史/卷6",
+          "evidence": "丙申，鄭和復使西洋",
+          "source_sha256": "c0445750dd90bcc9273495bd9ec75afbfbb932fd208bc699fcc9ad1e6ca7387c",
+          "revision_id": 2594619
+        }
+      ],
+      "expected_behavior": "返回含该关系证据的标点本片段，不要求唯一答案；仅同名或无关动作不算支持",
+      "gold_policy": "非穷尽已知证据：人工阅读标点本候选并确认上述引文；原库gold不覆盖、不改写"
+    }
+  ]
+}

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-Hant">
+<html lang="zh-CN">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -7,26 +7,30 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
+<a class="skip-link" href="#view" onclick="event.preventDefault(); document.getElementById('view').focus()">跳到正文</a>
 <header class="top">
   <a class="brand" href="#/">引得</a>
-  <nav>
-    <a href="#/" data-nav="home">首页</a>
-    <a href="#/search" data-nav="search">全文检索</a>
-    <a href="#/ask" data-nav="ask">提问</a>
-    <a href="#/books" data-nav="books">数据检查</a>
-    <a href="#/coverage" data-nav="coverage">篇名覆盖</a>
-    <a href="#/pending" data-nav="pending">待确认注释</a>
-    <a href="#/about" data-nav="about">项目说明</a>
+  <nav aria-label="主导航">
+    <a href="#/search" data-nav="search">检索</a>
+    <a href="#/books" data-nav="books">书库</a>
+    <a href="#/about" data-nav="about">来源与说明</a>
   </nav>
-  <div id="statsMini" class="mini" title="书 · 文件 · 记录（点数据检查看详情）"></div>
+  <div id="statsMini" class="mini" title="当前可检索的收录规模"></div>
+  <label class="reading-mode">史料显示
+    <select id="readingMode" onchange="setReadingMode(this.value)" aria-label="史料显示方式">
+      <option value="simplified">简体阅读</option>
+      <option value="orig">原文</option>
+    </select>
+  </label>
 </header>
+<p class="reading-mode-note" id="readingModeNote"></p>
 <div id="modeBanner" class="modebanner" hidden></div>
-<main id="view"><div class="load">正在加载…</div></main>
+<main id="view" tabindex="-1"><div class="load">正在加载…</div></main>
 <footer>
   <!-- 书目由 app.js 的 footBooks() 在本地 API 模式填（第六点三阶段）。这里**故意
        不写死任何书名**：写死的名单每加一本书就变成假话，而且真实书名跟着产物
        发布出去（演示模式的页脚由 boot.js 换成声明）。 -->
-  <span id="footBooks"></span>原文以 corpus 原始文件为准，本页数据库为派生产物
+  <span id="footBooks"></span>据收录版本检索 · 数字文本未经逐字校勘 · <a href="#/about">来源与使用范围</a>
 </footer>
 <!-- 检索引擎：search/ 的 JS 移植，经典脚本（挂 window.YindeEngine，无打包器）。
      顺序即依赖序，与 scripts/site/loader.mjs 的 ENGINE_FILES 必须一致 ——
@@ -34,6 +38,7 @@
 <script src="engine/zh_table.js"></script>
 <script src="engine/zh.js"></script>
 <script src="engine/dual_text.js"></script>
+<script src="engine/variants.js"></script>
 <script src="engine/corpus.js"></script>
 <script src="engine/engine.js"></script>
 <script src="engine/entities.js"></script>
@@ -46,6 +51,8 @@
 <script src="engine/static_api.js"></script>
 <!-- boot 先跑：探测模式、静态模式下把语料装进内存；app.js 的 api() 等它。 -->
 <script src="boot.js"></script>
+<script src="punctuated.js"></script>
+<script src="punctuated_search.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

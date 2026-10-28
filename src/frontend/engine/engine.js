@@ -320,6 +320,17 @@
     if (!qTrad) throw new Error("请提供搜索关键词");
     const bid = resolveBook(corpus, opts.book);
     const edition = resolveEdition(opts.edition);
+    if (opts.variants === true) {
+      const groups = NS.variants.keywordGroups(qRaw);
+      if (groups.some((g) => g.length > 1)) {
+        const hits = NS.variants.scanGroups(corpus, groups, { bookId: bid, family: edition });
+        const lo = (page - 1) * pageSize;
+        return { q: qRaw, q_traditional: qTrad, mode: "like",
+          book: bid || "全部", edition: edition || "全部",
+          total: hits.length, page, page_size: pageSize,
+          items: hits.slice(lo, lo + pageSize).map((i) => shapeRow(corpus, i)) };
+      }
+    }
     const [longTerms, shortTerms] = planQuery(qTrad);
 
     const st = corpus.bm25 || {};
@@ -328,12 +339,64 @@
     const useBg = !useFts && pureTwo && !!st.bigram;
 
     const filter = { bookId: bid, family: edition };
+    // Phase 7-E：字形变体组（组内 OR、组间 AND）。
+    //
+    // **变体必须进「扫描词表」，不能只做事后过滤**（Phase 7 修复）：
+    // 若扫描仍用基词 `["內"]`、只用变体组过滤结果，那么「內」只能命中 742 段，
+    // 而「内」的 10820 段根本没被扫到 —— 过滤是收窄，不可能补回没扫到的。
+    // Python 侧把变体拼进 WHERE 的 `(LIKE %內% OR LIKE %内%)`，命中 11562，
+    // 所以这里也必须把变体并进扫描词表，两边才是同一种检索语义。
+    //
+    // 变体**不参与路径判定**（useFts/useBg 仍按基词算），与 Python 一致。
+    const variants = opts.variants === true;
+    const groupsOf = (terms) => {
+      if (!variants) return [];
+      const out = [];
+      for (const t of terms) {
+        const vs = NS.variants.termVariants(t);
+        if (vs.length > 1) out.push(vs);
+      }
+      return out;
+    };
+    const gLong = groupsOf(longTerms);
+    const gShort = groupsOf(shortTerms);
+    // 变体组的候选集：**组内 OR**（一次 any 扫描）、**组间 AND**（求交）。
+    // 这就是 Python `WHERE (LIKE a OR LIKE b) AND (LIKE c OR LIKE d)` 的等价物。
+    const unionHits = (groups) => {
+      let acc = null;
+      for (const g of groups) {
+        const s = new Set(corpus.likeScan(g, Object.assign({}, filter, { any: true })).hits);
+        if (acc === null) { acc = s; continue; }
+        const next = new Set();
+        for (const i of acc) if (s.has(i)) next.add(i);
+        acc = next;
+      }
+      return acc;                    // null = 没有变体组
+    };
+    // FTS 路径要保留「必须含原短语」这一条（Python 的 MATCH 用基词长词）。
+    // JS 用基词长词再扫一次当守门集合，只保留其中的行。
+    const longGate = (variants && gLong.length)
+      ? new Set(corpus.likeScan(longTerms, filter).hits)
+      : null;
     let mode, hits, scoreNeg = null;
 
     if (useFts) {
-      // 长词走 FTS，同查询的 <3 字词作 LIKE 附加约束参与命中（不计分）
-      const all = longTerms.concat(shortTerms);
-      hits = corpus.likeScan(all, filter).hits;
+      // 长词走 FTS（Python 的 `MATCH("齊桓公")` 短语），短词作 LIKE 附加约束。
+      // 两者是**两件事**，不能合并成一次 `likeScan` 的 AND 词表：
+      //   · 长词：必须含**原短语** —— 用基词扫描 + longGate；
+      //   · 短词：命中任一写法即可（组内 OR）—— 用 unionHits(gShort)。
+      // 合并会把「齊桓公 AND 内」压成同一层 AND、丢掉短词的变体语义
+      // （实测 `齊桓公 内` py=4 而 js=1）。
+      const uLong = unionHits(gLong);            // 长词变体的或集
+      const uShort = unionHits(gShort);          // 短词变体的或集
+      // 短词**没有**变体组时，仍要按基词并进同一次扫描（否则会丢掉它的 AND 约束，
+      // 实测让 `齊桓公 管仲` 从 11 条涨到 20 条 —— 因为「管仲」不见了）。
+      // 短词**有**变体组时改由 uShort 负责（命中任一写法即可）。
+      const baseTerms = uShort === null ? longTerms.concat(shortTerms) : longTerms;
+      const base = corpus.likeScan(baseTerms, filter).hits;
+      hits = base.filter((i) => (uLong === null || uLong.has(i))
+                            && (uShort === null || uShort.has(i))
+                            && (longGate === null || longGate.has(i)));
       const folded = longTerms.map(NS.asciiFold);
       const df = folded.map((t) => docFreq(corpus, t));
       scoreNeg = new Float64Array(hits.length);
@@ -356,10 +419,16 @@
       if (!kept.length) {
         hits = [];
       } else if (kept.every((t) => cplen(t) === 2)) {
-        // 常态：token 就是两字本身，等价于子串命中（走快路）
-        hits = corpus.likeScan(kept, filter).hits;
+        // 常态：token 就是两字本身，等价于子串命中（走快路）。
+        // 有变体组时改用变体组的或集（与 Python 的 OR 约束等价）。
+        const u = unionHits(gShort);
+        hits = u === null ? corpus.likeScan(kept, filter).hits
+                          : [...u].filter((i) => kept.every(
+                              (k) => corpus.mtext[i].indexOf(k) >= 0));
       } else {
-        hits = scanBgTokens(corpus, kept, filter);
+        const u = unionHits(gShort);
+        const base = scanBgTokens(corpus, kept, filter);
+        hits = u === null ? base : base.filter((i) => u.has(i));
       }
       scoreNeg = new Float64Array(hits.length);
       for (let h = 0; h < hits.length; h++) {
@@ -377,7 +446,18 @@
       }
       mode = "bigram";
     } else {
-      hits = corpus.likeScan(longTerms.concat(shortTerms), filter).hits;
+      // 无索引可走：LIKE 全扫。用「长词或集 × 短词或集」求交 ——
+      // 等价于 Python 该分支的 `(LIKE a OR LIKE b) AND (LIKE c OR LIKE d)`。
+      const uLong = unionHits(gLong);
+      const uShort = unionHits(gShort);
+      if (uLong === null && uShort === null) {
+        hits = corpus.likeScan(longTerms.concat(shortTerms), filter).hits;
+      } else {
+        const src = uLong !== null ? [...uLong]
+                                   : corpus.likeScan(longTerms, filter).hits;
+        hits = src.filter((i) => (uLong === null || uLong.has(i))
+                              && (uShort === null || uShort.has(i)));
+      }
       mode = "like";
     }
 

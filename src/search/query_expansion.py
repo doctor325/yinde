@@ -27,6 +27,7 @@ import re
 from dataclasses import dataclass, field
 
 from search import entities
+from search import variants as V
 from search.question import INTENT_VOCAB, Question
 
 
@@ -67,8 +68,11 @@ class Expanded:
         }
 
 
-def expand(q: Question) -> Expanded:
-    """把分析好的问题扩展成检索词组。确定性——同样的问题永远同样的词表。"""
+def expand(q: Question, variants: bool = False) -> Expanded:
+    """把分析好的问题扩展成检索词组。确定性——同样的问题永远同样的词表。
+
+    `variants=False`（默认）时行为与第四阶段完全一致 —— 7-E 的可关闭要求。
+    """
     exp = Expanded()
 
     # 组 1：实体（含别名）。这是权重最高的一组，也是召回的主力。
@@ -109,6 +113,27 @@ def expand(q: Question) -> Expanded:
             exp.groups.append(TermGroup(
                 role="topic", terms=topics,
                 note="问句切分得到的主题词（无人物实体时使用）"))
+
+    # 组 5（Phase 7-E，可选）：字形变体。
+    #
+    # 为什么需要：检索前会把问句 `zh.to_traditional` 一次（question.py:289）。
+    # 但**语料里简繁/异体是并存的**，实测 302 个字存在「转换后即漏段」，
+    # 受影响 86,198 段（占这些字总段数的 99.4%）—— 例如「内」10,820 段
+    # 与「內」742 段**零重叠**，问句里的「内」被转成「內」后，那 10,820 段全部漏掉。
+    #
+    # 注意这不代表 `zh.to_traditional` 有错（它做的正是简→繁，且被
+    # check_engine.py 第 2 项逐字节对拍保护）。错的层次是**调用方式**：
+    # 把转换结果当「替换」，而语料并存时正确语义是「扩展」。
+    # 本组因此把**原形与转换形并列**，让检索引擎按 OR 处理。
+    #
+    # 唯一来源：`variants.query_variants` —— 与 block 轨（`result_block._fetch_hits`）
+    # 共用同一套规则，避免两条轨对「字形变体」给出不同定义（Phase 7 审查 F1）。
+    if variants:
+        terms = V.query_variants(q.raw)
+        if terms:
+            exp.groups.append(TermGroup(
+                role="variant", terms=terms,
+                note="问句的字形变体（原形/繁体/简体并列，避免替换式转换漏召回）"))
 
     exp.asks_duration = q.asks_duration
     return exp
@@ -200,6 +225,15 @@ def _topic_terms(text: str) -> list[str]:
         # 只削句尾的泛称/疑问字（「董卓人」→「董卓」），不削句首 ——
         # 句首的「人」可能是主体的一部分（人傑、人臣），削错了就是替用户改问题。
         run = run.rstrip("".join(_TAIL_NOISE))
+        # 单字 run：下面的滑窗只取 4/3/2 字，三个尺寸都不满足 → 整句一个字时
+        # 什么都切不出来。实测「內」语料 742 段、提问轨却返回空，还附了句
+        # 「语料中没有该实体」—— 那是一句与事实相反的话，性质比漏召回更重。
+        # 只在**整段就是一个字**时兜住；多字 run 的行为一字不变（滑窗照旧）。
+        # 仍是功能词的（之/人/和/的…）不兜 —— 那些字全库十几万段，兜了等于没检索。
+        if len(run) == 1:
+            if run not in _STOPWORDS and run not in out:
+                out.append(run)
+            continue
         i = 0
         while i < len(run):
             for size in (4, 3, 2):

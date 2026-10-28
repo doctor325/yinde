@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 import re
 
+from search import variants as V
 from search import zh
 
 PAGE_SIZE_MAX = 100
@@ -180,10 +181,16 @@ def _fts_query(cur, table: str, match: str, where: list[str], args: list,
 
 
 def run_search(cur, q: str, book: str | None = None, edition: str | None = None,
-               page: int = 1, page_size: int = PAGE_SIZE_DEFAULT) -> dict:
+               page: int = 1, page_size: int = PAGE_SIZE_DEFAULT,
+               variants: bool = False) -> dict:
     """执行检索。参数非法抛 ValueError（API 层转 400）。
 
     路径：>=3 字词 → trigram；纯 2 字词且 bigram 表在场 → bigram；其余 → LIKE。
+
+    `variants=True`（Phase 7-E，默认关闭）时，每个检索词额外并入它的等价字形
+    （原形 / 繁体形 / 简体形，见 search.variants）。语料里简繁并存，
+    只做 to_traditional 的替换式转换会漏掉只含另一种写法的段落 ——
+    实测 302 个字、86,198 段（99.4%）受影响。默认 False，行为与第四阶段一致。
     """
     if page < 1:
         raise ValueError("页码从 1 开始")
@@ -193,21 +200,67 @@ def run_search(cur, q: str, book: str | None = None, edition: str | None = None,
         raise ValueError("请提供搜索关键词")
     bid = resolve_book(cur, book)          # None = 全部
     edition = resolve_edition(edition)
+    # Expanded phrases cannot be constrained by MATCH of the base spelling.
+    # Use the existing LIKE ordering until equivalent indexed scoring is available.
+    if variants:
+        groups = V.keyword_groups(q)
+        if any(len(g) > 1 for g in groups):
+            where, args = ["p.kind = 'passage'"], []
+            if bid:
+                where.append("b.book_id = ?"); args.append(bid)
+            if edition:
+                where.append("LOWER(b.family) = ?"); args.append(edition)
+            for group in groups:
+                conditions = [_like_cond(t) for t in group]
+                where.append("(" + " OR ".join(c for c, _ in conditions) + ")")
+                args.extend(a for _, a in conditions)
+            total, rows = _query(cur, where, args,
+                "ORDER BY b.book_id, f.file_no, p.row_no, p.seq", page, page_size)
+            return {"q": q.strip(), "q_traditional": q_trad, "mode": "like",
+                    "book": bid or "全部", "edition": edition or "全部",
+                    "total": total, "page": page, "page_size": page_size,
+                    "items": [_shape_row(r) for r in rows]}
     long_terms, short_terms = plan_query(q_trad)
     # 只有 trigram 能保证子串命中；unicode61（整段汉字一个 token）下走 LIKE 更可靠
     use_fts = fts_tokenizer(cur) == "trigram" and bool(long_terms)
     pure_two = bool(short_terms) and all(len(t) == 2 for t in short_terms)
     use_bg = not use_fts and pure_two and has_bigram_fts(cur)
 
+    # Phase 7-E：字形变体的 **AND 附加约束**（组内 OR、组间 AND）。
+    #
+    # 为什么不像早先那样"并进词表再重新分档"：`V.query_variants` 的入参是
+    # **原始 query**，而 `to_traditional("内 內")` 会把中间的空格也转掉，
+    # 于是整串塌成一个 token —— 实测让 `齊桓公` 这种本该无变体的查询直接
+    # 变成空检索（`total=0`）。改用"逐基词取变体、各自成组当 OR 约束"，
+    # 与 block 轨（`result_block._variant_groups`）语义一致，也不受空格影响。
+    vgroups: list[list[str]] = []
+    if variants:
+        for t in long_terms + short_terms:
+            g = V.term_variants(t)
+            if len(g) > 1:
+                vgroups.append(g)
+
     where, args = ["p.kind = 'passage'"], []
     if bid:
         where.append("b.book_id = ?"); args.append(bid)
     if edition:
         where.append("LOWER(b.family) = ?"); args.append(edition)
+    # 变体组作为 OR 约束附加到**所有**路径（与 block 轨同语义）
+    for g in vgroups:
+        conds, params = [], []
+        for t in g:
+            c, a = _like_cond(t)
+            conds.append(c); params.append(a)
+        where.append(conds[0] if len(conds) == 1 else "(" + " OR ".join(conds) + ")")
+        args.extend(params)
+    covered = {t for g in vgroups for t in g}
 
     if use_fts:
-        # 长词走 FTS；同查询的 <3 字词仍作 AND 约束（少见，代价可接受）
+        # 长词走 FTS；同查询的 <3 字词仍作 AND 约束（少见，代价可接受）。
+        # 已被变体组覆盖的短词不再重复加约束（组里必然含它自己）。
         for t in short_terms:
+            if t in covered:
+                continue
             cond, arg = _like_cond(t)
             where.append(cond); args.append(arg)
         total, rows = _fts_query(cur, "passages_fts",
@@ -223,6 +276,8 @@ def run_search(cur, q: str, book: str | None = None, edition: str | None = None,
     else:
         # 无 FTS / bigram 缺席 / 含 1 字词：全部 LIKE（1 字词没有索引可走）
         for t in long_terms + short_terms:
+            if t in covered:
+                continue
             cond, arg = _like_cond(t)
             where.append(cond); args.append(arg)
         order = "ORDER BY b.book_id, f.file_no, p.row_no, p.seq"

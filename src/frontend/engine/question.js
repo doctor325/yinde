@@ -227,14 +227,36 @@
     }
   }
 
-  /** 判意图，返回 [命中的意图序列, 说明]。按 INTENT_PRIORITY 排序，不是出现顺序。 */
+  /** 把 ask 词与它的排除表一并规范化到与问句同一字形（Phase 8 补，与 Python `_norm_ask` 同）。
+   *
+   *  为什么必须有这一步：`analyze` 第 1 步把问句转成繁体，而 ask 表里混着简体写法
+   *  （「被杀」「关系」「与」「结局」「下场」…），`triggered` 又是逐码位裸比、不做
+   *  任何规范化 —— 两边字形不同就**永不相遇**。实测：107 个 ask 词里 49 个永远
+   *  不可能命中，relation 意图的触发词几乎全废（只剩「和」还活着）。
+   *  修的是匹配口径，词表字面一字未动；排除表同步规范化，否则 `exclude` 会静默
+   *  失效，把「流亡」里的「亡」误判成死亡意图。 */
+  const normAskCache = new Map();
+  function normAsk(kw, excludes) {
+    const key = kw + "\u0000" + excludes.join("\u0001");
+    let v = normAskCache.get(key);
+    if (v === undefined) {
+      v = [NS.zh.toTraditional(kw), excludes.map((x) => NS.zh.toTraditional(x))];
+      normAskCache.set(key, v);
+    }
+    return v;
+  }
+
+  /** 判意图，返回 [命中的意图序列, 说明]。按 INTENT_PRIORITY 排序，不是出现顺序。
+   *
+   *  `text` 必须已经过 `analyze` 第 1 步的繁简统一，理由见 `normAsk`。 */
   function detectIntents(text) {
     const hits = [], notes = [];
     for (const name of INTENT_PRIORITY) {
       const spec = INTENT_VOCAB[name];
       const excludes = spec.exclude || {};
       for (const kw of spec.ask) {
-        if (triggered(text, kw, excludes[kw] || [])) {
+        const [kt, ext] = normAsk(kw, excludes[kw] || []);
+        if (triggered(text, kt, ext)) {
           hits.push(name);
           notes.push(`意图「${name}」由问句里的「${kw}」触发`);
           break;

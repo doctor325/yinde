@@ -49,6 +49,7 @@ import json
 import re
 import sqlite3
 import sys
+import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -66,7 +67,25 @@ from search import retrieve as search_retrieve  # noqa: E402
 from search import result_block  # noqa: E402
 
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
+_qa_slot = threading.BoundedSemaphore(1)
+
+
+def _truthy(v) -> bool:
+    """布尔查询参数。Phase 7-E：`variants=1|true|yes` 打开字形变体扩展。
+
+    默认关闭 —— 不传该参数时提问轨行为与第四阶段逐字节一致。
+    """
+    return str(v).strip().lower() in ("1", "true", "yes", "on")
+
+
 ROUTE_RE = {
+    "punctuated_books": re.compile(r"^/api/punctuated/books$"),
+    "punctuated_search_status": re.compile(r"^/api/punctuated/search/status$"),
+    "punctuated_search": re.compile(r"^/api/punctuated/search$"),
+    "punctuated_chapters": re.compile(r"^/api/punctuated/chapters$"),
+    "punctuated_chapter": re.compile(r"^/api/punctuated/chapter/(\d+)$"),
+    "semantic_status": re.compile(r"^/api/experimental/semantic/status$"),
+    "semantic_search": re.compile(r"^/api/experimental/semantic/search$"),
     "stats": re.compile(r"^/api/stats$"),
     "books": re.compile(r"^/api/books$"),
     "search": re.compile(r"^/api/search$"),
@@ -242,6 +261,54 @@ class Handler(BaseHTTPRequestHandler):
         self._send(200, body, ctype)
 
     # ------------------------------------------------------------ dispatch
+    def do_POST(self):  # noqa: N802
+        # Independent experiment: no existing GET search route changes.
+        if self.path != "/api/experimental/history-qa":
+            return self._err("unknown api path", 404)
+        from urllib.parse import urlsplit
+        origin = self.headers.get("Origin")
+        if origin:
+            parsed = urlsplit(origin)
+            if (parsed.scheme != "http" or parsed.hostname not in ("127.0.0.1", "localhost")
+                    or parsed.netloc != self.headers.get("Host")):
+                return self._err("仅允许本地同源请求", 403)
+        if self.headers.get("Content-Type", "").split(";")[0].strip() != "application/json":
+            return self._err("需要 application/json", 415)
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+            if not 0 < length <= 8192:
+                return self._err("请求大小须为1至8192字节", 413)
+            self.connection.settimeout(15)
+            data = json.loads(self.rfile.read(length))
+            if not isinstance(data, dict):
+                raise ValueError()
+            text, book = data.get("question"), data.get("book") or None
+            if not isinstance(text, str) or not 1 <= len(text.strip()) <= 500:
+                raise ValueError()
+            if book is not None and (not isinstance(book, str) or len(book) > 80):
+                raise ValueError()
+            if type(data.get("generate", False)) is not bool:
+                raise ValueError()
+        except (ValueError, UnicodeError):
+            return self._err("问题须为1至500字，请检查请求参数", 400)
+        if not _qa_slot.acquire(blocking=False):
+            return self._err("已有问答正在处理，请稍后再试", 429)
+        try:
+            from search import history_qa
+            from api.history_qa_provider import AnthropicProvider
+            provider = AnthropicProvider() if data.get("generate", False) else None
+            out = self._with_cur(lambda conn: history_qa.run(
+                conn.cursor(), text, book=book, provider=provider))
+            return self._json(out)
+        except ValueError as exc:
+            return self._err(str(exc), 400)
+        except history_qa.ProviderError as exc:
+            return self._err(str(exc), 503)
+        except Exception:
+            return self._err("问答实验暂不可用；可继续使用普通检索", 500)
+        finally:
+            _qa_slot.release()
+
     def do_GET(self):  # noqa: N802
         path, _, qs = self.path.partition("?")
         self._q_params = {}
@@ -263,6 +330,48 @@ class Handler(BaseHTTPRequestHandler):
         return self._err("unknown api path", 404)
 
     # ------------------------------------------------------------ handlers
+    def _punctuated(self, fn):
+        try:
+            return self._json(fn())
+        except FileNotFoundError as exc:
+            return self._err(str(exc), 503)
+        except KeyError as exc:
+            return self._err(str(exc), 404)
+        except ValueError as exc:
+            return self._err(str(exc), 400)
+
+    def _h_punctuated_books(self, _):
+        from search.punctuated import books
+        return self._punctuated(books)
+
+    def _h_punctuated_search_status(self, _):
+        from search.punctuated_search import status
+        return self._json(status())
+
+    def _h_punctuated_search(self, _):
+        from search import punctuated_search, semantic_bridge
+        from urllib.parse import parse_qsl
+        # URLSearchParams encodes a space as '+', while a literal '+' is %2B.
+        # Keep the legacy endpoints untouched; this new route uses form decoding.
+        self._q_params = dict(parse_qsl(self.path.partition('?')[2], keep_blank_values=True))
+        try:
+            result = self._with_cur(lambda c: punctuated_search.run(
+                self._q('q') or '',book=self._q('book') or None,mode=self._q('strategy') or 'keyword',
+                page=self._q('page',1,int),cur=c.cursor()))
+            return self._json(result)
+        except (semantic_bridge.SemanticUnavailable, semantic_bridge.SemanticBusy) as exc:
+            return self._err(str(exc),503)
+        except (FileNotFoundError,ValueError) as exc:
+            return self._err(str(exc),503 if isinstance(exc,FileNotFoundError) else 400)
+
+    def _h_punctuated_chapters(self, _):
+        from search.punctuated import chapters
+        return self._punctuated(lambda: chapters(self._q('book') or '', self._q('q') or '', self._q('page', 1, int)))
+
+    def _h_punctuated_chapter(self, pid):
+        from search.punctuated import chapter
+        return self._punctuated(lambda: chapter(int(pid)))
+
     def _with_cur(self, fn):
         conn = api_db.connect()
         try:
@@ -270,6 +379,33 @@ class Handler(BaseHTTPRequestHandler):
         finally:
             conn.close()
         return out
+
+    def _h_semantic_status(self, _):
+        from search.semantic_bridge import status
+        return self._json(status())
+
+    def _h_semantic_search(self, _):
+        from search import semantic_bridge, semantic_search
+        text = self._q("q") or ""
+        book = self._q("book") or None
+        mode = self._q("strategy") or "hybrid"
+        if not isinstance(text, str) or not 1 <= len(text.strip()) <= 300:
+            return self._err("问题须为1至300字", 400)
+        try:
+            if book and not self._with_cur(lambda c: c.execute("SELECT 1 FROM books WHERE book_id=?", (book,)).fetchone()):
+                return self._err("未识别的史书", 400)
+            result = self._with_cur(lambda c: semantic_search.run(c.cursor(), text, book=book, mode=mode))
+            return self._json(result)
+        except semantic_bridge.SemanticBusy as exc:
+            return self._err(str(exc), 429)
+        except semantic_bridge.SemanticUnavailable as exc:
+            return self._err(str(exc), 503)
+        except ValueError as exc:
+            return self._err(str(exc), 400)
+        except Exception:
+            import logging
+            logging.getLogger("yinde.semantic").exception("Semantic search failed")
+            return self._err("本地语义实验暂不可用；不会将关键词结果标为语义结果", 500)
 
     def _h_stats(self, _):
         def fn(conn):
@@ -313,14 +449,16 @@ class Handler(BaseHTTPRequestHandler):
         # 收到 mode=question 就切到提问模式，显示长度回默认值。
         if mode.lower() == "question":
             level, mode = "question", result_block.DEFAULT_MODE
+        # Phase 7-E：字形变体开关，三条 level 都支持（与 static_api.js 对等）
+        variants = self._q("variants", False, _truthy)
         if level == "passage":
             fn = lambda c: search_engine.run_search(     # noqa: E731
                 c.cursor(), self._q("q") or "", self._q("book"),
-                self._q("edition"), page, page_size)
+                self._q("edition"), page, page_size, variants)
         elif level == "block":
             fn = lambda c: result_block.search_result_blocks(   # noqa: E731
                 c.cursor(), self._q("q") or "", self._q("book"),
-                self._q("edition"), page, page_size, mode, text_mode)
+                self._q("edition"), page, page_size, mode, text_mode, variants)
         elif level == "question":
             fn = lambda c: self._question(c.cursor(), mode, text_mode)  # noqa: E731
         else:
@@ -379,7 +517,8 @@ class Handler(BaseHTTPRequestHandler):
         if text_mode not in dual_text.MODES:
             raise ValueError(f"未知的繁简方式：{text_mode}"
                              f"（可用：{'、'.join(dual_text.MODES)}）")
-        res = search_retrieve.retrieve(cur, q)
+        res = search_retrieve.retrieve(
+            cur, q, variants=self._q("variants", False, _truthy))
         out = search_retrieve.as_dict(res, cur=cur, mode=mode, text_mode=text_mode)
         # 检索词的简体形态：前端在「只看简体/繁简对照」里要用它高亮。
         # 用的是和正文**同一个**转换函数，两边不会出现两套简体。

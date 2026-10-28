@@ -93,10 +93,15 @@ def _like_any(cur, terms: list[str], limit: int) -> list:
     return [_cand(r) for r in cur.execute(sql, args)]
 
 
-def retrieve(cur: sqlite3.Cursor, qtext: str) -> Retrieved:
-    """一句问题 → 排序好的候选史料。全程只读，不写库、不改原文。"""
+def retrieve(cur: sqlite3.Cursor, qtext: str,
+             variants: bool = False) -> Retrieved:
+    """一句问题 → 排序好的候选史料。全程只读，不写库、不改原文。
+
+    `variants=False`（默认）时行为与第四阶段逐字节一致；置 True 时额外把
+    问句的字形变体（原形 + 繁体形）并入候选池 —— 见 query_expansion.expand 组 5。
+    """
     q = question_mod.analyze(qtext)
-    exp = query_expansion.expand(q)
+    exp = query_expansion.expand(q, variants=variants)
     out = Retrieved(question=q, expanded=exp)
 
     # 实体词按扩展层分好的档位取用（档位依据见 query_expansion._term_roles）
@@ -106,13 +111,20 @@ def retrieve(cur: sqlite3.Cursor, qtext: str) -> Retrieved:
     intent_terms = [t for g in exp.groups if g.role == "intent" for t in g.terms]
     weak_intent = [t for g in exp.groups if g.role == "intent_weak"
                    for t in g.terms]
+    # Phase 7-E：字形变体（默认空列表 → 行为不变）
+    variant_terms = [t for g in exp.groups if g.role == "variant"
+                     for t in g.terms]
 
     seen: set[int] = set()
+    # 注意：字形变体**不进实体池**（只进兜底池，见下）。变体是用户原话的字形，
+    # 不是实体；混进实体池会让召回池与 notes 都走偏，且破坏 Python↔JS 对拍。
     for c in _like_any(cur, entity_terms + alias_terms + weak_terms, POOL_LIMIT):
         if c.passage_id not in seen:
             seen.add(c.passage_id)
             out.entity_pool.append(c)
-    out.notes.append(f"实体池：{len(out.entity_pool)} 条（实体词 {entity_terms + alias_terms + weak_terms}）")
+    out.notes.append(f"实体池：{len(out.entity_pool)} 条"
+                     f"（实体词 {entity_terms + alias_terms + weak_terms}"
+                     f" + 字形变体 {variant_terms}）")
 
     topic_terms = [t for g in exp.groups if g.role == "topic" for t in g.terms]
     if not out.entity_pool:
@@ -120,13 +132,15 @@ def retrieve(cur: sqlite3.Cursor, qtext: str) -> Retrieved:
         # 所以主题词要和意图词一起兜底 —— 只兜意图词会让这类问句空手而归
         # （实测：「城濮之战谁赢了」曾经返回 0 条，而语料里「城濮」有大把段落）。
         seen2: set[int] = set()
-        for c in _like_any(cur, topic_terms + intent_terms, POOL_LIMIT):
+        for c in _like_any(cur, topic_terms + variant_terms + intent_terms,
+                           POOL_LIMIT):
             if c.passage_id not in seen2:
                 seen2.add(c.passage_id)
                 out.fallback_pool.append(c)
         out.notes.append(
             f"实体池为空，兜底池：{len(out.fallback_pool)} 条"
-            f"（主题词 {topic_terms} + 意图强词 {intent_terms}）")
+            f"（主题词 {topic_terms} + 字形变体 {variant_terms} "
+            f"+ 意图强词 {intent_terms}）")
         if not out.fallback_pool:
             out.notes.append("语料中没有该实体，也没有可用的意图词 —— 如实返回空，不编造")
             return out

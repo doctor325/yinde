@@ -470,10 +470,23 @@
    *  最后按文件与行序稳定。这个次序决定**谁进得了 MAX_SECTION_BLOCKS**；
    *  展示顺序不跟它走——篇名块与正文块一起按 cmpRank 排（行序在键里），
    *  一篇一篇顺着读下去比按匹配度跳着读更合直觉。 */
-  function sectionHits(corpus, qTrad, bid, edition, idx) {
+  function sectionHits(corpus, qTrad, bid, edition, idx, variants, rawQuery) {
+    // Phase 8 补（与 Python `_section_hits` 同）：篇名命中此前**不接字形变体**，
+    // 正文命中接了，于是「吴太伯世家」这类只含另一种写法的篇名漏掉。
+    // 只在**单 token** 时扩展：多 token 查询本就匹配不到任何篇名，
+    // 在此扩成「含任一词」会顺手改掉一件与字形变体无关的事。
+    const forms = [qTrad];
+    if (variants) {
+      const toks = NS.variants.queryTokens(rawQuery === undefined ? qTrad : rawQuery);
+      if (toks.length === 1) {
+        for (const v of NS.variants.termVariants(toks[0])) {
+          if (forms.indexOf(v) < 0) forms.push(v);
+        }
+      }
+    }
     const matches = (corpus.sections || []).filter((s) => {
       if (s.file_id === null || s.first_row === null || s.label === null) return false;
-      if (s.label !== qTrad && s.label.indexOf(qTrad) < 0) return false;
+      if (!forms.some((f) => s.label === f || s.label.indexOf(f) >= 0)) return false;
       if (bid && s.book_id !== bid) return false;
       if (edition && String(s.family || "").toLowerCase() !== edition) return false;
       return true;
@@ -706,8 +719,20 @@
   /** 取全部命中的 [passage_id, file_id, row_no, seq, score]。
    *
    *  路径选择与 engine.runSearch 保持一致（trigram / bigram / LIKE），但**不分页**
-   *  —— Result Block 必须先看全命中才能正确合并与计数。LIKE 路径无 bm25，score 记 null。 */
-  function fetchHits(corpus, qTrad, bid, edition) {
+   *  —— Result Block 必须先看全命中才能正确合并与计数。LIKE 路径无 bm25，score 记 null。
+   *
+   *  `variants=true`（Phase 7-E，默认关闭）时把每个基词扩成它的等价字形**再扫描**
+   *  —— 与 Python `_fetch_hits` 的 `(LIKE %a% OR LIKE %b%)` 同一种检索语义。 */
+  function fetchHits(corpus, qTrad, bid, edition, variants, rawQuery) {
+    if (variants) {
+      const groups = NS.variants.keywordGroups(rawQuery === undefined ? qTrad : rawQuery);
+      if (groups.some((g) => g.length > 1)) {
+        return NS.variants.scanGroups(corpus, groups, { bookId: bid, family: edition })
+          .map((i) => [corpus.cell(i, "passage_id"), corpus.cell(i, "file_id"),
+            corpus.cell(i, "row_no"), corpus.cell(i, "seq"), null])
+          .sort((a, b) => a[0] - b[0]);
+      }
+    }
     const E = NS.engine;
     const [longTerms, shortTerms] = E.planQuery(qTrad);
     const st = corpus.bm25 || {};
@@ -723,10 +748,55 @@
               r[c.row_no], r[c.seq], scores === null ? null : scores[k]];
     });
 
+    // 变体**进候选检索阶段**（Phase 7 修复）：组内 OR 扫描后求交，而不是先扫基词
+    // 再过滤 —— 过滤只能收窄，补不回没扫到的另一种写法。
+    // 注意**不能**把变体并进 `likeScan` 的 AND 词表：那是「同时含两种字形」，
+    // 实测让 `齊桓公`（简繁并存）直接归零。必须走 `{ any: true }` 的 OR 扫描。
+    // 这与 Python `_fetch_hits` 的 `(LIKE %a% OR LIKE %b%)` 是同一种语义。
+    const groupsOf = (terms) => {
+      if (!variants) return [];
+      const out = [];
+      for (const t of terms) {
+        const vs = NS.variants.termVariants(t);
+        if (vs.length > 1) out.push(vs);
+      }
+      return out;
+    };
+    const gLong = groupsOf(longTerms);
+    const gShort = groupsOf(shortTerms);
+    // 组内 OR（一次 any 扫描）、组间 AND（求交）—— 等价于 Python 的
+    // `(LIKE a OR LIKE b) AND (LIKE c OR LIKE d)`。
+    const unionHits = (groups) => {
+      let acc = null;
+      for (const g of groups) {
+        const s = new Set(corpus.likeScan(g, Object.assign({}, filter, { any: true })).hits);
+        if (acc === null) { acc = s; continue; }
+        const next = new Set();
+        for (const i of acc) if (s.has(i)) next.add(i);
+        acc = next;
+      }
+      return acc;                    // null = 无变体组
+    };
+    // FTS 路径要保留「必须含原短语」（Python 的 MATCH 用基词长词）
+    const longGate = (variants && gLong.length)
+      ? new Set(corpus.likeScan(longTerms, filter).hits)
+      : null;
+
     let hits, scoreNeg = null;
     if (useFts) {
-      // 长词走 FTS，同查询的 <3 字词作 AND 附加约束参与命中（不计分）
-      hits = corpus.likeScan(longTerms.concat(shortTerms), filter).hits;
+      // 长词走 FTS（基词长词短语）、短词作 LIKE 附加约束，两者是两件事：
+      // 长的要含原短语，短的命中任一写法即可（组内 OR）。不能合并成一次
+      // `likeScan` 的 AND 词表，否则短词的变体语义会被压掉
+      // （实测 `齊桓公 内` py=4 而 js=1）。
+      const uLong = unionHits(gLong);
+      const uShort = unionHits(gShort);
+      // 短词没有变体组时仍并进同一次扫描，否则丢掉它的 AND 约束
+      // （实测 `齊桓公 管仲` 会从 11 条涨到 20 条）。
+      const baseTerms = uShort === null ? longTerms.concat(shortTerms) : longTerms;
+      const base = corpus.likeScan(baseTerms, filter).hits;
+      hits = base.filter((i) => (uLong === null || uLong.has(i))
+                            && (uShort === null || uShort.has(i))
+                            && (longGate === null || longGate.has(i)));
       const folded = longTerms.map(NS.asciiFold);
       const df = folded.map((t) => E.docFreq(corpus, t));
       // 取负：SQLite 的 bm25() 返回负分（越小越相关），engine.bm25 算的是**正**
@@ -748,9 +818,14 @@
       if (!kept.length) {
         hits = [];
       } else if (kept.every((t) => cplen(t) === 2)) {
-        hits = corpus.likeScan(kept, filter).hits;
+        const u = unionHits(gShort);
+        hits = u === null ? corpus.likeScan(kept, filter).hits
+                          : [...u].filter((i) => kept.every(
+                              (k) => corpus.mtext[i].indexOf(k) >= 0));
       } else {
-        hits = E.scanBgTokens(corpus, kept, filter);
+        const u = unionHits(gShort);
+        const base = E.scanBgTokens(corpus, kept, filter);
+        hits = u === null ? base : base.filter((i) => u.has(i));
       }
       scoreNeg = hits.map((i) => {
         const text = corpus.mtext[i];
@@ -765,7 +840,17 @@
         return -s;   // 同上：SQLite 的负分约定
       });
     } else {
-      hits = corpus.likeScan(longTerms.concat(shortTerms), filter).hits;
+      // 无索引可走：LIKE 全扫。用「长词或集 × 短词或集」求交（与 Python 同语义）
+      const uLong = unionHits(gLong);
+      const uShort = unionHits(gShort);
+      if (uLong === null && uShort === null) {
+        hits = corpus.likeScan(longTerms.concat(shortTerms), filter).hits;
+      } else {
+        const src = uLong !== null ? [...uLong]
+                                   : corpus.likeScan(longTerms, filter).hits;
+        hits = src.filter((i) => (uLong === null || uLong.has(i))
+                              && (uShort === null || uShort.has(i)));
+      }
     }
 
     // 命中顺序按 passage_id 升序 —— 对齐 Python `_fetch_hits` 的**隐式**顺序：
@@ -784,8 +869,13 @@
     return rowsOf(order.map((k) => hits[k]), scoreNeg === null ? null : order.map((k) => scoreNeg[k]));
   }
 
-  /** 实际检索路径（fts/bigram/like），与 engine 的文案一致。 */
-  function execMode(corpus, qTrad) {
+  /** 实际检索路径（fts/bigram/like），与 engine 的文案一致。
+   *
+   *  有实际字形扩展时走 LIKE，避免原词 MATCH 收窄变体并集。
+   *  未扩展时沿用原路径；与 Python `_exec_mode` 一致。 */
+  function execMode(corpus, qTrad, variants, rawQuery) {
+    if (variants && NS.variants.keywordGroups(rawQuery === undefined ? qTrad : rawQuery)
+      .some((g) => g.length > 1)) return "like";
     const E = NS.engine;
     const [longTerms, shortTerms] = E.planQuery(qTrad);
     const st = corpus.bm25 || {};
@@ -840,7 +930,8 @@
     const bid = E.resolveBook(corpus, opts.book);
     const edition = E.resolveEdition(opts.edition);
 
-    const hitRows = fetchHits(corpus, qTrad, bid, edition);
+    const variants = opts.variants === true;   // Phase 7-E：默认关闭
+    const hitRows = fetchHits(corpus, qTrad, bid, edition, variants, q);
     const hitTotal = hitRows.length;
     // 检索词的简体形态：前端在「只看简体/繁简对照」里要用它高亮（繁体词高亮不到
     // 简体正文上）。用的是和正文同一个转换函数，两边不会出现两套简体。
@@ -851,14 +942,14 @@
     const base = {
       q: NS.pyStrip(q || ""), q_traditional: qTrad, mode: mode,
       text_mode: textMode, terms_simplified: simpleTerms,
-      exec_mode: execMode(corpus, qTrad),
+      exec_mode: execMode(corpus, qTrad, variants, q),
       book: bid || "全部", edition: edition || "全部",
       hit_total: hitTotal, page: page, page_size: pageSize,
     };
     const secIdx = sectionIndex(corpus);
     // 篇名命中：单独组装（不混进正文命中，否则伪命中会把 match_count 灌高、
     // 打乱排序），组装后整体排在正文命中之后（§6：正文命中优先于篇名命中）。
-    const sec = sectionHits(corpus, qTrad, bid, edition, secIdx);
+    const sec = sectionHits(corpus, qTrad, bid, edition, secIdx, variants, q);
     // 「正文没有」不等于「什么都没有」：搜「秦始皇本紀」正文命中是 0，
     // 篇名命中却有——空结果的早退必须把两边一起看。
     if (!hitRows.length && !sec.hits.length) {

@@ -332,16 +332,21 @@
         mode = NS.resultBlock.DEFAULT_MODE;
       }
       const qtext = this._q(params, "q") || "";
+      // Phase 7-E：字形变体开关，与 api/main.py 的 _truthy 同语义。
+      // block / passage / question 三条路径都要能开，否则与 Python 侧的
+      // 「?variants=1 覆盖全部 level」不对等。
+      const variants = ["1", "true", "yes", "on"]
+        .indexOf(String(this._q(params, "variants") || "").trim().toLowerCase()) >= 0;
       if (level === "passage") {
         return NS.engine.runSearch(this.corpus, qtext, {
           book: this._q(params, "book"), edition: this._q(params, "edition"),
-          page, pageSize,
+          page, pageSize, variants,
         });
       }
       if (level === "block") {
         return NS.resultBlock.searchResultBlocks(this.corpus, qtext, {
           book: this._q(params, "book"), edition: this._q(params, "edition"),
-          page, pageSize, mode, textMode,
+          page, pageSize, mode, textMode, variants,
         });
       }
       if (level === "question") return this._question(params, mode, textMode);
@@ -360,7 +365,10 @@
       if (NS.dualText.MODES.indexOf(textMode) < 0) {
         throw new Error(`未知的繁简方式：${textMode}（可用：${NS.dualText.MODES.join("、")}）`);
       }
-      const res = NS.retrieve.retrieve(this.corpus, qtext, this.entities());
+      // Phase 7-E：字形变体开关，与 api/main.py 的 _truthy 同语义。
+      const variants = ["1", "true", "yes", "on"]
+        .indexOf(String(this._q(params, "variants") || "").trim().toLowerCase()) >= 0;
+      const res = NS.retrieve.retrieve(this.corpus, qtext, this.entities(), variants);
       const out = NS.retrieve.asDict(res, 20, {
         corpus: this.corpus, mode, textMode,
       });

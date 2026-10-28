@@ -92,10 +92,14 @@
     return rows.slice(0, limit).map((i) => candOf(corpus, i));
   }
 
-  /** 一句问题 → 排序好的候选史料。全程只读，不写语料、不改原文。 */
-  function retrieve(corpus, qtext, ents) {
+  /** 一句问题 → 排序好的候选史料。全程只读，不写语料、不改原文。
+   *
+   * `variants=false`（默认）时行为与第四阶段逐字节一致；置 true 时额外把
+   * 问句的字形变体（原形 + 繁体形）并入候选池 —— 与 Python 侧同源（Phase 7-E）。
+   */
+  function retrieve(corpus, qtext, ents, variants) {
     const q = NS.question.analyze(qtext, ents);
-    const exp = NS.queryExpansion.expand(q, ents);
+    const exp = NS.queryExpansion.expand(q, ents, variants);
     const out = new Retrieved(q, exp);
 
     // 实体词按扩展层分好的档位取用（档位依据见 query_expansion.termRoles）
@@ -106,8 +110,12 @@
     const weakTerms = termsOf("weak");
     const intentTerms = termsOf("intent");
     const weakIntent = termsOf("intent_weak");
+    // Phase 7-E：字形变体（默认空数组 → 行为不变）
+    const variantTerms = termsOf("variant");
 
     const seen = new Set();
+    // 注意：字形变体**不进实体池**（它与 Python 侧一致，只进兜底池）。
+    // 变体是用户原话的字形，不是实体，混进实体池会让 notes 与召回都走偏。
     const entityQuery = entityTerms.concat(aliasTerms, weakTerms);
     for (const c of likeAny(corpus, entityQuery, POOL_LIMIT)) {
       if (!seen.has(c.passage_id)) {
@@ -116,7 +124,8 @@
       }
     }
     out.notes.push(`实体池：${out.entity_pool.length} 条` +
-                   `（实体词 ${NS.ranking.pyReprList(entityQuery)}）`);
+                   `（实体词 ${NS.ranking.pyReprList(entityQuery)}` +
+                   ` + 字形变体 ${NS.ranking.pyReprList(variantTerms)}）`);
 
     const topicTerms = termsOf("topic");
     if (!out.entity_pool.length) {
@@ -124,7 +133,7 @@
       // 所以主题词要和意图词一起兜底 —— 只兜意图词会让这类问句空手而归
       // （实测：「城濮之战谁赢了」曾经返回 0 条，而语料里「城濮」有大把段落）。
       const seen2 = new Set();
-      const fallbackQuery = topicTerms.concat(intentTerms);
+      const fallbackQuery = topicTerms.concat(variantTerms, intentTerms);
       for (const c of likeAny(corpus, fallbackQuery, POOL_LIMIT)) {
         if (!seen2.has(c.passage_id)) {
           seen2.add(c.passage_id);
@@ -134,6 +143,7 @@
       out.notes.push(
         `实体池为空，兜底池：${out.fallback_pool.length} 条` +
         `（主题词 ${NS.ranking.pyReprList(topicTerms)} + ` +
+        `字形变体 ${NS.ranking.pyReprList(variantTerms)} + ` +
         `意图强词 ${NS.ranking.pyReprList(intentTerms)}）`);
       if (!out.fallback_pool.length) {
         out.notes.push("语料中没有该实体，也没有可用的意图词 —— 如实返回空，不编造");

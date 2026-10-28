@@ -1,0 +1,121 @@
+{
+  "scope": "6 reused development + 6 hand-selected new subjects; non-exhaustive evidence, not accuracy",
+  "groups": {
+    "development": {
+      "n": 6,
+      "expanded_hit20": 0,
+      "pipeline_hit20": 4
+    },
+    "new_subject": {
+      "n": 6,
+      "expanded_hit20": 4,
+      "pipeline_hit20": 5
+    }
+  },
+  "queries": [
+    {
+      "id": "han-western-regions",
+      "baseline_rank": null,
+      "pipeline_rank": 1,
+      "ms": 15216.97,
+      "audit_clues_present": 1
+    },
+    {
+      "id": "jin-death",
+      "baseline_rank": null,
+      "pipeline_rank": 6,
+      "ms": 11454.1,
+      "audit_clues_present": 7
+    },
+    {
+      "id": "ming-office",
+      "baseline_rank": null,
+      "pipeline_rank": null,
+      "ms": 7469.25,
+      "audit_clues_present": 0
+    },
+    {
+      "id": "new-fan-military",
+      "baseline_rank": null,
+      "pipeline_rank": null,
+      "ms": 5459.17,
+      "audit_clues_present": 0
+    },
+    {
+      "id": "new-kou-time",
+      "baseline_rank": null,
+      "pipeline_rank": 1,
+      "ms": 11003.95,
+      "audit_clues_present": 2
+    },
+    {
+      "id": "new-lu-battle",
+      "baseline_rank": 4,
+      "pipeline_rank": 7,
+      "ms": 4246.09,
+      "audit_clues_present": 0
+    },
+    {
+      "id": "new-sima-book",
+      "baseline_rank": 1,
+      "pipeline_rank": 1,
+      "ms": 4094.5,
+      "audit_clues_present": 4
+    },
+    {
+      "id": "new-wei-place",
+      "baseline_rank": 6,
+      "pipeline_rank": 11,
+      "ms": 6737.59,
+      "audit_clues_present": 0
+    },
+    {
+      "id": "new-xie-time",
+      "baseline_rank": 4,
+      "pipeline_rank": 2,
+      "ms": 11657.07,
+      "audit_clues_present": 1
+    },
+    {
+      "id": "song-appointment",
+      "baseline_rank": null,
+      "pipeline_rank": null,
+      "ms": 5999.38,
+      "audit_clues_present": 0
+    },
+    {
+      "id": "song-resignation-reason",
+      "baseline_rank": null,
+      "pipeline_rank": 1,
+      "ms": 12232.13,
+      "audit_clues_present": 0
+    },
+    {
+      "id": "tang-accession",
+      "baseline_rank": null,
+      "pipeline_rank": 1,
+      "ms": 6455.44,
+      "audit_clues_present": 2
+    }
+  ],
+  "latency_ms": {
+    "min": 4094.5,
+    "median": 7103.42,
+    "max": 15216.97
+  },
+  "source_identity": {
+    "src/data/database/history.db": {
+      "bytes": 1152004096,
+      "mtime_ns": 1792512819995472200
+    },
+    "src/data/punctuated/library.sqlite": {
+      "bytes": 277618688,
+      "mtime_ns": 1792999472194976400
+    },
+    "src/data/punctuated/search-index/manifest.json": {
+      "bytes": 1491,
+      "mtime_ns": 1793078261580857100
+    }
+  },
+  "model_generation_calls": 0
+}

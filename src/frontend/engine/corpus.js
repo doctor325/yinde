@@ -212,11 +212,19 @@
         }
         const t = this.mtext[i];
         if (t === null || t === undefined) continue;
-        let ok = !any;
-        for (let j = 0; j < needles.length; j++) {
-          const has = t.indexOf(needles[j]) >= 0;
-          if (any ? has : !has) { ok = has; break; }
-        }
+        // AND 语义：全部 needle 都要在。OR 语义（opts.any）：命中任一即可。
+        //
+        // 修复记录（Phase 7 审查）：原写法是
+        //     let ok = !any;
+        //     for (...) { const has = ...; if (any ? has : !has) { ok = has; break; } }
+        // 在 `any` 模式下它于**第一个不匹配**的 needle 上就 break，于是语义退化成
+        // 「是否含 needles[0]」—— 实测 `likeScan(["內","内"], {any:true})` 只返回
+        // 「內」的 742 条，而不是两形并集的 11562 条。
+        // 此前没暴露，是因为 `any` 一直**没有调用者**；Phase 7-E 的词形变体组
+        // （组内 OR）是第一个用它的地方，一用就被对拍抓住。
+        const ok = any
+          ? needles.some((nd) => t.indexOf(nd) >= 0)
+          : needles.every((nd) => t.indexOf(nd) >= 0);
         if (ok) hits.push(i);
       }
       return { total: hits.length, hits };

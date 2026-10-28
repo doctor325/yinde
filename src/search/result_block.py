@@ -565,15 +565,91 @@ def _shape_block(seg: list, pids: list, m: dict, cur, sec_idx: dict | None = Non
 
 # ----------------------------------------------------------------- 对外入口
 
-def _fetch_hits(cur, q_trad: str, bid: str | None, edition: str | None) -> list:
+def _like_cond(term: str) -> tuple[str, str]:
+    """单个词的 LIKE 条件（与 engine._like_cond 同语义）。"""
+    from search import engine as E
+    return E._like_cond(term)
+
+
+def _like_any_cond(group: list[str]) -> tuple[str, list]:
+    """一组**等价字形**的 LIKE 条件：命中任一即可（OR）。
+
+    用于 Phase 7-E 的字形变体：`[内, 內]` 必须拼成 `(LIKE %内% OR LIKE %內%)`。
+    拼成 AND 就变成「同时含两种写法」，实测让命中数从 742 掉到 0。
+    """
+    from search import engine as E
+    conds, params = [], []
+    for t in group:
+        c, a = E._like_cond(t)
+        conds.append(c)
+        params.append(a)
+    if len(conds) == 1:
+        return conds[0], params
+    return "(" + " OR ".join(conds) + ")", params
+
+
+def _variant_groups(V, E, long_terms: list[str], short_terms: list[str],
+                    variants: bool) -> tuple[list[list[str]], list[str], list[str]]:
+    """字形变体组的**唯一**计算入口（Phase 7 审查 F4）。
+
+    返回 `(groups, long_terms, short_terms)`：
+
+    - 变体关闭时原样返回，`groups=[]` → 下游走旧逻辑，逐字不变。
+    - 变体打开时，把每个词扩成 `term_variants`（原形/繁体/简体，去重保序），
+      长度 >1 的成为一组（组内 OR）；基词仍留在 `long_terms`/`short_terms` 里，
+      因为 FTS 路径要用**未扩展**的长词建 MATCH 短语（扩展词之间是 OR，
+      不能拼进隐式 AND 的短语串）。
+
+    `_fetch_hits` 与 `_exec_mode` 必须都调它，否则「报 fts 实际走 like」。
+    """
+    if not variants:
+        return [], long_terms, short_terms
+    groups = [vs for vs in
+              (V.term_variants(t) for t in long_terms + short_terms)
+              if len(vs) > 1]
+    return groups, long_terms, short_terms
+
+
+def _fetch_hits(cur, q_trad: str, bid: str | None, edition: str | None,
+                variants: bool = False, raw_query: str | None = None) -> list:
     """取全部命中的 (passage_id, file_id, row_no, seq, score, book_id)。
 
     路径选择与 engine.run_search 保持一致（trigram / bigram / LIKE），但**不分页**
     —— Result Block 必须先看全命中才能正确合并与计数。LIKE 路径无 bm25，score 记 None。
+
+    `variants=True`（Phase 7-E，默认关闭）时每个检索词并入等价字形 ——
+    语料里简繁并存，只做替换式转换会漏掉只含另一种写法的段落（实测 86,198 段）。
     """
     from search import engine as E
+    from search import variants as V
+
+    if variants:
+        expanded = V.keyword_groups(raw_query if raw_query is not None else q_trad)
+        if any(len(g) > 1 for g in expanded):
+            where, args = ["p.kind = 'passage'"], []
+            if bid:
+                where.append("b.book_id = ?"); args.append(bid)
+            if edition:
+                where.append("LOWER(b.family) = ?"); args.append(edition)
+            for group in expanded:
+                c, a = _like_any_cond(group)
+                where.append(c); args.extend(a)
+            return cur.execute(
+                "SELECT p.passage_id, p.file_id, p.row_no, p.seq, NULL AS score, p.book_id "
+                "FROM passages p JOIN files f ON f.file_id=p.file_id "
+                "JOIN books b ON b.book_id=f.book_id WHERE " + " AND ".join(where)
+                + " ORDER BY p.passage_id", args).fetchall()
 
     long_terms, short_terms = E.plan_query(q_trad)
+    # 变体必须按 **OR** 处理（同一词的两种字形取其一），不能并进 AND 词组 ——
+    # 并进去就变成「同时含简形和繁形」，实测会让命中数不升反降（「内」742 → 0）。
+    # 所以这里另存一组，单独拼成 OR 条件。
+    #
+    # 变体集合只有一份，`_fetch_hits` 与 `_exec_mode` 共用（Phase 7 审查 F4）——
+    # 两处各自算会出现「报 fts 实际走 like」的分叉，而 exec_mode 是给前端看的。
+    groups, long_terms, short_terms = _variant_groups(
+        V, E, long_terms, short_terms, variants)
+
     use_fts = E.fts_tokenizer(cur) == "trigram" and bool(long_terms)
     pure_two = bool(short_terms) and all(len(t) == 2 for t in short_terms)
     use_bg = not use_fts and pure_two and E.has_bigram_fts(cur)
@@ -584,13 +660,31 @@ def _fetch_hits(cur, q_trad: str, bid: str | None, edition: str | None) -> list:
     if edition:
         where.append("LOWER(b.family) = ?"); args.append(edition)
 
+    # 变体组覆盖到的短词**不再**并进 FTS 的 MATCH 短语串。
+    #
+    # 为什么：MATCH 串是**隐式 AND 的短语**，而 trigram 只对 >=3 字有索引 ——
+    # 把 1-2 字的短词塞进去，它是「要求这段按顺序含这个词」的短语约束，
+    # 与 `_like_cond` 的子串约束在 FTS 侧并不等价。实测 `齊桓公 内`：
+    #   · 旧写法（短词进 MATCH）→ 1 命中（「内」那条短语约束没被满足）
+    #   · 只把无变体的短词进 MATCH、有变体的走 OR 组 → 4 命中
+    # JS 侧 `likeScan` 本来就是「子串 AND」（4 命中），所以后者才与之一致。
+    covered_short = {t for g in groups for t in g}
     if use_fts or use_bg:
         table = "passages_fts" if use_fts else "passages_bg"
         terms = long_terms if use_fts else short_terms
-        if use_fts:                       # 同查询中的 <3 字词作 AND 附加约束
+        if use_fts:
             for t in short_terms:
+                if t in covered_short:
+                    continue
                 c, a = E._like_cond(t)
                 where.append(c); args.append(a)
+        # 变体组作 OR 附加约束
+        #   · bigram 路径：组里的词就是 terms 的子集，必须显式加 OR，否则
+        #     MATCH 短语串（隐式 AND）把「内 內」要求成同段同时出现 → 命中归零。
+        #   · fts 路径：长词已在 MATCH 里 OR，但混进来的短词变体要靠这里。
+        for g in groups:
+            c, a = _like_any_cond(g)
+            where.append(c); args.extend(a)
         cond = " AND ".join(where)
         return cur.execute(
             f"WITH hits AS (SELECT rowid AS pid, bm25({table}) AS score FROM {table} "
@@ -601,9 +695,17 @@ def _fetch_hits(cur, q_trad: str, bid: str | None, edition: str | None) -> list:
             f"JOIN books b ON b.book_id = f.book_id WHERE {cond}",
             [E.fts_match_text(terms)] + args).fetchall()
 
+    # 变体组已被 groups 覆盖的基词不再单独 AND（否则「内」与「内 OR 內」重复约束，
+    # 虽然结果等价，但会让 SQL 冗余）。未被覆盖的词照旧逐个 AND。
+    covered = {t for g in groups for t in g}
     for t in long_terms + short_terms:
+        if t in covered:
+            continue
         c, a = E._like_cond(t)
         where.append(c); args.append(a)
+    for g in groups:
+        c, a = _like_any_cond(g)
+        where.append(c); args.extend(a)
     cond = " AND ".join(where)
     return cur.execute(
         f"SELECT p.passage_id, p.file_id, p.row_no, p.seq, NULL AS score, p.book_id "
@@ -611,10 +713,20 @@ def _fetch_hits(cur, q_trad: str, bid: str | None, edition: str | None) -> list:
         f"JOIN books b ON b.book_id = f.book_id WHERE {cond}", args).fetchall()
 
 
-def _exec_mode(cur, q_trad: str) -> str:
+def _exec_mode(cur, q_trad: str, variants: bool = False,
+               raw_query: str | None = None) -> str:
     """实际检索路径（fts/bigram/like），与 engine 的文案一致。"""
     from search import engine as E
+    from search import variants as V
+    if variants and any(len(g) > 1 for g in V.keyword_groups(
+            raw_query if raw_query is not None else q_trad)):
+        return "like"
     long_terms, short_terms = E.plan_query(q_trad)
+    # 与 `_fetch_hits` 共用同一份变体集合（Phase 7 审查 F4）。
+    # 注意**不再**把变体并进 long/short 再重算：那会让 exec_mode 报出
+    # `_fetch_hits` 实际没走的路径（报 fts、实际 like），而 exec_mode 是给前端看的。
+    _groups, long_terms, short_terms = _variant_groups(
+        V, E, long_terms, short_terms, variants)
     if E.fts_tokenizer(cur) == "trigram" and long_terms:
         return "fts"
     if short_terms and all(len(t) == 2 for t in short_terms) and E.has_bigram_fts(cur):
@@ -666,15 +778,36 @@ def _section_end(idx: dict, file_id: int, first_row: int):
     return None
 
 
-def _section_hits(cur, q_trad: str, bid, edition, idx: dict) -> tuple:
+def _section_hits(cur, q_trad: str, bid, edition, idx: dict,
+                  variants: bool = False, raw_query: str | None = None) -> tuple:
     """篇名命中 → (命中锚点列表, 是否被 MAX_SECTION_BLOCKS 截断)。
 
     锚点取区间内**首条 kind='passage' 行**——返回这一篇的开头，而不是标题行
     （标题行不是正文，进了块也会被 _shape_block 丢掉）。区间内无正文则跳过。
+
+    `variants=True`（Phase 8 补）时篇名也认等价字形，默认关闭时逐字节同旧。
     """
-    esc = q_trad.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-    where = ["(s.label = ? OR s.label LIKE ? ESCAPE '\\')"]
-    args: list = [q_trad, "%" + esc + "%"]
+    # Phase 8 补（Phase 7 §11.1 的已知未做项）：篇名命中此前**不接字形变体**，
+    # 正文命中接了，于是「吴太伯世家」这类只含另一种写法的篇名漏掉。变体语义与
+    # 正文同源（search.variants），不在本文件另写一套。
+    #
+    # 只在**单 token** 时扩展：旧行为是「label 等于整串、或含整串」，多 token
+    # 查询（`齊桓公 卒`）本就匹配不到任何篇名；若在此扩成「含任一词」，就顺手改了
+    # 一件与字形变体无关的事。多 token 原样返回 —— 改动严格是加法。
+    from search import variants as V
+    forms = [q_trad]
+    if variants:
+        toks = V.query_tokens(raw_query if raw_query is not None else q_trad)
+        if len(toks) == 1:
+            forms.extend(v for v in V.term_variants(toks[0]) if v not in forms)
+    conds, args = [], []
+    for f in forms:
+        esc = f.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        conds.append("s.label = ?")
+        args.append(f)
+        conds.append("s.label LIKE ? ESCAPE '\\'")
+        args.append("%" + esc + "%")
+    where = ["(" + " OR ".join(conds) + ")"]
     if bid:
         where.append("b.book_id = ?"); args.append(bid)
     if edition:
@@ -726,7 +859,8 @@ def _file_meta(cur, file_ids) -> dict:
 def search_result_blocks(cur, q: str, book: str | None = None,
                          edition: str | None = None, page: int = 1,
                          page_size: int = 20, mode: str = DEFAULT_MODE,
-                         text_mode: str = "orig") -> dict:
+                         text_mode: str = "orig",
+                         variants: bool = False) -> dict:
     """检索 → 组装 Result Block → 排序分页。参数非法抛 ValueError（API 转 400）。
 
     `total` 是**合并后的片段数**（精确），`hit_total` 是原始命中 passage 数；
@@ -750,20 +884,21 @@ def search_result_blocks(cur, q: str, book: str | None = None,
     bid = E.resolve_book(cur, book)
     edition = E.resolve_edition(edition)
 
-    hit_rows = _fetch_hits(cur, q_trad, bid, edition)
+    hit_rows = _fetch_hits(cur, q_trad, bid, edition, variants, q)
     hit_total = len(hit_rows)
     # 检索词的简体形态：前端在「只看简体/繁简对照」里要用它高亮（繁体词高亮不到
     # 简体正文上）。用的是和正文同一个转换函数，两边不会出现两套简体。
     simple_terms = [dual_text.simplify(t)["text"] for t in q_trad.split() if t]
     base = {"q": q.strip(), "q_traditional": q_trad, "mode": mode,
             "text_mode": text_mode, "terms_simplified": simple_terms,
-            "exec_mode": _exec_mode(cur, q_trad),
+            "exec_mode": _exec_mode(cur, q_trad, variants, q),
             "book": bid or "全部", "edition": edition or "全部",
             "hit_total": hit_total, "page": page, "page_size": page_size}
     sec_idx = _section_index(cur)
     # 篇名命中：单独组装（不混进正文命中，否则伪命中会把 match_count 灌高、
     # 打乱排序），组装后整体排在正文命中之后（§6：正文命中优先于篇名命中）。
-    sec_hits, sec_capped = _section_hits(cur, q_trad, bid, edition, sec_idx)
+    sec_hits, sec_capped = _section_hits(cur, q_trad, bid, edition, sec_idx,
+                                        variants, q)
     # 「正文没有」不等于「什么都没有」：搜「秦始皇本紀」正文命中是 0，
     # 篇名命中却有——空结果的早退必须把两边一起看。
     if not hit_rows and not sec_hits:

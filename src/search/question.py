@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
+from functools import lru_cache
 
 from search import entities, zh
 
@@ -220,14 +221,38 @@ class Question:
         }
 
 
+@lru_cache(maxsize=None)
+def _norm_ask(kw: str, excludes: tuple[str, ...]) -> tuple[str, tuple[str, ...]]:
+    """把 ask 词与它的排除表一并规范化到**与问句同一字形**（Phase 8 补）。
+
+    为什么必须有这一步：`analyze` 第 1 步把问句转成繁体（`zh.to_traditional`），
+    而 ask 表里混着简体写法（「被杀」「关系」「与」「结局」「下场」…），
+    `_triggered` 又是裸 `find`、不做任何规范化 —— 两边字形不同就**永不相遇**。
+    实测：107 个 ask 词里 **49 个永远不可能命中**，relation 意图的触发词几乎全废
+    （「关系」「与」「之间」「辅佐」「推荐」都死了，只剩「和」一个还活着；
+    连繁体用户直接打「與」也不命中，因为表里写的是「与」）。
+
+    修的是**匹配口径**（两边都规范化），不是改词表：词表的字面一字未动，
+    简体条目从此按"它的繁体形"参与匹配 —— 与 7-E 字形扩展同一语义
+    （扩展，不是替换）。排除表必须同步规范化：否则简体排除词在繁体窗口里
+    同样找不到，`exclude` 会静默失效，把「流亡」里的「亡」误判成死亡意图。
+    """
+    return zh.to_traditional(kw), tuple(zh.to_traditional(x) for x in excludes)
+
+
 def _detect_intents(text: str) -> tuple[list[str], list[str]]:
-    """判意图，返回 (命中的意图序列, 说明)。按 INTENT_PRIORITY 排序，不是出现顺序。"""
+    """判意图，返回 (命中的意图序列, 说明)。按 INTENT_PRIORITY 排序，不是出现顺序。
+
+    `text` 必须已经过 `analyze` 第 1 步的繁简统一 —— 比对用的是规范化后的词，
+    字形口径要一致，理由见 `_norm_ask`。
+    """
     hits, notes = [], []
     for name in INTENT_PRIORITY:
         spec = INTENT_VOCAB[name]
         excludes = spec.get("exclude", {})
         for kw in spec["ask"]:
-            if _triggered(text, kw, excludes.get(kw, ())):
+            kt, ext = _norm_ask(kw, tuple(excludes.get(kw, ())))
+            if _triggered(text, kt, ext):
                 hits.append(name)
                 notes.append(f"意图「{name}」由问句里的「{kw}」触发")
                 break
