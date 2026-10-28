@@ -1,0 +1,224 @@
+{
+  "queries": 30,
+  "old_hit20": 25,
+  "new_hit20": 25,
+  "regressions": [],
+  "qualified_death_accession_quotes": 14,
+  "qualifications_cleared": 14,
+  "rows": [
+    {
+      "id": "han-western-regions",
+      "old_rank": 1,
+      "new_rank": 1,
+      "old_hit20": true,
+      "new_hit20": true
+    },
+    {
+      "id": "jin-death",
+      "old_rank": 5,
+      "new_rank": 5,
+      "old_hit20": true,
+      "new_hit20": true
+    },
+    {
+      "id": "tang-accession",
+      "old_rank": 1,
+      "new_rank": 1,
+      "old_hit20": true,
+      "new_hit20": true
+    },
+    {
+      "id": "song-appointment",
+      "old_rank": 10,
+      "new_rank": 10,
+      "old_hit20": true,
+      "new_hit20": true
+    },
+    {
+      "id": "song-resignation-reason",
+      "old_rank": 1,
+      "new_rank": 1,
+      "old_hit20": true,
+      "new_hit20": true
+    },
+    {
+      "id": "ming-office",
+      "old_rank": null,
+      "new_rank": null,
+      "old_hit20": false,
+      "new_hit20": false
+    },
+    {
+      "id": "holdout-han-death",
+      "old_rank": 1,
+      "new_rank": 1,
+      "old_hit20": true,
+      "new_hit20": true
+    },
+    {
+      "id": "holdout-han-enfeoff",
+      "old_rank": 2,
+      "new_rank": 2,
+      "old_hit20": true,
+      "new_hit20": true
+    },
+    {
+      "id": "holdout-shu-succession",
+      "old_rank": 1,
+      "new_rank": 1,
+      "old_hit20": true,
+      "new_hit20": true
+    },
+    {
+      "id": "holdout-tang-transfer",
+      "old_rank": 1,
+      "new_rank": 1,
+      "old_hit20": true,
+      "new_hit20": true
+    },
+    {
+      "id": "holdout-song-transfer",
+      "old_rank": 1,
+      "new_rank": 1,
+      "old_hit20": true,
+      "new_hit20": true
+    },
+    {
+      "id": "holdout-song-document",
+      "old_rank": 2,
+      "new_rank": 2,
+      "old_hit20": true,
+      "new_hit20": true
+    },
+    {
+      "id": "holdout-ming-office",
+      "old_rank": 3,
+      "new_rank": 1,
+      "old_hit20": true,
+      "new_hit20": true
+    },
+    {
+      "id": "holdout-ming-local-office",
+      "old_rank": 1,
+      "new_rank": 1,
+      "old_hit20": true,
+      "new_hit20": true
+    },
+    {
+      "id": "holdout-song-exam",
+      "old_rank": 1,
+      "new_rank": 1,
+      "old_hit20": true,
+      "new_hit20": true
+    },
+    {
+      "id": "holdout-han-authorship",
+      "old_rank": 2,
+      "new_rank": 1,
+      "old_hit20": true,
+      "new_hit20": true
+    },
+    {
+      "id": "holdout-tang-battle",
+      "old_rank": 1,
+      "new_rank": 1,
+      "old_hit20": true,
+      "new_hit20": true
+    },
+    {
+      "id": "holdout-ming-voyage",
+      "old_rank": 6,
+      "new_rank": 6,
+      "old_hit20": true,
+      "new_hit20": true
+    },
+    {
+      "id": "new-death",
+      "old_rank": null,
+      "new_rank": null,
+      "old_hit20": false,
+      "new_hit20": false
+    },
+    {
+      "id": "new-march",
+      "old_rank": 2,
+      "new_rank": 3,
+      "old_hit20": true,
+      "new_hit20": true
+    },
+    {
+      "id": "new-calendar",
+      "old_rank": 15,
+      "new_rank": 15,
+      "old_hit20": true,
+      "new_hit20": true
+    },
+    {
+      "id": "new-advice",
+      "old_rank": null,
+      "new_rank": null,
+      "old_hit20": false,
+      "new_hit20": false
+    },
+    {
+      "id": "new-demotion",
+      "old_rank": 3,
+      "new_rank": 3,
+      "old_hit20": true,
+      "new_hit20": true
+    },
+    {
+      "id": "new-sea-calendar",
+      "old_rank": 1,
+      "new_rank": 1,
+      "old_hit20": true,
+      "new_hit20": true
+    },
+    {
+      "id": "new-recapture",
+      "old_rank": 1,
+      "new_rank": 1,
+      "old_hit20": true,
+      "new_hit20": true
+    },
+    {
+      "id": "new-boundary",
+      "old_rank": null,
+      "new_rank": null,
+      "old_hit20": false,
+      "new_hit20": false
+    },
+    {
+      "id": "new-book-volume",
+      "old_rank": 2,
+      "new_rank": 2,
+      "old_hit20": true,
+      "new_hit20": true
+    },
+    {
+      "id": "new-invention",
+      "old_rank": 1,
+      "new_rank": 1,
+      "old_hit20": true,
+      "new_hit20": true
+    },
+    {
+      "id": "new-battle-place",
+      "old_rank": 1,
+      "new_rank": 1,
+      "old_hit20": true,
+      "new_hit20": true
+    },
+    {
+      "id": "new-kinship",
+      "old_rank": null,
+      "new_rank": null,
+      "old_hit20": false,
+      "new_hit20": false
+    }
+  ],
+  "code_sha256": {
+    "relation_context.py": "6ba4d4d41057d5f451a9afd0e4bd38e0d8288d6eec577e575081ce55a263bf9d",
+    "punctuated_roles.py": "6af74d4fa50dc026036bbb87d92dc476a38025380399127c2c88b31dc10b0b9c"
+  }
+}

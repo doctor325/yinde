@@ -9,7 +9,7 @@ from search.relation_context import assess_context
 def assess(text, subject='甲公', predicate='卒'):
     start=text.index(subject)
     at=text.index(predicate,start+len(subject))
-    return assess_context(text,start,at,at+len(predicate))
+    return assess_context(text,start,at,at+len(predicate),subject_end=start+len(subject))
 
 
 class Context(unittest.TestCase):
@@ -51,7 +51,16 @@ class Context(unittest.TestCase):
 
     def test_invalid_spans(self):
         for offsets in ((-1,2,3),(0,0,1),(0,3,2),(0,2,9),(True,2,3)):
-            with self.assertRaises(ValueError):assess_context('甲公卒。',*offsets)
+            with self.assertRaises(ValueError):assess_context('甲公卒。',*offsets,subject_end=2)
+        with self.assertRaises(ValueError):assess_context('甲公卒。',0,2,3)
+
+    def test_subject_characters_are_not_qualifiers(self):
+        for name in ('莫甲','若乙','无丙','将丁'):
+            self.assertEqual(assess(name+'卒。',name)['qualifications'],[])
+
+    def test_pre_subject_wish_or_causative_is_unresolved(self):
+        for prefix in ('欲','愿','恐','令','使','命'):
+            self.assertIn('unresolved_scope',assess(prefix+'甲公卒。')['qualifications'])
 
 
 if __name__=='__main__':unittest.main()
