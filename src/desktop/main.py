@@ -203,7 +203,8 @@ def main(argv=None):
                       await until(()=>document.querySelector('#punctuatedSearchResult .evidence-pipeline-note')
                         && document.querySelector('#punctuatedSearchResult .evidence-audit'),90000);
                       evidencePipeline=location.hash.includes('strategy=evidence')
-                        && document.querySelector('#punctuatedSearchResult').textContent.includes('不是已核实的答案');
+                        && document.querySelector('#punctuatedSearchResult').textContent.includes('不是已核实的答案')
+                        && document.querySelector('.evidence-pipeline-note').dataset.pipelineVersion==='context-evidence-v2';
                     }
                   }
                   return {health: health.status === 'ready', books_loaded: books.length > 0, books_count: books.length,

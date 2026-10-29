@@ -40,6 +40,22 @@ const experimentalHtml=run('punctuatedSearchResults(result)');
 assert.ok(experimentalHtml.includes('本次使用原有语义＋规则扩展结果'));
 assert.ok(experimentalHtml.includes('达到本次扫描上限'));
 assert.ok(experimentalHtml.includes('&lt;script&gt;'));assert.ok(!experimentalHtml.includes('<script>'));
+const evidence={...fixture('甲書'),mode:'evidence',candidate_counts:{semantic:60,keyword:20},
+  evidence_pipeline:{version:'context-evidence-v2',audit_clues_present:0,candidate_counts:{context_scored:57},
+    candidate_scan:{truncated:false},grounded_fallback:{hypothesis:'甲乙'}},
+};
+evidence.hits[0].evidence_audit={status:'insufficient',missing:['缺少<script>线索']};
+evidence.hits[0].context_chunks=[];
+evidence.hits[0].evidence_focus={selected:true,text:'甲乙丙，國語。<script>'};
+run('globalThis.put=x=>{globalThis.result=x}')(evidence);
+const evidenceHtml=run('punctuatedSearchResults(result)');
+assert.ok(evidenceHtml.includes('比较了 57 个片段'));
+assert.ok(evidenceHtml.includes('data-pipeline-version="context-evidence-v2"'));
+assert.ok(evidenceHtml.includes('自动核查尚未确认是否回答问题'));
+assert.ok(evidenceHtml.includes('规则未识别不代表原文没有记载'));
+assert.ok(evidenceHtml.includes('问题尚未完整解析'));
+assert.ok(evidenceHtml.includes('本次重点比较的原文'));
+assert.ok(evidenceHtml.includes('缺少&lt;script&gt;线索'));assert.ok(!evidenceHtml.includes('<script>'));
 await run('punctuatedSearchView({strategy:"relation"},0,true)');
 assert.equal(nodes.get('#punctuatedSearchStrategy').value,'relation');
 assert.ok(nodes.get('#view').innerHTML.indexOf('value="expanded"')<nodes.get('#view').innerHTML.indexOf('value="relation"'));

@@ -60,7 +60,8 @@ function punctuatedSearchResults(result) {
   let html=`<p class="quiet">${result.mode==='keyword'?`共 ${num(result.total)} 个匹配片段 · 第 ${num(result.page)} 页`:`语义候选 ${num(result.candidate_counts.semantic)} 个 · 关键词／规则候选 ${num(result.candidate_counts.keyword)} 个 · 展示前 ${result.hits.length} 个`}
     · ${num(result.elapsed_ms)} ms</p>`;
   if(result.evidence_pipeline){
-    html+=`<p class="quiet evidence-pipeline-note">已解析问题并合并多路候选，结合相邻原文进行模型相关性比较。前20条中 ${num(result.evidence_pipeline.audit_clues_present)} 条包含所问要素与句式线索；这不是已核实的答案。</p>`;
+    html+=`<p class="quiet evidence-pipeline-note" data-pipeline-version="${esc(result.evidence_pipeline.version||'')}">合并多路候选，结合相邻原文比较了 ${num(result.evidence_pipeline.candidate_counts?.context_scored||0)} 个片段。前20条中 ${num(result.evidence_pipeline.audit_clues_present)} 条包含所问要素与句式线索；这不是已核实的答案。</p>`;
+    if(result.evidence_pipeline.grounded_fallback?.hypothesis)html+='<p class="quiet">问题尚未完整解析，本次补充了有原文落点的词语线索；没有据此确认人物身份或事件关系。</p>';
     if(result.evidence_pipeline.candidate_scan.truncated)html+='<p>主体候选达到扫描上限，可能遗漏史料。</p>';
   }
   if(result.relation_experiment){
@@ -75,12 +76,14 @@ function punctuatedSearchResults(result) {
     const compare=`#/search?${qs({q:phrase,book:c.book_id,source:'original'})}`;
     const part=c.parts[0];
     const read=`#/punctuated/${Number(c.page_id)}?${qs({block:part.block_index,start:part.start,end:part.end})}`;
+    const focus=hit.evidence_focus?.selected?`<details><summary>本次重点比较的原文</summary><p>${readingTextHtml(hit.evidence_focus.text,{pb:false})}</p><p>结合前后各最多60字比较相关性；这段文字不是生成的答案。</p></details>`:'';
     html+=`<article class="card punctuated-search-hit"><h3>《${esc(c.book_title)}》 ${esc(c.title)}</h3>
       <p class="quiet">标点版 · 维基文库录入本 · ${c.layer==='annotation'?'来源注释':'正文'}${c.status==='partial_render'?' · 来源排版异常':c.status==='insufficient_punctuation'?' · 短篇或低标点':''}</p>
       <div class="blk-text">${readingTextHtml(c.text_orig,{pb:false})}</div>
       ${c.status!=='readable'?`<p class="quiet">${esc(c.reason)}</p>`:''}
       ${hit.semantic_score==null?'':`<p class="quiet">语义相似分 ${Number(hit.semantic_score).toFixed(3)}（不是正确概率）</p>`}
-      ${hit.evidence_audit?`<p class="evidence-audit">${hit.evidence_audit.status==='clues_present'?'包含所问要素与句式线索（未核实）':'证据不足：'+esc(hit.evidence_audit.missing.join('；'))}</p><details><summary>参与核查的相邻原文</summary>${(hit.context_chunks||[]).filter(n=>n.chunk_id!==c.chunk_id).map(n=>`<p>${readingTextHtml(n.text_orig,{pb:false})}</p><a href="#/punctuated/${Number(n.page_id)}?${qs({block:n.parts[0].block_index,start:n.parts[0].start,end:n.parts[0].end})}">定位此段</a>`).join('')||'<p>没有同层相邻片段。</p>'}<p>模型比较相关性，不核实历史事实。${hit.context_truncated?'模型输入存在截断。':''}</p></details>`:''}
+      ${focus}
+      ${hit.evidence_audit?`<p class="evidence-audit">${hit.evidence_audit.status==='clues_present'?'包含所问要素与句式线索（未核实）':'自动核查尚未确认是否回答问题'}</p><details><summary>核查依据与相邻原文</summary>${hit.evidence_audit.missing.length?`<p>${esc(hit.evidence_audit.missing.join('；'))}。规则未识别不代表原文没有记载。</p>`:''}${(hit.context_chunks||[]).filter(n=>n.chunk_id!==c.chunk_id).map(n=>`<p>${readingTextHtml(n.text_orig,{pb:false})}</p><a href="#/punctuated/${Number(n.page_id)}?${qs({block:n.parts[0].block_index,start:n.parts[0].start,end:n.parts[0].end})}">定位此段</a>`).join('')||'<p>没有同层相邻片段。</p>'}<p>模型比较相关性，不核实历史事实。${hit.context_truncated?'模型输入存在截断。':''}</p></details>`:''}
       <div class="controls"><a class="btn read-link" href="${read}">标点原文与上下文</a><a href="${compare}">在原底本查找此句</a></div>
       <details class="source-detail"><summary>出处与版本</summary><p>${punctuatedSourceLink(c.source_url,'固定修订来源')} · ${punctuatedSourceLink(c.history_url,'修订历史')} · ${punctuatedSourceLink(c.license_url,'CC BY-SA 4.0')}</p>
       <p>${esc(c.attribution)}</p><p>修订 ${num(c.revision_id)} · 原文件校验 ${esc(c.source_sha256)} · 片段 ${num(c.chunk_id)}</p>

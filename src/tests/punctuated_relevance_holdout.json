@@ -1,0 +1,225 @@
+{
+  "policy": "首次运行该新主体集合前冻结。人工从真实来源选择，非随机全时期样本；只读见原文而未见新排序结果。12题均保留，不按失败修改算法或gold；只衡量已知证据召回。",
+  "unlabelled_probes": [
+    "曹丕与甄氏的婚姻记载",
+    "王羲之去世的时间"
+  ],
+  "cases": [
+    {
+      "id": "new-death",
+      "query": "霍去病什么时候去世？",
+      "relation_class": "death",
+      "split": "new_subject_holdout",
+      "gold": [
+        {
+          "chunk_id": 46135,
+          "page_id": 19626,
+          "book_id": "KR2a0007",
+          "title": "漢書/卷006",
+          "evidence": "秋九月，大司馬驃騎將軍去病薨。",
+          "source_sha256": "559eba39e2f0b2443f4ceed10b1eadc3481c3f75e340c37092e99d0290d8ac82",
+          "revision_id": 2631854
+        }
+      ],
+      "gold_policy": "非穷尽出处定位；省称依原传上下文，不能把单句无主语当作身份证明。"
+    },
+    {
+      "id": "new-march",
+      "query": "邓艾进入成都的经过有哪些记载？",
+      "relation_class": "movement",
+      "split": "new_subject_holdout",
+      "gold": [
+        {
+          "chunk_id": 28805,
+          "page_id": 12872,
+          "book_id": "KR2a0012",
+          "title": "三國志/卷35",
+          "evidence": "艾長驅至成都。",
+          "source_sha256": "1e961d4f92d1fc97650de350615a029d35b8ce652ec36a113f300de0154569e3",
+          "revision_id": 2115776
+        }
+      ],
+      "gold_policy": "非穷尽出处定位；省称依原传上下文，不能把单句无主语当作身份证明。"
+    },
+    {
+      "id": "new-calendar",
+      "query": "祖冲之在什么时间制定历法？",
+      "relation_class": "document",
+      "split": "new_subject_holdout",
+      "gold": [
+        {
+          "chunk_id": 259276,
+          "page_id": 100976,
+          "book_id": "KR2a0036",
+          "title": "元史/卷053",
+          "evidence": "宋大明七年癸卯宋祖冲之造",
+          "source_sha256": "9861102f9849cafa66f878afa520f3e12e157e3c6bd510e52b2070626ade6284",
+          "revision_id": 1861159
+        }
+      ],
+      "gold_policy": "非穷尽出处定位；省称依原传上下文，不能把单句无主语当作身份证明。"
+    },
+    {
+      "id": "new-advice",
+      "query": "金朝皇帝如何评价魏征的进谏？",
+      "relation_class": "politics",
+      "split": "new_subject_holdout",
+      "gold": [
+        {
+          "chunk_id": 90882,
+          "page_id": 23524,
+          "book_id": "KR2a0035",
+          "title": "金史/卷8",
+          "evidence": "惟魏征善諫，所言皆國家大事，甚得諫臣之體。",
+          "source_sha256": "7942b4d3507e17fcd48d59d9afbaf609b8e1d016a09797790276c60882ab5279",
+          "revision_id": 2432657
+        }
+      ],
+      "gold_policy": "非穷尽出处定位；省称依原传上下文，不能把单句无主语当作身份证明。"
+    },
+    {
+      "id": "new-demotion",
+      "query": "苏轼为何被贬到黄州？",
+      "relation_class": "reason",
+      "split": "new_subject_holdout",
+      "gold": [
+        {
+          "chunk_id": 94987,
+          "page_id": 24801,
+          "book_id": "KR2a0032",
+          "title": "宋史/卷338",
+          "evidence": "神宗獨憐之，以黃州團練副使安置。",
+          "source_sha256": "99bf1bee9709cbfc2be3a5c377a7e492c66b963581bf357d66c93c27ba548981",
+          "revision_id": 1458054
+        }
+      ],
+      "gold_policy": "非穷尽出处定位；省称依原传上下文，不能把单句无主语当作身份证明。"
+    },
+    {
+      "id": "new-sea-calendar",
+      "query": "陆秀夫在海上命人制定历法有哪些记载？",
+      "relation_class": "document",
+      "split": "new_subject_holdout",
+      "gold": [
+        {
+          "chunk_id": 153109,
+          "page_id": 57936,
+          "book_id": "KR2a0032",
+          "title": "宋史/卷082",
+          "evidence": "陸秀夫等擁立益王，走海上，命禮部侍郎鄧光薦與蜀人楊某等作曆",
+          "source_sha256": "24e786df47d199f8f9191248f69bbfdfcda98014008950323261c37d4352d612",
+          "revision_id": 845887
+        }
+      ],
+      "gold_policy": "非穷尽出处定位；省称依原传上下文，不能把单句无主语当作身份证明。"
+    },
+    {
+      "id": "new-recapture",
+      "query": "戚继光与俞大猷收复兴化有哪些记载？",
+      "relation_class": "military",
+      "split": "new_subject_holdout",
+      "gold": [
+        {
+          "chunk_id": 122454,
+          "page_id": 47111,
+          "book_id": "KR2a0038",
+          "title": "明史/卷212",
+          "evidence": "戚繼光亦至，顯與大猷共助擊之，遂復興化。",
+          "source_sha256": "a455e5fba2bf9bd00fa8ce893f8e91c12ea78fb170522a847a09f5ce264825d4",
+          "revision_id": 2594838
+        }
+      ],
+      "gold_policy": "非穷尽出处定位；省称依原传上下文，不能把单句无主语当作身份证明。"
+    },
+    {
+      "id": "new-boundary",
+      "query": "马援所立铜柱有什么用途？",
+      "relation_class": "place",
+      "split": "new_subject_holdout",
+      "gold": [
+        {
+          "chunk_id": 109958,
+          "page_id": 30616,
+          "book_id": "KR2a0024",
+          "title": "南史/卷78",
+          "evidence": "馬援所植二銅柱，表漢家界處也。",
+          "source_sha256": "59bffa08f5f012e74f3d9cd6f0ebfdfd91c3595a2a39e013340aa756b4991085",
+          "revision_id": 2642033
+        }
+      ],
+      "gold_policy": "非穷尽出处定位；省称依原传上下文，不能把单句无主语当作身份证明。"
+    },
+    {
+      "id": "new-book-volume",
+      "query": "贾思勰撰写的齐民要术有多少卷？",
+      "relation_class": "quantity",
+      "split": "new_subject_holdout",
+      "gold": [
+        {
+          "chunk_id": 167681,
+          "page_id": 58446,
+          "book_id": "KR2a0023",
+          "title": "隋書/卷34",
+          "evidence": "《齊民要術》十卷賈思勰撰。",
+          "source_sha256": "b6e530c630248d800b33354aaef3ef8335e3bc9f08c71637cc42694647efd927",
+          "revision_id": 2180349
+        }
+      ],
+      "gold_policy": "非穷尽出处定位；省称依原传上下文，不能把单句无主语当作身份证明。"
+    },
+    {
+      "id": "new-invention",
+      "query": "张衡什么时候制造候风地动仪？",
+      "relation_class": "event",
+      "split": "new_subject_holdout",
+      "gold": [
+        {
+          "chunk_id": 70657,
+          "page_id": 19904,
+          "book_id": "KR2a0009",
+          "title": "後漢書/卷59",
+          "evidence": "陽嘉元年，復造候風地動儀。",
+          "source_sha256": "ba5fb898f914e844d989e0fce2e151a6e72dfc91d697d485914e5ca977e84e4a",
+          "revision_id": 7904834
+        }
+      ],
+      "gold_policy": "非穷尽出处定位；省称依原传上下文，不能把单句无主语当作身份证明。"
+    },
+    {
+      "id": "new-battle-place",
+      "query": "狄青在哪里击败侬智高？",
+      "relation_class": "military",
+      "split": "new_subject_holdout",
+      "gold": [
+        {
+          "chunk_id": 138572,
+          "page_id": 47983,
+          "book_id": "KR2a0032",
+          "title": "宋史/卷066",
+          "evidence": "狄青败侬智高于归仁铺。",
+          "source_sha256": "2cd94427a7395f29823d131f5100a9ab1abb19c168771695c0c1308013f7b91f",
+          "revision_id": 2610484
+        }
+      ],
+      "gold_policy": "非穷尽出处定位；省称依原传上下文，不能把单句无主语当作身份证明。"
+    },
+    {
+      "id": "new-kinship",
+      "query": "王羲之与郗愔是什么亲属关系？",
+      "relation_class": "person",
+      "split": "new_subject_holdout",
+      "gold": [
+        {
+          "chunk_id": 83790,
+          "page_id": 21807,
+          "book_id": "KR2a0015",
+          "title": "晉書/卷067",
+          "evidence": "與姊夫王羲之、高士許詢並有邁世之風",
+          "source_sha256": "bfbb80734b71669aaed368f54f088c89285f1acdbe70ca678745ea9684029495",
+          "revision_id": 2592755
+        }
+      ],
+      "gold_policy": "非穷尽出处定位；省称依原传上下文，不能把单句无主语当作身份证明。"
+    }
+  ]
+}

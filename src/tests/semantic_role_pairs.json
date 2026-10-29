@@ -1,0 +1,23 @@
+{
+  "policy":"合成语言辨别集，人物及陈述仅为测试文本，绝非历史事实；冻结后不按模型结果改标签。",
+  "cases":[
+    {"class":"death","query":"甲公何时去世？","relevant":"三年春正月，甲公卒。","distractor":"三年春正月，甲公殺乙侯，乙侯卒。"},
+    {"class":"death","query":"乙侯何时去世？","relevant":"五年秋，乙侯薨。","distractor":"乙侯問疾於甲公，甲公薨。"},
+    {"class":"negation","query":"丙君是否去世了？","relevant":"傳言丙君卒，實未死。","distractor":"丙君令史官記錄丁侯之卒。"},
+    {"class":"birth","query":"谁是戊王的父亲？","relevant":"戊王者，己公之子也。","distractor":"己公者，戊王之子也。"},
+    {"class":"marriage","query":"庚君娶了谁？","relevant":"庚君娶辛氏，以為夫人。","distractor":"庚君為弟壬君聘辛氏，壬君娶之。"},
+    {"class":"appointment","query":"癸公任命谁为相？","relevant":"癸公以子明為相。","distractor":"子明以癸公為相。"},
+    {"class":"appointment","query":"子直担任什么官职？","relevant":"王命子直為司徒。","distractor":"子直請王命子清為司徒。"},
+    {"class":"war","query":"谁战胜了甲国？","relevant":"乙國伐甲，敗甲師。","distractor":"甲國伐乙，敗乙師。"},
+    {"class":"war","query":"丙国攻打丁国的结果如何？","relevant":"丙師伐丁，大敗而歸。","distractor":"丁師伐丙，大敗而歸。"},
+    {"class":"movement","query":"戊君迁往哪里？","relevant":"戊君遷都於北城。","distractor":"戊君令己侯遷於北城。"},
+    {"class":"movement","query":"庚侯从哪里逃到哪里？","relevant":"庚侯自東城奔西邑。","distractor":"庚侯自西邑奔東城。"},
+    {"class":"time","query":"辛公三年在哪里驻军？","relevant":"辛公三年，軍於南原。四年，還師。","distractor":"辛公三年還師，四年軍於南原。"},
+    {"class":"quantity","query":"壬君出兵几次？","relevant":"壬君三出師，皆克。","distractor":"壬君出師，斬敵將三人。"},
+    {"class":"quantity","query":"癸侯在位多少年？","relevant":"癸侯立二十年而卒。","distractor":"癸侯年二十即位。"},
+    {"class":"reason","query":"子安为什么离开故国？","relevant":"子安懼禍，乃奔鄰國。","distractor":"子安奔鄰國後，其父懼禍。"},
+    {"class":"reason","query":"子平为何被罢免？","relevant":"子平以貪賄免官。","distractor":"子平奏子良貪賄，子良免官。"},
+    {"class":"document","query":"哪部书记载了子敬的经历？","relevant":"子敬之事，見於國史。","distractor":"子敬讀國史，記他人之事。"},
+    {"class":"multi_constraint","query":"甲公与乙侯在北城结盟的时间？","relevant":"六年夏，甲公與乙侯盟於北城。","distractor":"六年夏，甲公與丙侯盟於南城，乙侯不與。"}
+  ]
+}

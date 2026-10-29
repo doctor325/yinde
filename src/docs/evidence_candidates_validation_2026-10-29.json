@@ -1,0 +1,452 @@
+{
+  "scope": "36 existing non-exhaustive source-evidence queries; paired identical semantic/lexical pools, not blind or full-reign acceptance",
+  "phases": {
+    "before": {
+      "n": 36,
+      "admitted": 30,
+      "hit20": 30,
+      "hit5": 21,
+      "pipeline_ms": {
+        "min": 2496.21,
+        "median": 3733.07,
+        "max": 6830.62
+      },
+      "scored_candidates": {
+        "min": 24,
+        "max": 24
+      }
+    },
+    "after": {
+      "n": 36,
+      "admitted": 33,
+      "hit20": 30,
+      "hit5": 23,
+      "pipeline_ms": {
+        "min": 2353.84,
+        "median": 8473.42,
+        "max": 26909.12
+      },
+      "scored_candidates": {
+        "min": 26,
+        "max": 60
+      }
+    },
+    "focused": {
+      "n": 36,
+      "admitted": 33,
+      "hit20": 32,
+      "hit5": 23,
+      "pipeline_ms": {
+        "min": 2201.5,
+        "median": 9124.39,
+        "max": 14118.85
+      },
+      "scored_candidates": {
+        "min": 26,
+        "max": 60
+      }
+    }
+  },
+  "queries": [
+    {
+      "id": "han-western-regions",
+      "query": "张骞与开通西域有什么关系？",
+      "before_rank": 1,
+      "final_rank": 1,
+      "raw_pool_contains_known_evidence": true,
+      "model_received_known_evidence": true,
+      "failure_stage": null,
+      "rank_regressed": false
+    },
+    {
+      "id": "holdout-han-authorship",
+      "query": "班固与汉书撰写的关系有哪些记载？",
+      "before_rank": 1,
+      "final_rank": 1,
+      "raw_pool_contains_known_evidence": true,
+      "model_received_known_evidence": true,
+      "failure_stage": null,
+      "rank_regressed": false
+    },
+    {
+      "id": "holdout-han-death",
+      "query": "萧何去世的记载在哪里？",
+      "before_rank": 11,
+      "final_rank": 3,
+      "raw_pool_contains_known_evidence": true,
+      "model_received_known_evidence": true,
+      "failure_stage": null,
+      "rank_regressed": false
+    },
+    {
+      "id": "holdout-han-enfeoff",
+      "query": "韩信被立为齐王有哪些记载？",
+      "before_rank": 11,
+      "final_rank": 14,
+      "raw_pool_contains_known_evidence": true,
+      "model_received_known_evidence": true,
+      "failure_stage": null,
+      "rank_regressed": true
+    },
+    {
+      "id": "holdout-ming-local-office",
+      "query": "哪些史料记载海瑞担任淳安知县？",
+      "before_rank": 2,
+      "final_rank": 1,
+      "raw_pool_contains_known_evidence": true,
+      "model_received_known_evidence": true,
+      "failure_stage": null,
+      "rank_regressed": false
+    },
+    {
+      "id": "holdout-ming-office",
+      "query": "徐达被任命为大将军的记载有哪些？",
+      "before_rank": 1,
+      "final_rank": 1,
+      "raw_pool_contains_known_evidence": true,
+      "model_received_known_evidence": true,
+      "failure_stage": null,
+      "rank_regressed": false
+    },
+    {
+      "id": "holdout-ming-voyage",
+      "query": "郑和再次出使西洋的记载有哪些？",
+      "before_rank": 4,
+      "final_rank": 2,
+      "raw_pool_contains_known_evidence": true,
+      "model_received_known_evidence": true,
+      "failure_stage": null,
+      "rank_regressed": false
+    },
+    {
+      "id": "holdout-shu-succession",
+      "query": "刘禅即位之前是谁去世了？",
+      "before_rank": 1,
+      "final_rank": 6,
+      "raw_pool_contains_known_evidence": true,
+      "model_received_known_evidence": true,
+      "failure_stage": null,
+      "rank_regressed": true
+    },
+    {
+      "id": "holdout-song-document",
+      "query": "司马光进呈资治通鉴的史料在哪里？",
+      "before_rank": 7,
+      "final_rank": 1,
+      "raw_pool_contains_known_evidence": true,
+      "model_received_known_evidence": true,
+      "failure_stage": null,
+      "rank_regressed": false
+    },
+    {
+      "id": "holdout-song-exam",
+      "query": "文天祥考中进士的史料在哪里？",
+      "before_rank": 20,
+      "final_rank": 19,
+      "raw_pool_contains_known_evidence": true,
+      "model_received_known_evidence": true,
+      "failure_stage": null,
+      "rank_regressed": false
+    },
+    {
+      "id": "holdout-song-transfer",
+      "query": "欧阳修改任蔡州的记载有哪些？",
+      "before_rank": 1,
+      "final_rank": 1,
+      "raw_pool_contains_known_evidence": true,
+      "model_received_known_evidence": true,
+      "failure_stage": null,
+      "rank_regressed": false
+    },
+    {
+      "id": "holdout-tang-battle",
+      "query": "李靖在阴山击败突厥的记载有哪些？",
+      "before_rank": 1,
+      "final_rank": 1,
+      "raw_pool_contains_known_evidence": true,
+      "model_received_known_evidence": true,
+      "failure_stage": null,
+      "rank_regressed": false
+    },
+    {
+      "id": "holdout-tang-transfer",
+      "query": "韩愈从潮州改任袁州刺史的记载是什么？",
+      "before_rank": 1,
+      "final_rank": 1,
+      "raw_pool_contains_known_evidence": true,
+      "model_received_known_evidence": true,
+      "failure_stage": null,
+      "rank_regressed": false
+    },
+    {
+      "id": "jin-death",
+      "query": "王导去世的记载是什么？",
+      "before_rank": 6,
+      "final_rank": 6,
+      "raw_pool_contains_known_evidence": true,
+      "model_received_known_evidence": true,
+      "failure_stage": null,
+      "rank_regressed": false
+    },
+    {
+      "id": "ming-office",
+      "query": "张居正担任司业的史料在哪里？",
+      "before_rank": null,
+      "final_rank": null,
+      "raw_pool_contains_known_evidence": false,
+      "model_received_known_evidence": false,
+      "failure_stage": "retrieval",
+      "rank_regressed": false
+    },
+    {
+      "id": "new-advice",
+      "query": "金朝皇帝如何评价魏征的进谏？",
+      "before_rank": null,
+      "final_rank": null,
+      "raw_pool_contains_known_evidence": true,
+      "model_received_known_evidence": false,
+      "failure_stage": "admission_budget",
+      "rank_regressed": false
+    },
+    {
+      "id": "new-battle-place",
+      "query": "狄青在哪里击败侬智高？",
+      "before_rank": 1,
+      "final_rank": 1,
+      "raw_pool_contains_known_evidence": true,
+      "model_received_known_evidence": true,
+      "failure_stage": null,
+      "rank_regressed": false
+    },
+    {
+      "id": "new-book-volume",
+      "query": "贾思勰撰写的齐民要术有多少卷？",
+      "before_rank": 4,
+      "final_rank": 3,
+      "raw_pool_contains_known_evidence": true,
+      "model_received_known_evidence": true,
+      "failure_stage": null,
+      "rank_regressed": false
+    },
+    {
+      "id": "new-boundary",
+      "query": "马援所立铜柱有什么用途？",
+      "before_rank": null,
+      "final_rank": 1,
+      "raw_pool_contains_known_evidence": true,
+      "model_received_known_evidence": true,
+      "failure_stage": null,
+      "rank_regressed": false
+    },
+    {
+      "id": "new-calendar",
+      "query": "祖冲之在什么时间制定历法？",
+      "before_rank": 1,
+      "final_rank": 3,
+      "raw_pool_contains_known_evidence": true,
+      "model_received_known_evidence": true,
+      "failure_stage": null,
+      "rank_regressed": true
+    },
+    {
+      "id": "new-death",
+      "query": "霍去病什么时候去世？",
+      "before_rank": null,
+      "final_rank": null,
+      "raw_pool_contains_known_evidence": false,
+      "model_received_known_evidence": false,
+      "failure_stage": "retrieval",
+      "rank_regressed": false
+    },
+    {
+      "id": "new-demotion",
+      "query": "苏轼为何被贬到黄州？",
+      "before_rank": 9,
+      "final_rank": 12,
+      "raw_pool_contains_known_evidence": true,
+      "model_received_known_evidence": true,
+      "failure_stage": null,
+      "rank_regressed": true
+    },
+    {
+      "id": "new-fan-military",
+      "query": "范仲淹出兵塞门的史料有哪些？",
+      "before_rank": null,
+      "final_rank": 19,
+      "raw_pool_contains_known_evidence": true,
+      "model_received_known_evidence": true,
+      "failure_stage": null,
+      "rank_regressed": false
+    },
+    {
+      "id": "new-invention",
+      "query": "张衡什么时候制造候风地动仪？",
+      "before_rank": 1,
+      "final_rank": 1,
+      "raw_pool_contains_known_evidence": true,
+      "model_received_known_evidence": true,
+      "failure_stage": null,
+      "rank_regressed": false
+    },
+    {
+      "id": "new-kinship",
+      "query": "王羲之与郗愔是什么亲属关系？",
+      "before_rank": 14,
+      "final_rank": 18,
+      "raw_pool_contains_known_evidence": true,
+      "model_received_known_evidence": true,
+      "failure_stage": null,
+      "rank_regressed": true
+    },
+    {
+      "id": "new-kou-time",
+      "query": "寇准何时去世？",
+      "before_rank": 1,
+      "final_rank": 1,
+      "raw_pool_contains_known_evidence": true,
+      "model_received_known_evidence": true,
+      "failure_stage": null,
+      "rank_regressed": false
+    },
+    {
+      "id": "new-lu-battle",
+      "query": "陆逊击败刘备的记载有哪些？",
+      "before_rank": 7,
+      "final_rank": 5,
+      "raw_pool_contains_known_evidence": true,
+      "model_received_known_evidence": true,
+      "failure_stage": null,
+      "rank_regressed": false
+    },
+    {
+      "id": "new-march",
+      "query": "邓艾进入成都的经过有哪些记载？",
+      "before_rank": 3,
+      "final_rank": 16,
+      "raw_pool_contains_known_evidence": true,
+      "model_received_known_evidence": true,
+      "failure_stage": null,
+      "rank_regressed": true
+    },
+    {
+      "id": "new-recapture",
+      "query": "戚继光与俞大猷收复兴化有哪些记载？",
+      "before_rank": 2,
+      "final_rank": 1,
+      "raw_pool_contains_known_evidence": true,
+      "model_received_known_evidence": true,
+      "failure_stage": null,
+      "rank_regressed": false
+    },
+    {
+      "id": "new-sea-calendar",
+      "query": "陆秀夫在海上命人制定历法有哪些记载？",
+      "before_rank": 5,
+      "final_rank": 1,
+      "raw_pool_contains_known_evidence": true,
+      "model_received_known_evidence": true,
+      "failure_stage": null,
+      "rank_regressed": false
+    },
+    {
+      "id": "new-sima-book",
+      "query": "司马迁撰写史记的记载有哪些？",
+      "before_rank": 1,
+      "final_rank": 1,
+      "raw_pool_contains_known_evidence": true,
+      "model_received_known_evidence": true,
+      "failure_stage": null,
+      "rank_regressed": false
+    },
+    {
+      "id": "new-wei-place",
+      "query": "卫青出兵的地点在哪里？",
+      "before_rank": 11,
+      "final_rank": 13,
+      "raw_pool_contains_known_evidence": true,
+      "model_received_known_evidence": true,
+      "failure_stage": null,
+      "rank_regressed": true
+    },
+    {
+      "id": "new-xie-time",
+      "query": "谢安什么时候去世？",
+      "before_rank": 2,
+      "final_rank": 4,
+      "raw_pool_contains_known_evidence": true,
+      "model_received_known_evidence": true,
+      "failure_stage": null,
+      "rank_regressed": true
+    },
+    {
+      "id": "song-appointment",
+      "query": "王安石出任宰相的记载有哪些？",
+      "before_rank": null,
+      "final_rank": null,
+      "raw_pool_contains_known_evidence": true,
+      "model_received_known_evidence": true,
+      "failure_stage": "ranking",
+      "rank_regressed": false
+    },
+    {
+      "id": "song-resignation-reason",
+      "query": "岳飞为什么因母亲的事离开官职？",
+      "before_rank": 1,
+      "final_rank": 1,
+      "raw_pool_contains_known_evidence": true,
+      "model_received_known_evidence": true,
+      "failure_stage": null,
+      "rank_regressed": false
+    },
+    {
+      "id": "tang-accession",
+      "query": "唐太宗在什么地方即位？",
+      "before_rank": 1,
+      "final_rank": 1,
+      "raw_pool_contains_known_evidence": true,
+      "model_received_known_evidence": true,
+      "failure_stage": null,
+      "rank_regressed": false
+    }
+  ],
+  "top20_regressions": [],
+  "role_contrasts": {
+    "n": 18,
+    "before": 10,
+    "after": 11,
+    "regressions": [
+      15
+    ],
+    "remaining_failures": [
+      5,
+      7,
+      8,
+      12,
+      14,
+      15,
+      17
+    ],
+    "fixture_sha256": "bfc5eaee9f9423242aec93f65d41429c69da0bd6007cfa6239b22b660af7018e"
+  },
+  "fixture_hashes": {
+    "punctuated_relevance_queries.json": "5f1f8b33e7e9b8145f89596b99072ca9ff4a385bfc434d23b8d16e09f5060768",
+    "punctuated_relevance_holdout.json": "41638df1c439de78163f64f0eb33611b8e6c7dc3092ed1e62992b19267e2d62d",
+    "evidence_pipeline_holdout.json": "4f1f94674942bd090715ccbc02954fd2f46d941670bd04f87c67fb17b4a315c7"
+  },
+  "pipeline_code_sha256": "1d740ebc6ac116bb9dcd2d560eac9e23d0845b4a732c861cdf4b93d3a47d438a",
+  "source_identity": {
+    "src/data/database/history.db": {
+      "bytes": 1152004096,
+      "mtime_ns": 1792512819995472200
+    },
+    "src/data/punctuated/library.sqlite": {
+      "bytes": 277618688,
+      "mtime_ns": 1792999472194976400
+    },
+    "src/data/punctuated/search-index/manifest.json": {
+      "bytes": 1491,
+      "mtime_ns": 1793078261580857100
+    }
+  },
+  "model_generation_calls": 0
+}
