@@ -21,6 +21,33 @@ ANSWER_PATTERNS = {
 }
 
 
+def time_attached(observation):
+    """Conservative local date attachment, not general temporal reasoning.
+
+    A date anywhere in a punctuation-bounded sentence is insufficient: another
+    person's action, or another action of the same person, can own that date.
+    Unknown era-name constructions remain unconfirmed rather than guessed.
+    """
+    quote=observation['quote']
+    subject=observation.get('subject_span')
+    predicate=observation.get('predicate_span')
+    if not subject or not predicate:return False
+    origin=observation['start']
+    a,b=subject[0]-origin,subject[1]-origin
+    c,d=predicate[0]-origin,predicate[1]-origin
+    if not 0<=a<b<=c<d<=len(quote):return False
+    date_unit=r'(?:[元一二三四五六七八九十百千〇零\d]+年|[正一二三四五六七八九十冬腊]+月|[初一二三四五六七八九十廿卅\d]+日|[甲乙丙丁戊己庚辛壬癸][子丑寅卯辰巳午未申酉戌亥]|[春夏秋冬闰])'
+    def date_only(text):
+        text=re.sub(r'[\s，,、]', '',zh.to_simplified(text))
+        return bool(re.fullmatch(date_unit+'+',text) and re.search(ANSWER_PATTERNS['time'],text))
+    # Only an otherwise date-only prefix may qualify this explicit event.
+    if date_only(quote[:a]):return True
+    # Postposed dates must stay in the event's own comma-delimited clause.
+    tail=re.split(r'[，,。！？；\n]',quote[d:],maxsplit=1)[0]
+    tail=re.sub(r'^\s*(?:于|於|在)', '',tail)
+    return date_only(tail)
+
+
 def parse(query):
     p=R.plan(query);text=zh.to_simplified(query)
     # Asking where to find a record is not asking where its event happened.
@@ -125,7 +152,8 @@ def audit(chunk, p, neighbors):
     # A nearby date/place in another passage cannot silently answer this event.
     slot_evidence={}
     for slot in p['answer_slots']:
-        quotes=[o['quote'] for o in positive if re.search(ANSWER_PATTERNS[slot],zh.to_simplified(o['quote']))]
+        quotes=[o['quote'] for o in positive if (time_attached(o) if slot=='time' else
+                re.search(ANSWER_PATTERNS[slot],zh.to_simplified(o['quote'])))]
         slot_evidence[slot]=list(dict.fromkeys(quotes))
         if not quotes:missing.append('当前事件句缺少'+{'time':'时间','place':'地点','reason':'原因','quantity':'数量'}[slot]+'线索')
     # Context is available for reading/model scoring, but not identity invention.
@@ -133,6 +161,7 @@ def audit(chunk, p, neighbors):
     return dict(status='clues_present' if not missing else 'insufficient',missing=missing,
                 answer_slot_evidence=slot_evidence,subject_syntax=f['subject_syntax'],
                 context_has_clues=adjacent_only,relation_verified=False,
+                time_attachment_version='local-event-date-v1',
                 note='要素与句式检查，不等于答案正确；跨句指代、否定与因果未核实。')
 
 

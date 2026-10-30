@@ -60,6 +60,8 @@ def assess(chunk, plan, forms_for):
                 # above intentionally do not bridge 之父/令/使/命/他人.
                 observations.append(dict(kind=kind,polarity='qualified' if context_flags else 'positive_syntax',
                     qualifications=context_flags,quote=quote,start=clause_match.start(),end=clause_match.end(),
+                    subject_span=[clause_match.start()+offsets[a],clause_match.start()+offsets[b-1]+1],
+                    predicate_span=[clause_match.start()+offsets[c],clause_match.start()+offsets[d-1]+1],
                     context_evidence=[dict(e,start=e['start']+clause_match.start(),end=e['end']+clause_match.start()) for e in context['evidence']],
                     relation_verified=False))
     return dict(positive_groups=sorted({o['kind'] for o in observations if o['polarity']=='positive_syntax'}),
