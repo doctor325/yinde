@@ -53,8 +53,8 @@ from scripts.site.make_demo_data import demo_lines  # noqa: E402
 # 允许出现在公开产物里的文件。精确到文件名，不写 glob ——
 # 「engine/ 下什么都行」这种宽口径会让「往 engine/ 里塞一份语料」合法化。
 ALLOWED_FILES = {
-    "index.html", "style.css", "app.js", "boot.js",
-    "engine/zh_table.js", "engine/zh.js", "engine/dual_text.js",
+    "index.html", "style.css", "app.js", "boot.js", "punctuated.js", "punctuated_search.js",
+    "engine/zh_table.js", "engine/zh.js", "engine/dual_text.js", "engine/variants.js",
     "engine/corpus.js", "engine/engine.js", "engine/entities.js",
     "engine/question.js", "engine/query_expansion.js", "engine/ranking.js",
     "engine/result_block.js", "engine/aggregate.js", "engine/retrieve.js",

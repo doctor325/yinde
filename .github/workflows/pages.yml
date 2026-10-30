@@ -22,6 +22,7 @@ on:
       - "src/frontend/**"
       - "src/scripts/site/**"
       - "src/search/**"
+      - "src/tests/test_publish_assets.py"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
 
@@ -55,7 +56,9 @@ jobs:
       # 也就是说：**闸门不过，就发不出去**，而不是「发出去之后再告警」。
       - name: 装配发布产物并过泄漏闸门
         working-directory: src
-        run: python -m scripts.site.build_artifact "$GITHUB_WORKSPACE/_site"
+        run: |
+          python -m unittest discover -s tests -p test_publish_assets.py
+          python -m scripts.site.build_artifact "$GITHUB_WORKSPACE/_site"
 
       # 装完之后再独立核对一遍。上面 build_artifact.py 已经断言过没有 data/，
       # 这里用**另一段代码**再查一次：两道检查分别写在两个文件里、不共享逻辑，
