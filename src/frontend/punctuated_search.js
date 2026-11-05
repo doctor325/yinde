@@ -55,6 +55,10 @@ async function punctuatedSearchView(params, revision, semantic = false) {
 }
 
 function punctuatedSearchResults(result) {
+  // Carry the complete search state with the source link, including pagination
+  // and strategy. This also works after refreshing or opening a new tab.
+  const returnTo=/^#\/(?:search|semantic|history-qa)(?:\?|$)/.test(location.hash)
+    ? location.hash : `#/${result.mode==='keyword'?'search':'semantic'}?${qs({q:result.query,book:result.book,strategy:result.mode,page:result.page})}`;
   const old=`#/search?${qs({q:result.query,book:result.book,source:'original'})}`;
   if (!result.book_available) return `<p>这部史书尚未收录标点版本。</p><a class="btn" href="${old}">检索所收原底本</a>`;
   let html=`<p class="quiet">${result.mode==='keyword'?`共 ${num(result.total)} 个匹配片段 · 第 ${num(result.page)} 页`:`语义候选 ${num(result.candidate_counts.semantic)} 个 · 关键词／规则候选 ${num(result.candidate_counts.keyword)} 个 · 展示前 ${result.hits.length} 个`}
@@ -75,7 +79,7 @@ function punctuatedSearchResults(result) {
     const phrase=(c.text_orig.match(/[\u3400-\u9fff]{4,}/)||[''])[0].slice(0,10)||result.query;
     const compare=`#/search?${qs({q:phrase,book:c.book_id,source:'original'})}`;
     const part=c.parts[0];
-    const read=`#/punctuated/${Number(c.page_id)}?${qs({block:part.block_index,start:part.start,end:part.end})}`;
+    const read=`#/punctuated/${Number(c.page_id)}?${qs({block:part.block_index,start:part.start,end:part.end,back:returnTo})}`;
     const focus=hit.evidence_focus?.selected?`<details><summary>本次重点比较的原文</summary><p>${readingTextHtml(hit.evidence_focus.text,{pb:false})}</p><p>结合前后各最多60字比较相关性；这段文字不是生成的答案。</p></details>`:'';
     html+=`<article class="card punctuated-search-hit"><h3>《${esc(c.book_title)}》 ${esc(c.title)}</h3>
       <p class="quiet">标点版 · 维基文库录入本 · ${c.layer==='annotation'?'来源注释':'正文'}${c.status==='partial_render'?' · 来源排版异常':c.status==='insufficient_punctuation'?' · 短篇或低标点':''}</p>

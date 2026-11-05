@@ -82,7 +82,9 @@ async function punctuatedView(pageId, params, revision) {
     const d = await api(`/api/punctuated/chapter/${encodeURIComponent(pageId)}`);
     if (revision !== routeRevision) return;
     const rendering = d.blocks.find(b => b.kind === 'provenance');
-    view.innerHTML = `<a class="backlink" href="#/punctuated?${qs({book:d.book_id})}">← 返回本书目录</a>
+    const back=typeof params.back==='string' && /^#\/(?:search|semantic|history-qa)(?:\?|$)/.test(params.back)
+      ? `<a class="btn" href="${esc(params.back)}">← 返回搜索结果</a>` : '';
+    view.innerHTML = `<div class="controls">${back}<a class="backlink" href="#/punctuated?${qs({book:d.book_id})}">← 返回本书目录</a></div>
       <div class="page-heading"><p class="eyebrow">维基文库录入本 · 独立版本</p><h1>${esc(d.title)}</h1></div>
       <p class="collection-note">按该来源的标点显示，未逐字校勘；与原收录底本可能有异文。顶部可切换原文与简体阅读。</p>
       <p>${punctuatedSourceLink(d.source_url,'来源固定版本')} · ${punctuatedSourceLink(d.history_url,'贡献者与修订历史')} · ${punctuatedSourceLink(d.license_url,'CC BY-SA 4.0')}</p>

@@ -30,6 +30,7 @@ const fixture=label=>({query:'甲乙',book:'a',mode:'keyword',page:1,page_size:2
     license_url:'https://creativecommons.org/licenses/by-sa/4.0/',attribution:'署名',revision_id:8,source_sha256:'hash'}}]});
 run('globalThis.put=x=>{globalThis.result=x}')(fixture('<img>'));
 const html=run('punctuatedSearchResults(result)');
+assert.ok(html.includes('back=%23%2Fsearch'));
 for(const expected of ['&lt;img&gt;','甲乙丙，国语。','来源注释','来源排版异常','#/punctuated/9?block=3','source=original','未确认逐句对应'])assert.ok(html.includes(expected),expected);
 assert.ok(!html.includes('href="javascript:'));assert.ok(!html.includes('<script>'));
 assert.ok(!html.includes('语义相似分'));
