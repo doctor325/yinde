@@ -22,7 +22,8 @@ run('getBooks=async()=>[{book_id:"a",title:"甲書"},{book_id:"b",title:"尚无�
 assert.equal(await run('punctuatedSearchView({source:"original"},0)'),false);
 assert.equal(await run('punctuatedSearchView({edition:"sbck"},0)'),false);
 await run('searchView({},0,location.hash)');
-assert.ok(nodes.get('#view').innerHTML.includes('查找标点史料'));
+assert.ok(nodes.get('#view').innerHTML.includes('搜索史料'));
+assert.ok(!nodes.get('#view').innerHTML.includes('id="punctuatedSearchStrategy"'));
 assert.ok(nodes.get('#view').innerHTML.includes('尚无标点（暂无标点版）'));
 const fixture=label=>({query:'甲乙',book:'a',mode:'keyword',page:1,page_size:20,total:1,book_available:true,elapsed_ms:1,hits:[{
   chunk:{page_id:9,chunk_id:2,book_id:'a',book_title:label,title:'卷一',layer:'annotation',status:'partial_render',reason:'源标记',
@@ -58,8 +59,10 @@ assert.ok(evidenceHtml.includes('问题尚未完整解析'));
 assert.ok(evidenceHtml.includes('本次重点比较的原文'));
 assert.ok(evidenceHtml.includes('缺少&lt;script&gt;线索'));assert.ok(!evidenceHtml.includes('<script>'));
 await run('punctuatedSearchView({strategy:"relation"},0,true)');
-assert.equal(nodes.get('#punctuatedSearchStrategy').value,'relation');
-assert.ok(nodes.get('#view').innerHTML.indexOf('value="expanded"')<nodes.get('#view').innerHTML.indexOf('value="relation"'));
+assert.ok(!nodes.get('#view').innerHTML.includes('id="punctuatedSearchStrategy"'));
+assert.equal(run('unifiedSearchStrategy("甲公何时去世？")'),'expanded');
+assert.equal(run('unifiedSearchStrategy("甲公")'),'keyword');
+assert.equal(run('unifiedSearchStrategy("甲公", "relation")'),'relation');
 await run('punctuatedSearchView({},0)');
 nodes.get('#punctuatedSearchQuery').value='旧查询';
 const first=handlers['punctuatedSearchForm:submit']({preventDefault(){}});

@@ -286,8 +286,8 @@ async function homeView() {
     <h1>循字入史</h1>
     <div class="sub">优先阅读标点史料，保留原底本对照与出处。</div>
     <div class="searchline">
-      <input id="q" type="search" aria-label="检索关键词" placeholder="输入人物、地名或原文词句" autocomplete="off">
-      <button class="btn primary" onclick="homeSearch()">检索原文 <span aria-hidden="true">→</span></button>
+      <input id="q" type="search" aria-label="搜索史料或提问" placeholder="输入人物、事件、原文或问题" autocomplete="off">
+      <button class="btn primary" onclick="homeSearch()">搜索 <span aria-hidden="true">→</span></button>
     </div>
     <div class="examples"><b>试试：</b>
       <a href="#/search?q=齐桓公">齐桓公</a><a href="#/search?q=管仲">管仲</a>
@@ -304,8 +304,6 @@ async function homeView() {
     </a>`;
   }
   html += `</div>
-    <p><a href="#/semantic">语义搜索实验：按问题含义寻找史料 →</a></p>
-    <p><a href="#/history-qa?source=original">原底本问答实验：按问题查找史料与上下文 →</a></p>
     <p><a href="#/punctuated">标点本书库：按卷阅读新增版本 →</a></p>
     <p class="collection-note">原底本收录 ${books.length} 部 · ${num(st.passages).toLocaleString()} 个检索片段（含正文、括注等）；标点版范围在检索页单独列明。
       收录可能不完整，未命中不代表原书没有记载。<a href="#/about">了解来源与范围</a></p>
@@ -1611,6 +1609,7 @@ let askState = { q: "", mode: "standard", text: readingMode, loading: false,
                  terms: [], simpleTerms: [], blocks: [] };
 
 async function askView(params) {
+  if (typeof punctuatedSearchView === 'function' && await punctuatedSearchView(params,routeRevision,true)) return;
   const view = $("#view");
   askState = { ...askState, q: params.q ?? "", mode: params.mode || "standard",
                text: readingMode };

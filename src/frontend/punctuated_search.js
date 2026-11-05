@@ -1,4 +1,10 @@
 /* Primary source edition search. Older witnesses remain a separate route. */
+function unifiedSearchStrategy(query, legacy) {
+  if (['keyword','expanded','evidence','relation','hybrid','semantic'].includes(legacy)) return legacy;
+  const text=window.YindeEngine?.zh?.toSimplified ? window.YindeEngine.zh.toSimplified(query) : query;
+  return /[？?]|何时|什么时候|哪|为什么|为何|如何|怎样|是否|多少|几年|谁|什么|去世|出生|即位|出任|担任|任命|击败|迁往|出使|记载/.test(text) ? 'expanded' : 'keyword';
+}
+
 async function punctuatedSearchView(params, revision, semantic = false) {
   if (params.source === 'original' || params.edition) return false;
   const boot = window.YindeBoot ? await window.YindeBoot : {mode:'api'};
@@ -8,7 +14,7 @@ async function punctuatedSearchView(params, revision, semantic = false) {
   try { status = await api('/api/punctuated/search/status'); }
   catch (_) { status = {ready:false,reason:'标点版检索服务暂不可用，请使用更新后的桌面版，或明确选择原底本检索。'}; }
   if (revision !== routeRevision) return true;
-  const route = semantic ? 'semantic' : 'search';
+  const route = 'search';
   const original = `#/${route}?${qs({q:params.q,book:params.book,source:'original'})}`;
   const view = $('#view');
   if (!status.ready) {
@@ -18,18 +24,15 @@ async function punctuatedSearchView(params, revision, semantic = false) {
   const books = await getBooks();
   if (revision !== routeRevision) return true;
   view.innerHTML = `<div class="page-heading"><p class="eyebrow">标点版优先 · 独立版本</p>
-    <h1>${semantic ? '按含义寻找史料' : '查找标点史料'}</h1>
-    <p>结果直接来自维基文库录入本，保留来源标点。原底本供另行对照，版本之间可能有异文。</p></div>
+    <h1>搜索史料</h1>
+    <p>输入词句或直接提问，查找有出处的史料。</p></div>
     <form id="punctuatedSearchForm" class="searchbar"><div class="search-main">
-      <input id="punctuatedSearchQuery" aria-label="检索标点史料" maxlength="300" required value="${esc(params.q || '')}" placeholder="${semantic ? '描述想查的人物、事件或关系' : '人物、地名或原文词句；空格连接多个词'}">
-      <button class="btn primary">查找史料</button></div><div class="controls">
+      <input id="punctuatedSearchQuery" aria-label="搜索史料或提问" maxlength="300" required value="${esc(params.q || '')}" placeholder="输入人物、事件、原文或问题">
+      <button class="btn primary">搜索</button></div><details><summary>检索选项</summary><div class="controls">
       <label>史书 <select id="punctuatedSearchBook"><option value="">全部标点史书</option>${books.map(b=>`<option value="${esc(b.book_id)}" ${params.book===b.book_id?'selected':''}>${esc(b.title)}${status.manifest.book_chunks[b.book_id]?'':'（暂无标点版）'}</option>`).join('')}</select></label>
-      ${semantic ? '<label>方式 <select id="punctuatedSearchStrategy"><option value="expanded">语义＋规则扩展</option><option value="evidence">问题解析＋上下文核查</option><option value="relation">语义＋关系线索（实验）</option><option value="hybrid">语义＋关键词</option><option value="semantic">仅语义</option></select></label>' : ''}
-      <a href="${original}">改查原底本</a></div></form>
-    <p class="quiet">覆盖 ${num(status.manifest.books)} 部、${num(status.manifest.pages)} 篇。可检索不代表篇卷完整或已校勘${semantic ? '；模型仅在本机运行，不生成回答' : ''}。</p>
+      <a href="${original}">原底本对照检索</a></div></details></form>
+    <p class="quiet">覆盖 ${num(status.manifest.books)} 部、${num(status.manifest.pages)} 篇。未命中不代表原书没有记载。</p>
     <div id="punctuatedSearchResult" aria-live="polite"></div>`;
-  const chosen = $('#punctuatedSearchStrategy');
-  if (chosen && ['expanded','evidence','relation','hybrid','semantic'].includes(params.strategy)) chosen.value=params.strategy;
   async function search(page=1) {
     const query=$('#punctuatedSearchQuery').value.trim();
     if (!query) return;
@@ -37,9 +40,10 @@ async function punctuatedSearchView(params, revision, semantic = false) {
     const controller=historyQaRequest=new AbortController();
     const box=$('#punctuatedSearchResult');
     const current=()=>revision===routeRevision && historyQaRequest===controller && box===$('#punctuatedSearchResult');
-    const args={q:query,book:$('#punctuatedSearchBook').value,strategy:semantic?$('#punctuatedSearchStrategy').value:'keyword',page};
-    history.replaceState(null,'',`#/${route}?${qs(args)}`);
-    box.setAttribute('aria-busy','true');box.textContent=semantic?'正在检索标点史料，首次查询需准备本地模型与检索缓存，可能较慢…':'正在查找标点史料…';
+    const strategy=unifiedSearchStrategy(query,params.strategy);
+    const args={q:query,book:$('#punctuatedSearchBook').value,strategy,page};
+    history.replaceState(null,'',`#/${route}?${qs({...args,strategy:params.strategy})}`);
+    box.setAttribute('aria-busy','true');box.textContent=strategy!=='keyword'?'正在寻找相关史料，首次加载本地模型可能较慢…':'正在查找史料…';
     try {
       const result=await api('/api/punctuated/search?'+qs(args),{signal:controller.signal});
       if (!current()) return;

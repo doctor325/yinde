@@ -184,22 +184,17 @@ def main(argv=None):
                     primaryContext=Boolean(compare)&&exact;
                     setReadingMode('simplified');await readingSave;
                     if(semanticStatus.ready){
-                      location.hash='#/semantic';
-                      await until(()=>document.querySelector('#punctuatedSearchForm'));
-                      document.querySelector('#punctuatedSearchQuery').value='王安石出任宰相的记载有哪些？';
-                      document.querySelector('#punctuatedSearchStrategy').value='expanded';
-                      document.querySelector('#punctuatedSearchForm').requestSubmit();
+                      const primaryQuestion='王安石出任宰相的记载有哪些？';
+                      location.hash='#/search?'+qs({q:primaryQuestion,strategy:'expanded'});
                       await until(()=>document.querySelector('#punctuatedSearchResult .punctuated-search-hit [data-reading-source]'),90000);
                       primarySemantic=document.querySelector('#punctuatedSearchResult').textContent.includes('语义候选 60')
                         && [...document.querySelectorAll('#punctuatedSearchResult .read-link')].every(a=>a.getAttribute('href').startsWith('#/punctuated/'));
-                      document.querySelector('#punctuatedSearchStrategy').value='relation';
-                      document.querySelector('#punctuatedSearchForm').requestSubmit();
+                      location.hash='#/search?'+qs({q:primaryQuestion,strategy:'relation'});
                       await until(()=>document.querySelector('#punctuatedSearchResult .relation-experiment-note')
                         && document.querySelector('#punctuatedSearchResult .punctuated-search-hit [data-reading-source]'),90000);
                       relationExperiment=location.hash.includes('strategy=relation')
                         && [...document.querySelectorAll('#punctuatedSearchResult .read-link')].every(a=>a.getAttribute('href').startsWith('#/punctuated/'));
-                      document.querySelector('#punctuatedSearchStrategy').value='evidence';
-                      document.querySelector('#punctuatedSearchForm').requestSubmit();
+                      location.hash='#/search?'+qs({q:primaryQuestion,strategy:'evidence'});
                       await until(()=>document.querySelector('#punctuatedSearchResult .evidence-pipeline-note')
                         && document.querySelector('#punctuatedSearchResult .evidence-audit'),90000);
                       evidencePipeline=location.hash.includes('strategy=evidence')
