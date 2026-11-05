@@ -48,6 +48,31 @@ def time_attached(observation):
     return date_only(tail)
 
 
+def place_attached(observation):
+    """Recognize a local postposed location clue; ambiguous clauses stay unknown.
+
+    A suffix such as 城/州/宫 is only a surface clue, not place-name validation.
+    Neither an earlier location nor a following comma clause can fill this slot.
+    """
+    quote=observation['quote']
+    subject=observation.get('subject_span')
+    predicate=observation.get('predicate_span')
+    if not subject or not predicate:return False
+    origin=observation['start']
+    a,b=subject[0]-origin,subject[1]-origin
+    c,d=predicate[0]-origin,predicate[1]-origin
+    if not 0<=a<b<=c<d<=len(quote):return False
+    tail=re.split(r'[，,。！？；\n]',quote[d:],maxsplit=1)[0]
+    tail=re.sub(r'\s+', '',zh.to_simplified(tail))
+    match=re.fullmatch(r'(?:于|於|在)([\u3400-\u9fff]{1,12})',tail)
+    if not match:return False
+    location=match[1]
+    # Do not swallow a new action/participant into a greedy "location" span.
+    if re.search(r'即位|来朝|遂|乃|而|又|未|不|后|令|命|卒|薨|崩|死|攻|杀|伐|奔|迁|徙|见|于|於|在',location):
+        return False
+    return bool(re.search(r'(?:城|宫|殿|州|郡|县|邑|门|山|川|江|河|湖|海|关|塞|营|军中|里|铺)$',location))
+
+
 def parse(query):
     p=R.plan(query);text=zh.to_simplified(query)
     # Asking where to find a record is not asking where its event happened.
@@ -152,7 +177,8 @@ def audit(chunk, p, neighbors):
     # A nearby date/place in another passage cannot silently answer this event.
     slot_evidence={}
     for slot in p['answer_slots']:
-        quotes=[o['quote'] for o in positive if (time_attached(o) if slot=='time' else
+        checker={'time':time_attached,'place':place_attached}.get(slot)
+        quotes=[o['quote'] for o in positive if (checker(o) if checker else
                 re.search(ANSWER_PATTERNS[slot],zh.to_simplified(o['quote'])))]
         slot_evidence[slot]=list(dict.fromkeys(quotes))
         if not quotes:missing.append('当前事件句缺少'+{'time':'时间','place':'地点','reason':'原因','quantity':'数量'}[slot]+'线索')
@@ -162,6 +188,7 @@ def audit(chunk, p, neighbors):
                 answer_slot_evidence=slot_evidence,subject_syntax=f['subject_syntax'],
                 context_has_clues=adjacent_only,relation_verified=False,
                 time_attachment_version='local-event-date-v1',
+                place_attachment_version='local-event-place-v1',
                 note='要素与句式检查，不等于答案正确；跨句指代、否定与因果未核实。')
 
 
