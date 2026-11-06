@@ -263,6 +263,9 @@ def run(query, book=None, mode='keyword', page=1, cur=None):
             result['relation_experiment'] = {key:experiment[key] for key in ('selection','candidate_scan')}
             result['relation_experiment']['relation_verified'] = False
             result['relation_experiment']['candidate_counts'] = experiment['candidate_counts']
+    from search.biography_lookup import lookup
+    result['biographies'] = lookup(query,book) if mode == 'keyword' else []
+    result['elapsed_ms'] = round((time.perf_counter()-started)*1000,2)
     import logging,uuid
     from logging.handlers import RotatingFileHandler
     logger = logging.getLogger('yinde.punctuated.search')

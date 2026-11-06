@@ -73,6 +73,13 @@ function punctuatedSearchResults(result) {
   const hits=pipeline?[...possible,...result.hits.filter(hit=>hit.evidence_audit?.status!=='clues_present')]:result.hits;
   let html=pipeline?'':`<p class="quiet">${result.mode==='keyword'?`共 ${num(result.total)} 个匹配片段 · 第 ${num(result.page)} 页`:`语义候选 ${num(result.candidate_counts.semantic)} 个 · 关键词／规则候选 ${num(result.candidate_counts.keyword)} 个 · 展示前 ${result.hits.length} 个`}
     · ${num(result.elapsed_ms)} ms</p>`;
+  const biographies=result.biographies||[];
+  if(biographies.length){
+    html+='<h2>人物本纪</h2><p class="quiet">依据本纪开篇的庙号与名讳定位。打开可阅读本卷的连续记载。</p>';
+    for(const entry of biographies){
+      html+=`<article class="card"><h3><a href="#/punctuated/${Number(entry.page_id)}?${qs({back:returnTo})}">${esc(entry.title)}</a></h3><p>${readingTextHtml(entry.quote,{pb:false})}</p></article>`;
+    }
+  }
   if(pipeline){
     html+=`<p class="quiet evidence-pipeline-note" data-pipeline-version="${esc(pipeline.version||'')}">${possible.length
       ? '部分史料包含所问要素和句式线索，请结合出处核对。'
@@ -107,7 +114,7 @@ function punctuatedSearchResults(result) {
       <p>${esc(c.attribution)}</p><p>修订 ${num(c.revision_id)} · 原文件校验 ${esc(c.source_sha256)} · 片段 ${num(c.chunk_id)}</p>
       <p>原底本链接按此句文字另行检索，未确认逐句对应；两版可能有异文，不能仅凭无标点认定更权威。</p></details></article>`;
   }
-  if(!result.hits.length)html+=`<p>标点版本内未找到匹配片段；这不代表史书没有记载。</p><a href="${old}">改查原底本</a>`;
+  if(!result.hits.length && !biographies.length)html+=`<p>标点版本内未找到匹配片段；这不代表史书没有记载。</p><a href="${old}">改查原底本</a>`;
   if(result.mode==='keyword')html+=`<div class="controls">${result.page>1?`<button class="btn" data-search-page="${result.page-1}">上一页</button>`:''}${result.page*result.page_size<result.total?`<button class="btn" data-search-page="${result.page+1}">下一页</button>`:''}</div>`;
   if(result.query_plan)html+=`<details><summary>本次规则线索</summary><p>${esc((result.query_plan.literal_hypotheses||(result.query_plan.clues||[]).map(c=>c.text)).join('、'))}</p><p>规则和相似性仅用于找候选，人物归属与事件关系尚未核实。</p></details>`;
   if(result.trace_id)html+=`<details><summary>本机查询记录</summary><p>${esc(result.trace_id)}</p></details>`;
