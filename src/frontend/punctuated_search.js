@@ -77,7 +77,10 @@ function punctuatedSearchResults(result) {
   if(biographies.length){
     html+='<h2>人物本纪</h2><p class="quiet">依据本纪开篇的庙号与名讳定位。打开可阅读本卷的连续记载。</p>';
     for(const entry of biographies){
-      html+=`<article class="card"><h3><a href="#/punctuated/${Number(entry.page_id)}?${qs({back:returnTo})}">${esc(entry.title)}</a></h3><p>${readingTextHtml(entry.quote,{pb:false})}</p></article>`;
+      const continued=(entry.continuations||[]).map(volume=>
+        `<li><a href="#/punctuated/${Number(volume.page_id)}?${qs({back:returnTo})}">${esc(volume.title)} · ${esc(volume.label)}</a>
+        · ${punctuatedSourceLink(volume.toc_source_url,'目录依据')}</li>`).join('');
+      html+=`<article class="card"><h3><a href="#/punctuated/${Number(entry.page_id)}?${qs({back:returnTo})}">${esc(entry.title)}</a></h3><p>${readingTextHtml(entry.quote,{pb:false})}</p>${continued?`<ul>${continued}</ul>`:''}</article>`;
     }
   }
   if(pipeline){

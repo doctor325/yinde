@@ -158,9 +158,10 @@ def lexical(conn, query, book=None, page=1, page_size=20, *, exists_only=False, 
     source_pages = []
     if identity:
         title, name = identity[0]['aliases']
-        source_pages = sorted({e['page_id'] for e in identity})
+        source_pages = sorted({volume['page_id'] for e in identity
+                               for volume in (e,*e.get('continuations', ()))})
         placeholders = ','.join('?' for _ in source_pages)
-        # Only the opening pages that attest this identity may use the bare title.
+        # Scope the bare title to attested biography volumes, including continuations.
         where.append(f'(c.search_text LIKE ? OR c.search_text LIKE ? OR '
                      f'(c.page_id IN ({placeholders}) AND c.search_text LIKE ?))')
         args.extend(['%'+normalize(title)+'%', '%'+normalize(name)+'%', *source_pages,
