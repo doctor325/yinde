@@ -43,5 +43,11 @@ class EventTime(unittest.TestCase):
     def test_unknown_era_date_is_not_guessed(self):
         self.assertEqual(self.audit('某朝建元三年，甲公卒。')['answer_slot_evidence']['time'],[])
 
+    def test_dynastic_title_and_name_allow_classical_accession_in_scope(self):
+        p=E.parse('唐高祖甲乙何时即位？')
+        chunk=dict(text_orig='甲子，高祖即皇帝位於太極殿。',book_title='舊唐書',chunk_id=1)
+        self.assertEqual(E.audit(chunk,p,[])['status'],'clues_present')
+        self.assertEqual(E.audit({**chunk,'book_title':'漢書'},p,[])['status'],'insufficient')
+
 
 if __name__=='__main__':unittest.main()

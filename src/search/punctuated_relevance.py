@@ -12,7 +12,7 @@ VERSION = 'punctuated-relation-clues-v3'
 RULES = (
     ('death', ('去世','逝世','死亡','死的','死了','卒于'), ('卒','薨','崩','殁','死')),
     ('birth', ('出生','诞生'), ('生','诞')),
-    ('accession', ('即位','登基','继位','被立为'), ('即位','立','践祚')),
+    ('accession', ('即位','登基','继位','被立为'), ('即位','即皇帝位','立','践祚')),
     ('appointment', ('担任','出任','被任命为','任命为','任命','任职','改任','获封','封为'), ('拜','为','授','知','封','徙','入相')),
     ('movement', ('迁往','迁移','迁都','逃往','出使','到达','进入','入城'), ('迁','徙','奔','使','至','入')),
     ('military', ('击败','战胜','战败','攻打','攻取','征伐','收复','讨伐'), ('破','败','伐','克','战','复','讨')),
@@ -50,8 +50,14 @@ def plan(query):
     clues=[dict(text=f,forms=[S.normalize(f)],scope_titles=[]) for f in fragments[:6]]
     for c in clues:
         f=c['text']
-        if len(f)==3 and f[0] in DYNASTY_BOOKS and f.endswith(('祖','宗')):
-            c['scoped_form']=f[1:];c['scope_titles']=list(DYNASTY_BOOKS[f[0]])
+        # A query can concatenate a dynastic title and a personal name.
+        # The shorter title is ambiguous outside the named dynasty's histories.
+        title=re.fullmatch(r'([唐宋明晋])([\u3400-\u9fff][祖宗])([\u3400-\u9fff]{2,3})?',f)
+        if title:
+            dynasty,short_name,personal_name=title.groups()
+            c['scoped_form']=short_name;c['scope_titles']=list(DYNASTY_BOOKS[dynasty])
+            if personal_name:
+                c['forms'].append(S.normalize(personal_name))
         if f in ('母亲','父亲','儿子'):
             c['forms'].append({'母亲':'母','父亲':'父','儿子':'子'}[f])
         if f=='宰相':c['forms']+=['丞相','同平章事','入相','为相']

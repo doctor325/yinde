@@ -22,7 +22,7 @@ def assess(chunk, plan, forms_for):
     bridge=r'(?:遂|乃|亦|复|又|已|竟|即|终|未|不|将|欲){0,2}'
     patterns={
         'death':name+bridge+r'(?:卒|薨|崩|殁|死)(?=$|[，。！？；、：」』]|于|於|在|年|时|后|後)',
-        'accession':name+bridge+r'(?:即位|践祚|登极)',
+        'accession':name+bridge+r'(?:即(?:皇帝)?位|践祚|登极)',
     }
     if obj:
         patterns.update({
