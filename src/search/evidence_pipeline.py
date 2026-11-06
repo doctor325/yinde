@@ -198,7 +198,16 @@ def evaluate(query,conn,dense,batches,book=None,rerank=None):
     _,relation_ranked=R.rank(dense,subject,p)
     literal=S.fused([],batches,limit=60)
     fallback,grounding=grounded_fallback(conn,p,subject,book)
-    channels=(('semantic',dense),('lexical',literal),('relation',relation_ranked),('grounded',fallback))
+    from search.biography_lookup import resolved
+    identity=[]
+    biography=[]
+    if p['subject']:
+        name=p['subject'][0]['text']
+        identity=resolved(name)
+        if identity:
+            biography=S.lexical(conn,name,book,identity=identity)['hits']
+    channels=(('semantic',dense),('lexical',literal),('relation',relation_ranked),
+              ('biography',biography),('grounded',fallback))
     hits=admit(channels);texts=[]
     candidate_ids=[h['chunk']['chunk_id'] for h in hits]
     for h in hits:
@@ -237,6 +246,7 @@ def evaluate(query,conn,dense,batches,book=None,rerank=None):
                       displayed=i<=20) for i,h in enumerate(hits,1)]
     return dict(hits=hits[:20],query_plan=p,pipeline=dict(version=VERSION,
         candidate_counts=dict(semantic=len(dense),lexical=len(literal),subject=len(subject),context_scored=len(hits)),
+        biography_sources=identity,
         channel_quota=CHANNEL_LIMIT,grounded_fallback=grounding,
         admission={name:dict(available=len(items),reserved=min(len(items),CHANNEL_LIMIT),
                             admitted=sum(name in h['channels'] for h in hits)) for name,items in channels},

@@ -26,7 +26,7 @@ def opening_aliases(book, text):
 def _entries(signature):
     with punctuated.connect() as conn:
         rows = conn.execute("""
-            SELECT c.page_id,c.title,b.title AS book_title,
+            SELECT c.page_id,c.title,c.book_id,b.title AS book_title,c.revision_id,c.source_url,
                    json_extract(c.blocks_json,'$[0].text') AS opening
             FROM chapters c JOIN books b USING(book_id)
             WHERE c.status IN ('readable','partial_render','insufficient_punctuation')
@@ -36,8 +36,9 @@ def _entries(signature):
             opening = row['opening'] or ''
             aliases = opening_aliases(row['book_title'], opening)
             if aliases:
-                entries.append(dict(page_id=row['page_id'],title=row['title'],
+                entries.append(dict(page_id=row['page_id'],title=row['title'],book_id=row['book_id'],
                                     book_title=row['book_title'],aliases=aliases,
+                                    revision_id=row['revision_id'],source_url=row['source_url'],
                                     quote=opening.strip().split('。')[0]+'。'))
         return entries
 
@@ -45,11 +46,20 @@ def _entries(signature):
 def lookup(query, book=None):
     # Bare ambiguous titles and questions do not select an identity.
     key = zh.to_simplified(query.strip())
+    if not re.fullmatch(r'[\u3400-\u9fff]{2,5}',key):
+        return []
     path = punctuated.index_path()
-    stat = path.stat()
+    try:
+        stat = path.stat()
+    except FileNotFoundError:
+        return []
     entries = _entries((str(path), stat.st_size, stat.st_mtime_ns))
-    if book:
-        with punctuated.connect() as conn:
-            row = conn.execute('SELECT title FROM books WHERE book_id=?',(book,)).fetchone()
-        return [e for e in entries if key in e['aliases'] and row and e['book_title']==row['title']]
-    return [e for e in entries if key in e['aliases']]
+    return [e for e in entries if key in e['aliases'] and (not book or e['book_id']==book)]
+
+
+def resolved(query):
+    entries = lookup(query)
+    # Several editions may attest the same pair. Conflicting pairs stay separate.
+    if len({tuple(e['aliases']) for e in entries}) == 1:
+        return entries
+    return []

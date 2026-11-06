@@ -129,7 +129,7 @@ def connect(path=None):
         conn.close()
 
 
-def lexical(conn, query, book=None, page=1, page_size=20, *, exists_only=False):
+def lexical(conn, query, book=None, page=1, page_size=20, *, exists_only=False, identity=()):
     terms = tokens(query)
     if not 1 <= page <= 10000 or not 1 <= page_size <= 100:
         raise ValueError('页码或每页数量超出范围')
@@ -137,7 +137,8 @@ def lexical(conn, query, book=None, page=1, page_size=20, *, exists_only=False):
         return dict(hits=[],total=0,book_available=False)
     # The FTS sidecar preserves simplified source text. An equivalence-expanded
     # term must not be prefiltered by just one form (which would lose the other).
-    longer = [t for t in terms if len(t) >= 3 and not any(new in t for _,new in LOOKUP_EQUIVALENTS)]
+    literal_terms = terms[1:] if identity else terms
+    longer = [t for t in literal_terms if len(t) >= 3 and not any(new in t for _,new in LOOKUP_EQUIVALENTS)]
     table = 'chunks c'
     if not longer and conn.execute("SELECT 1 FROM sqlite_master WHERE type='index' AND name='chunks_lookup'").fetchone():
         # A covering index avoids scanning large citation JSON for short words.
@@ -148,12 +149,22 @@ def lexical(conn, query, book=None, page=1, page_size=20, *, exists_only=False):
         table += ' JOIN chunk_fts ON chunk_fts.rowid=c.chunk_id'
         where.append('chunk_fts MATCH ?')
         args.append(' AND '.join('"'+t.replace('"','""')+'"' for t in longer))
-    for term in terms:
+    for term in literal_terms:
         expression = 'c.search_text'
         for old,new in LOOKUP_EQUIVALENTS:
             if new in term:expression=f"replace({expression},'{old}','{new}')"
         where.append(expression+' LIKE ?')
         args.append('%'+term+'%')  # normalize retained only letters/numbers.
+    source_pages = []
+    if identity:
+        title, name = identity[0]['aliases']
+        source_pages = sorted({e['page_id'] for e in identity})
+        placeholders = ','.join('?' for _ in source_pages)
+        # Only the opening pages that attest this identity may use the bare title.
+        where.append(f'(c.search_text LIKE ? OR c.search_text LIKE ? OR '
+                     f'(c.page_id IN ({placeholders}) AND c.search_text LIKE ?))')
+        args.extend(['%'+normalize(title)+'%', '%'+normalize(name)+'%', *source_pages,
+                     '%'+normalize(title[1:])+'%'])
     if book:
         where.append('c.book_id=?');args.append(book)
     sql = ' FROM '+table+' WHERE '+' AND '.join(where)
@@ -162,9 +173,12 @@ def lexical(conn, query, book=None, page=1, page_size=20, *, exists_only=False):
         return dict(hits=[],total=int(present),book_available=True)
     total = conn.execute('SELECT count(*)'+sql,args).fetchone()[0]
     order = 'bm25(chunk_fts),c.chunk_id' if longer else 'c.chunk_id'
+    if source_pages:
+        order = f'CASE WHEN c.page_id IN ({placeholders}) THEN 0 ELSE 1 END,'+order
     rows = conn.execute('SELECT c.payload'+sql+' ORDER BY '+order+' LIMIT ? OFFSET ?',
-                        args+[page_size,(page-1)*page_size]).fetchall()
-    return dict(hits=[dict(chunk=json.loads(r[0]),channels=['keyword']) for r in rows],total=total,book_available=True)
+                        args+source_pages+[page_size,(page-1)*page_size]).fetchall()
+    channel = 'biography' if identity else 'keyword'
+    return dict(hits=[dict(chunk=json.loads(r[0]),channels=[channel]) for r in rows],total=total,book_available=True)
 
 
 def fused(dense, batches, limit=20):
@@ -205,7 +219,9 @@ def run(query, book=None, mode='keyword', page=1, cur=None):
     timings = {}
     with connect() as conn:
         phase = time.perf_counter()
-        raw = lexical(conn,query,book,page)
+        from search.biography_lookup import resolved
+        identity = resolved(query.split()[0]) if mode == 'keyword' else []
+        raw = lexical(conn,query,book,page,identity=identity)
         timings['literal_ms'] = round((time.perf_counter()-phase)*1000,2)
         plan, probes, dense = None, [], []
         batches = [raw['hits']] if mode != 'semantic' else []

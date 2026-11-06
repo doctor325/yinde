@@ -104,6 +104,7 @@ function punctuatedSearchResults(result) {
     const focus=hit.evidence_focus?.selected?`<details><summary>本次重点比较的原文</summary><p>${readingTextHtml(hit.evidence_focus.text,{pb:false})}</p><p>结合前后各最多60字比较相关性；这段文字不是生成的答案。</p></details>`:'';
     html+=`<article class="card punctuated-search-hit"><h3>《${esc(c.book_title)}》 ${esc(c.title)}</h3>
       <p class="quiet">标点版 · 维基文库录入本 · ${c.layer==='annotation'?'来源注释':'正文'}${c.status==='partial_render'?' · 来源排版异常':c.status==='insufficient_punctuation'?' · 短篇或低标点':''}</p>
+      ${hit.channels?.includes('biography')?'<p class="quiet">按本纪记载的姓名与庙号找到</p>':''}
       <div class="blk-text">${readingTextHtml(c.text_orig,{pb:false})}</div>
       ${c.status!=='readable'?`<p class="quiet">${esc(c.reason)}</p>`:''}
       ${pipeline||hit.semantic_score==null?'':`<p class="quiet">语义相似分 ${Number(hit.semantic_score).toFixed(3)}（不是正确概率）</p>`}
