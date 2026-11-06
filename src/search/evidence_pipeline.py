@@ -7,7 +7,7 @@ import json
 import math
 import re
 import time
-from search import punctuated_relevance as R, punctuated_search as S, zh
+from search import annal_events, punctuated_relevance as R, punctuated_search as S, zh
 
 VERSION = 'context-evidence-v2'
 # Each independent channel keeps its own quota before deduplication. A shared
@@ -36,10 +36,9 @@ def time_attached(observation):
     a,b=subject[0]-origin,subject[1]-origin
     c,d=predicate[0]-origin,predicate[1]-origin
     if not 0<=a<b<=c<d<=len(quote):return False
-    date_unit=r'(?:[元一二三四五六七八九十百千〇零\d]+年|[正一二三四五六七八九十冬腊]+月|[初一二三四五六七八九十廿卅\d]+日|[甲乙丙丁戊己庚辛壬癸][子丑寅卯辰巳午未申酉戌亥]|[春夏秋冬闰])'
     def date_only(text):
         text=re.sub(r'[\s，,、]', '',zh.to_simplified(text))
-        return bool(re.fullmatch(date_unit+'+',text) and re.search(ANSWER_PATTERNS['time'],text))
+        return bool(re.fullmatch(annal_events.DATE_UNIT+'+',text) and re.search(ANSWER_PATTERNS['time'],text))
     # Only an otherwise date-only prefix may qualify this explicit event.
     if date_only(quote[:a]):return True
     # Postposed dates must stay in the event's own comma-delimited clause.
@@ -164,12 +163,13 @@ def context(conn, chunk):
     return result
 
 
-def audit(chunk, p, neighbors):
+def audit(chunk, p, neighbors, annal=()):
     f=R.features(chunk,p)
     missing=[]
     if p['unsupported']:missing.append('无法可靠解析问题关系')
-    if not f['all_clues']:missing.append('主体或约束未在当前片段同时出现')
-    observations=f['subject_syntax']['observations']
+    scoped = [o for o in annal if o['polarity']=='positive_syntax']
+    if not f['all_clues'] and not scoped:missing.append('主体或约束未在当前片段同时出现')
+    observations=f['subject_syntax']['observations']+list(annal)
     positive=[o for o in observations if o['polarity']=='positive_syntax']
     needed={g['kind'] for g in p['relation_groups']}
     if not needed.issubset({o['kind'] for o in positive}) or not needed:
@@ -178,14 +178,16 @@ def audit(chunk, p, neighbors):
     slot_evidence={}
     for slot in p['answer_slots']:
         checker={'time':time_attached,'place':place_attached}.get(slot)
-        quotes=[o['quote'] for o in positive if (checker(o) if checker else
+        quotes=[o['quote'] for o in positive if (checker(o) if checker else not o.get('subject_basis') and
                 re.search(ANSWER_PATTERNS[slot],zh.to_simplified(o['quote'])))]
         slot_evidence[slot]=list(dict.fromkeys(quotes))
         if not quotes:missing.append('当前事件句缺少'+{'time':'时间','place':'地点','reason':'原因','quantity':'数量'}[slot]+'线索')
     # Context is available for reading/model scoring, but not identity invention.
     adjacent_only=any(R.features(c,p)['all_clues'] for c in neighbors if c['chunk_id']!=chunk['chunk_id'])
     return dict(status='clues_present' if not missing else 'insufficient',missing=missing,
-                answer_slot_evidence=slot_evidence,subject_syntax=f['subject_syntax'],
+                answer_slot_evidence=slot_evidence,
+                subject_syntax={**f['subject_syntax'],'observations':observations,
+                                'positive_groups':sorted({o['kind'] for o in positive})},
                 context_has_clues=adjacent_only,relation_verified=False,
                 time_attachment_version='local-event-date-v1',
                 place_attachment_version='local-event-place-v1',
@@ -206,17 +208,43 @@ def evaluate(query,conn,dense,batches,book=None,rerank=None):
         identity=resolved(name)
         if identity:
             biography=S.lexical(conn,name,book,identity=identity)['hits']
+    annal={}
+    event_hits=[]
+    if identity and any(g['kind'] in annal_events.VERBS for g in p['relation_groups']):
+        normalized_query=zh.to_simplified(query)
+        for entry in identity:
+            if book and entry['book_id']!=book:
+                continue
+            for volume in (entry,*entry.get('continuations', ())):
+                for row in conn.execute('SELECT payload FROM chunks WHERE book_id=? AND page_id=?',
+                                        (entry['book_id'],volume['page_id'])):
+                    c=json.loads(row[0])
+                    if c['revision_id']!=volume['revision_id']:
+                        continue
+                    events=annal_events.observations(c,p,normalized_query)
+                    if events:
+                        annal[c['chunk_id']]=events
+                        event_hits.append(dict(chunk=c))
+        event_hits.sort(key=lambda h:(
+            not any(o['polarity']=='positive_syntax' for o in annal[h['chunk']['chunk_id']]),
+            -sum(c['text'] in zh.to_simplified(h['chunk']['text_orig']) for c in p['constraints']),
+            h['chunk']['chunk_id']))
     channels=(('semantic',dense),('lexical',literal),('relation',relation_ranked),
-              ('biography',biography),('grounded',fallback))
+              ('biography',biography),('annal_event',event_hits),('grounded',fallback))
     hits=admit(channels);texts=[]
     candidate_ids=[h['chunk']['chunk_id'] for h in hits]
     for h in hits:
         c=h['chunk'];neighbors=context(conn,c)
         h['context_chunks']=neighbors
-        h['evidence_audit']=audit(c,p,neighbors)
+        observations=annal.get(c['chunk_id'],())
+        h['evidence_audit']=audit(c,p,neighbors,observations)
         # Center the pairwise comparison on the event sentence. Large unrelated
         # annal entries next to a six-character event used to dominate scoring.
         f=h['evidence_focus']=focus(c,p)
+        if observations and not f['selected']:
+            observation=next((o for o in observations if o['polarity']=='positive_syntax'),observations[0])
+            f=h['evidence_focus']=dict(start=observation['start'],end=observation['end'],
+                                       text=observation['quote'],selected=True)
         text=c['book_title']+' '+c.get('heading','')+'\n当前原文：'+f['text']
         before=c['text_orig'][max(0,f['start']-60):f['start']]
         after=c['text_orig'][f['end']:f['end']+60]
