@@ -2,7 +2,8 @@
 function unifiedSearchStrategy(query, legacy) {
   if (['keyword','expanded','evidence','relation','hybrid','semantic'].includes(legacy)) return legacy;
   const text=window.YindeEngine?.zh?.toSimplified ? window.YindeEngine.zh.toSimplified(query) : query;
-  return /[？?]|何时|什么时候|哪|为什么|为何|如何|怎样|是否|多少|几年|谁|什么|去世|出生|即位|出任|担任|任命|击败|迁往|出使|记载/.test(text) ? 'expanded' : 'keyword';
+  const question = /[？?]\s*$|何时|何年|何月|何日|何地|何处|为何|何故|如何|何人|何事|什么|怎么|怎样|是否|多少|几[年月日次岁]|哪里|哪儿|哪[年月日位个次些]|谁|吗\s*$/.test(text);
+  return question ? 'evidence' : 'keyword';
 }
 
 async function punctuatedSearchView(params, revision, semantic = false) {
@@ -41,9 +42,11 @@ async function punctuatedSearchView(params, revision, semantic = false) {
     const box=$('#punctuatedSearchResult');
     const current=()=>revision===routeRevision && historyQaRequest===controller && box===$('#punctuatedSearchResult');
     const strategy=unifiedSearchStrategy(query,params.strategy);
-    const args={q:query,book:$('#punctuatedSearchBook').value,strategy,page};
+    const args={q:query,book:$('#punctuatedSearchBook').value,strategy,page:strategy==='keyword'?page:1};
     history.replaceState(null,'',`#/${route}?${qs({...args,strategy:params.strategy})}`);
-    box.setAttribute('aria-busy','true');box.textContent=strategy!=='keyword'?'正在寻找相关史料，首次加载本地模型可能较慢…':'正在查找史料…';
+    box.setAttribute('aria-busy','true');
+    box.textContent=strategy==='evidence'?'正在查找史料并比较上下文，首次加载本地模型可能较慢…':
+      strategy==='keyword'?'正在查找史料…':'正在寻找相关史料，首次加载本地模型可能较慢…';
     try {
       const result=await api('/api/punctuated/search?'+qs(args),{signal:controller.signal});
       if (!current()) return;
@@ -65,19 +68,26 @@ function punctuatedSearchResults(result) {
     ? location.hash : `#/${result.mode==='keyword'?'search':'semantic'}?${qs({q:result.query,book:result.book,strategy:result.mode,page:result.page})}`;
   const old=`#/search?${qs({q:result.query,book:result.book,source:'original'})}`;
   if (!result.book_available) return `<p>这部史书尚未收录标点版本。</p><a class="btn" href="${old}">检索所收原底本</a>`;
-  let html=`<p class="quiet">${result.mode==='keyword'?`共 ${num(result.total)} 个匹配片段 · 第 ${num(result.page)} 页`:`语义候选 ${num(result.candidate_counts.semantic)} 个 · 关键词／规则候选 ${num(result.candidate_counts.keyword)} 个 · 展示前 ${result.hits.length} 个`}
+  const pipeline=result.evidence_pipeline;
+  const possible=pipeline?result.hits.filter(hit=>hit.evidence_audit?.status==='clues_present'):[];
+  const hits=pipeline?[...possible,...result.hits.filter(hit=>hit.evidence_audit?.status!=='clues_present')]:result.hits;
+  let html=pipeline?'':`<p class="quiet">${result.mode==='keyword'?`共 ${num(result.total)} 个匹配片段 · 第 ${num(result.page)} 页`:`语义候选 ${num(result.candidate_counts.semantic)} 个 · 关键词／规则候选 ${num(result.candidate_counts.keyword)} 个 · 展示前 ${result.hits.length} 个`}
     · ${num(result.elapsed_ms)} ms</p>`;
-  if(result.evidence_pipeline){
-    html+=`<p class="quiet evidence-pipeline-note" data-pipeline-version="${esc(result.evidence_pipeline.version||'')}">合并多路候选，结合相邻原文比较了 ${num(result.evidence_pipeline.candidate_counts?.context_scored||0)} 个片段。前20条中 ${num(result.evidence_pipeline.audit_clues_present)} 条包含所问要素与句式线索；这不是已核实的答案。</p>`;
-    if(result.evidence_pipeline.grounded_fallback?.hypothesis)html+='<p class="quiet">问题尚未完整解析，本次补充了有原文落点的词语线索；没有据此确认人物身份或事件关系。</p>';
-    if(result.evidence_pipeline.candidate_scan.truncated)html+='<p>主体候选达到扫描上限，可能遗漏史料。</p>';
+  if(pipeline){
+    html+=`<p class="quiet evidence-pipeline-note" data-pipeline-version="${esc(pipeline.version||'')}">${possible.length
+      ? '部分史料包含所问要素和句式线索，请结合出处核对。'
+      : '本次找到的史料中，尚未确认有片段能回答这个问题。'}</p>`;
+    if(pipeline.grounded_fallback?.hypothesis)html+='<p class="quiet">问题尚未完整解析，本次补充了有原文落点的词语线索。</p>';
+    if(pipeline.candidate_scan.truncated)html+='<p>主体候选达到扫描上限，可能遗漏史料。</p>';
   }
   if(result.relation_experiment){
     const experiment=result.relation_experiment;
     html+=`<p class="quiet relation-experiment-note">关系线索实验：${experiment.selection==='baseline_fallback'?'未识别到足够的关系线索，本次使用原有语义＋规则扩展结果。':'结合人物、动作、对象与句式寻找候选；尚不能可靠判断人物归属、否定或因果。'}</p>`;
     if(experiment.candidate_scan.truncated)html+='<p class="quiet">关系候选达到本次扫描上限，结果可能遗漏相关史料。</p>';
   }
-  for(const hit of result.hits){
+  for(const [index,hit] of hits.entries()){
+    if(pipeline && index===0 && possible.length)html+='<h2>可能回答问题</h2>';
+    if(pipeline && index===possible.length)html+='<h2>仅相关 · 尚未确认</h2>';
     const c=hit.chunk;
     // This is a phrase search in another witness, not a claimed passage alignment.
     const phrase=(c.text_orig.match(/[\u3400-\u9fff]{4,}/)||[''])[0].slice(0,10)||result.query;
@@ -89,7 +99,7 @@ function punctuatedSearchResults(result) {
       <p class="quiet">标点版 · 维基文库录入本 · ${c.layer==='annotation'?'来源注释':'正文'}${c.status==='partial_render'?' · 来源排版异常':c.status==='insufficient_punctuation'?' · 短篇或低标点':''}</p>
       <div class="blk-text">${readingTextHtml(c.text_orig,{pb:false})}</div>
       ${c.status!=='readable'?`<p class="quiet">${esc(c.reason)}</p>`:''}
-      ${hit.semantic_score==null?'':`<p class="quiet">语义相似分 ${Number(hit.semantic_score).toFixed(3)}（不是正确概率）</p>`}
+      ${pipeline||hit.semantic_score==null?'':`<p class="quiet">语义相似分 ${Number(hit.semantic_score).toFixed(3)}（不是正确概率）</p>`}
       ${focus}
       ${hit.evidence_audit?`<p class="evidence-audit">${hit.evidence_audit.status==='clues_present'?'包含所问要素与句式线索（未核实）':'自动核查尚未确认是否回答问题'}</p><details><summary>核查依据与相邻原文</summary>${hit.evidence_audit.missing.length?`<p>${esc(hit.evidence_audit.missing.join('；'))}。规则未识别不代表原文没有记载。</p>`:''}${(hit.context_chunks||[]).filter(n=>n.chunk_id!==c.chunk_id).map(n=>`<p>${readingTextHtml(n.text_orig,{pb:false})}</p><a href="#/punctuated/${Number(n.page_id)}?${qs({block:n.parts[0].block_index,start:n.parts[0].start,end:n.parts[0].end})}">定位此段</a>`).join('')||'<p>没有同层相邻片段。</p>'}<p>模型比较相关性，不核实历史事实。${hit.context_truncated?'模型输入存在截断。':''}</p></details>`:''}
       <div class="controls"><a class="btn read-link" href="${read}">标点原文与上下文</a><a href="${compare}">在原底本查找此句</a></div>
