@@ -45,3 +45,9 @@ class RebuildAudit(unittest.TestCase):
             self.assertTrue(rebuild_corpus.compare(self.folder/'a.db',self.folder/'a.db')['books']['equal'])
             self.assertFalse(rebuild_corpus.compare(self.folder/'a.db',self.folder/'b.db')['books']['equal'])
             self.assertFalse(rebuild_corpus.compare(self.folder/'a.db',self.folder/'c.db')['books']['equal'])
+
+    def test_unified_retained_entry_routes_without_touching_live_state(self):
+        from scripts.pipeline import run_all
+        with patch.object(rebuild_corpus,'main',return_value=0) as rebuild:
+            self.assertEqual(run_all.main(['--retained-output','src/data/candidate']),0)
+            rebuild.assert_called_once_with(['--output','src/data/candidate'])

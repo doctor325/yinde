@@ -282,6 +282,9 @@ def _fts_build(conn: sqlite3.Connection, stats: dict) -> None:
 
 def rebuild(db_path: Path | None = None, *, processed_files=None) -> dict:
     """Step 6 入口：data/processed/parsed_*.jsonl → SQLite 全量重建，返回统计。"""
+    if processed_files is None and config.PROCESSED_DIR == config.HISTORY_AI_DIR/'data/processed':
+        from scripts.rebuild_corpus import inputs
+        processed_files, _ = inputs()
     conn = connect(db_path)
     cur = conn.cursor()
     for t in _TABLES:

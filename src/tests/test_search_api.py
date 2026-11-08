@@ -23,6 +23,12 @@ from search import context as search_ctx
 from search import engine as search_engine
 
 HAS_DB = config.DB_PATH.is_file()
+if HAS_DB:
+    from contextlib import closing
+    from tests.corpus_baseline import load
+    with closing(api_db.connect()) as baseline_db:
+        EXPECTED = load(baseline_db)
+
 
 
 @unittest.skipUnless(HAS_DB, "需先运行 python -m scripts.pipeline.run_all")
@@ -48,15 +54,15 @@ class TestSearchEngineOnDb(unittest.TestCase):
         d = self._run("齐桓公")
         self.assertEqual(d["q_traditional"], "齊桓公")
         self.assertEqual(d["mode"], "fts")
-        self.assertEqual(d["total"], 159)
+        self.assertEqual(d["total"], EXPECTED["literal_counts"]["齐桓公"]["current28"])
 
     def test_two_char_words_bigram_mode(self):
         # 2 字词走 bigram 快路，命中集合须与 LIKE 语义一致（含转繁体后）
         d = self._run("管仲")
         self.assertEqual(d["mode"], "bigram")
         self.assertEqual(d["q_traditional"], "管仲")
-        self.assertEqual(d["total"], 219)
-        self.assertEqual(self._run("城濮")["total"], 40)
+        self.assertEqual(d["total"], EXPECTED["literal_counts"]["管仲"]["current28"])
+        self.assertEqual(self._run("城濮")["total"], EXPECTED["literal_counts"]["城濮"]["current28"])
         self.assertEqual(self._run("长勺")["total"], 8)
         for it in self._run("管仲", page_size=100)["items"]:
             self.assertIn("管仲", it["text_orig"])
@@ -220,8 +226,8 @@ class TestSearchApiContract(unittest.TestCase):
         self.assertEqual(d["mode"], "standard")      # 显示长度默认「标准」
         self.assertEqual(len(d["results"]), 20)
         self.assertNotIn("items", d)                 # 顶层不再有逐条命中
-        self.assertEqual(d["total"], 133)            # 159 条命中合并为 133 段
-        self.assertEqual(d["hit_total"], 159)
+        self.assertEqual(d["total"], EXPECTED["current28"]["齐桓公"][1]["standard"])            # 159 条命中合并为 133 段
+        self.assertEqual(d["hit_total"], EXPECTED["literal_counts"]["齐桓公"]["current28"])
 
     def test_search_page_size_choice_capped(self):
         q = urllib.parse.quote("齐桓公")
@@ -236,7 +242,7 @@ class TestSearchApiContract(unittest.TestCase):
         # 第二阶段「逐条命中」契约保留（任务书 §十七）：level=passage 仍是老结构
         q = urllib.parse.quote("齐桓公")
         d = self.get(f"/api/search?q={q}&level=passage")
-        self.assertEqual(d["total"], 159)
+        self.assertEqual(d["total"], EXPECTED["literal_counts"]["齐桓公"]["current28"])
         self.assertEqual(len(d["items"]), 20)
         self.assertNotIn("results", d)
 

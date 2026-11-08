@@ -1,0 +1,83 @@
+{
+  "version": "retained-28-2026-11-08",
+  "source_digest": "492f1a024ec306634a3fe070c65077761c23f6581f7338507ee0f6b10d1c8617",
+  "legacy19": {
+    "齐桓公": [
+      159,
+      {
+        "short": 145,
+        "standard": 133,
+        "long": 122
+      }
+    ],
+    "管仲": [
+      219,
+      {
+        "short": 187,
+        "standard": 170,
+        "long": 162
+      }
+    ],
+    "黄帝": [
+      206,
+      {
+        "short": 157,
+        "standard": 127,
+        "long": 102
+      }
+    ]
+  },
+  "current28": {
+    "齐桓公": [
+      168,
+      {
+        "short": 154,
+        "standard": 142,
+        "long": 131
+      }
+    ],
+    "管仲": [
+      255,
+      {
+        "short": 218,
+        "standard": 199,
+        "long": 190
+      }
+    ],
+    "黄帝": [
+      222,
+      {
+        "short": 172,
+        "standard": 142,
+        "long": 117
+      }
+    ]
+  },
+  "literal_counts": {
+    "齐桓公": {
+      "legacy19": 159,
+      "current28": 168,
+      "added": 9
+    },
+    "管仲": {
+      "legacy19": 219,
+      "current28": 255,
+      "added": 36
+    },
+    "黄帝": {
+      "legacy19": 206,
+      "current28": 222,
+      "added": 16
+    },
+    "城濮": {
+      "legacy19": 40,
+      "current28": 42,
+      "added": 2
+    },
+    "长勺": {
+      "legacy19": 8,
+      "current28": 8,
+      "added": 0
+    }
+  }
+}

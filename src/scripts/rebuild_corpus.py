@@ -23,12 +23,21 @@ def inside(path):
 
 def inputs():
     # These groups reproduce the original import, followed by the stable merge.
-    base = sorted(config.PROCESSED_DIR.glob('parsed_*.jsonl'))
+    base = config.PROCESSED_DIR
     expansion = ROOT / 'src/data/expansion_20261021/processed'
-    if not base or not expansion.is_dir():
-        raise FileNotFoundError('Missing retained base or expansion inputs')
-    files = base + [p for p in sorted(expansion.glob('parsed_*.jsonl'))
-                    if p.name not in {p.name for p in base}]
+    manifest = json.loads((ROOT/'src/scripts/pipeline/corpus_sources.json').read_text(encoding='utf8'))
+    names = manifest['ordered_inputs']
+    if len(names) != len(set(names)):
+        raise ValueError('Duplicate source inputs')
+    available = {p.name for directory in (base,expansion) for p in directory.glob('parsed_*.jsonl')}
+    if available - set(names):
+        raise ValueError('Unregistered inputs: '+str(sorted(available-set(names))))
+    files = []
+    for name in names:
+        path = base/name if (base/name).is_file() else expansion/name
+        if not path.is_file():
+            raise FileNotFoundError('Missing retained source: '+name)
+        files.append(path)
     provenance = []
     for path in files:
         digest = hashlib.sha256()
@@ -77,10 +86,10 @@ def compare(candidate, reference):
     return result
 
 
-def main():
+def main(argv=None):
     parser = argparse.ArgumentParser()
     parser.add_argument('--output', type=Path, required=True)
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     output = inside(args.output)
     output.mkdir(parents=True, exist_ok=False)
     candidate = output / 'history.db'

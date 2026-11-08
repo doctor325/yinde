@@ -65,6 +65,9 @@ class TestResultBlockRealData(unittest.TestCase):
     def setUpClass(cls):
         cls.conn = ro_conn()
         cls.cur = cls.conn.cursor()
+        from tests.corpus_baseline import load
+        global BASELINE
+        BASELINE = load(cls.conn)["current28"]
 
     @classmethod
     def tearDownClass(cls):

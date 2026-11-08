@@ -37,7 +37,14 @@ def main(argv=None):
     ap.add_argument("--no-process", action="store_true", help="跳过 segmentation→JSONL")
     ap.add_argument("--no-db", action="store_true", help="跳过 JSONL→SQLite")
     ap.add_argument("--no-validate", action="store_true", help="跳过 validate 对账")
+    ap.add_argument("--retained-output", help="按完整来源清单重建独立候选目录并与正式库比较")
     args = ap.parse_args(argv)
+
+    if args.retained_output:
+        if any((args.no_inventory,args.no_process,args.no_db,args.no_validate)):
+            ap.error('--retained-output performs its own complete retained-source rebuild')
+        from scripts.rebuild_corpus import main as rebuild_retained
+        return rebuild_retained(['--output',args.retained_output])
 
     logging.basicConfig(level=logging.INFO)
     _setup_logfile()

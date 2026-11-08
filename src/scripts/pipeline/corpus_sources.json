@@ -1,0 +1,33 @@
+{
+  "version": "retained-28-2026-11-08",
+  "ordered_inputs": [
+    "parsed_beiqishu.jsonl",
+    "parsed_beishi.jsonl",
+    "parsed_chenshu.jsonl",
+    "parsed_guoyu.jsonl",
+    "parsed_houhanshu.jsonl",
+    "parsed_jinshu.jsonl",
+    "parsed_liangshu.jsonl",
+    "parsed_nanqishu.jsonl",
+    "parsed_nanshi.jsonl",
+    "parsed_qianhanshu.jsonl",
+    "parsed_sanguozhi.jsonl",
+    "parsed_shangshu.jsonl",
+    "parsed_shiji.jsonl",
+    "parsed_songshu.jsonl",
+    "parsed_suishu.jsonl",
+    "parsed_weishu.jsonl",
+    "parsed_zhanguoce.jsonl",
+    "parsed_zhoushu.jsonl",
+    "parsed_zuozhuan.jsonl",
+    "parsed_jinshi.jsonl",
+    "parsed_jiutangshu.jsonl",
+    "parsed_jiuwudaishi.jsonl",
+    "parsed_liaoshi.jsonl",
+    "parsed_mingshi.jsonl",
+    "parsed_songshi.jsonl",
+    "parsed_xintangshu.jsonl",
+    "parsed_xinwudaishi.jsonl",
+    "parsed_yuanshi.jsonl"
+  ]
+}
