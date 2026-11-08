@@ -49,6 +49,50 @@ class AnnalEvents(unittest.TestCase):
         events,_=self.audit('甲公何时攻打西夏？','甲子，帝命乙侯攻西夏。')
         self.assertIn('delegated_action',events[0]['qualifications'])
 
+    def test_dated_omitted_actor(self):
+        for query,text in (
+            ('甲公何时任命乙侯？','庚子，以乙侯參知政事。'),
+            ('甲公何时任命乙侯？','戊戌，以乙侯爲吏部尚書。'),
+            ('甲公何时攻打西夏？','丁丑，親征西夏，皇太子監國。'),
+            ('甲公何时即位？','甲子，即皇帝位。'),
+        ):
+            with self.subTest(text=text):
+                events,status=self.audit(query,text)
+                self.assertEqual(status,'clues_present')
+                self.assertTrue(events[0]['subject_omitted'])
+                self.assertEqual(events[0]['quote'],text)
+        self.assertEqual(self.audit('甲公何时攻打西夏？',
+                                   '餘文。丁丑，親征西夏。',start=200)[1],'insufficient')
+
+    def test_omitted_actor_boundaries(self):
+        for query,text,start in (
+            ('甲公何时攻打西夏？','丁丑，將親征西夏。',0),
+            ('甲公何时攻打西夏？','丁丑，未親征西夏。',0),
+            ('甲公何时攻打西夏？','丁丑，乙侯親征西夏。',0),
+            ('甲公何时攻打西夏？','丁丑，攻西夏。',0),
+            ('甲公何时攻打西夏？','丁丑，親征西夏。',200),
+            ('甲公何时任命乙侯？','臣曰：「庚子，以乙侯爲丞相。」',0),
+            ('甲公何时即位？','甲子，帝崩，皇太子即皇帝位。',0),
+            ('甲公何时任命乙侯？','庚子，乙侯至，以乙侯爲丞相。',0),
+            ('甲公何时任命乙侯？','以乙侯爲丞相。甲子，赦。',0),
+        ):
+            with self.subTest(text=text):
+                self.assertEqual(self.audit(query,text,start)[1],'insufficient')
+
+    def test_recovered_prefix(self):
+        source = '前事。丁丑，親征西夏。'
+        chunk = dict(text_orig=source[3:],layer='body',parts=[dict(block_index=2,start=3,end=len(source))])
+        whole = dict(text_orig=source,parts=[dict(block_index=2,start=0,end=len(source))])
+        prefix = annal_events.source_prefix(chunk,[whole,chunk])
+        self.assertEqual(prefix,'前事。')
+        query = '甲公何时攻打西夏？'
+        plan = evidence_pipeline.parse(query)
+        events = annal_events.observations(chunk,plan,query,leading_text=prefix)
+        self.assertEqual(evidence_pipeline.audit(chunk,plan,[],events)['status'],'clues_present')
+        self.assertIsNone(annal_events.source_prefix(chunk,[chunk]))
+        events = annal_events.observations(chunk,plan,query,leading_text='臣曰：「前事。')
+        self.assertEqual(evidence_pipeline.audit(chunk,plan,[],events)['status'],'insufficient')
+
 
 if __name__=='__main__':
     unittest.main()

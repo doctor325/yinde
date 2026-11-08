@@ -14,7 +14,24 @@ SENTENCE = re.compile(r'[^。！？；\n]+[。！？；]?')
 OFFICE = r'(?:宰相|丞相|[左右]丞相|参知政事|枢密使|同中书门下平章事|尚书[左右]仆射|御史大夫|太尉|太傅|司空|司徒|[吏户礼兵刑工]部尚书)'
 
 
-def observations(chunk, plan, query):
+def source_prefix(chunk, page_chunks):
+    """Recover a truncated block prefix from an overlapping stored chunk."""
+    parts = chunk.get('parts', [])
+    if not parts or parts[0]['start'] == 0:
+        return ''
+    first = parts[0]
+    for other in page_chunks:
+        offset = 0
+        for part in other.get('parts', []):
+            length = part['end'] - part['start']
+            if (part['block_index'] == first['block_index'] and part['start'] == 0
+                    and part['end'] >= first['start']):
+                return other['text_orig'][offset:offset + first['start']]
+            offset += length
+    return None
+
+
+def observations(chunk, plan, query, leading_text=None):
     """Keep candidates even when syntax cannot safely bind the actor."""
     source = chunk['text_orig']
     text = zh.to_simplified(source)
@@ -40,12 +57,20 @@ def observations(chunk, plan, query):
         action = r'(?P<verb>'+verb+r')'
         if delegated:
             action = '(?:'+delegated+')?'+action
-        pattern = re.compile(r'(?P<subject>[帝上])(?:遂|乃|复|又|未|不|欲|将){0,2}'+action)
+        pattern = re.compile(r'(?P<subject>[帝上])?(?P<bridge>(?:遂|乃|复|又|未|不|欲|将){0,2})'+action)
         for sentence in SENTENCE.finditer(text):
             quote = sentence.group()
             for match in pattern.finditer(quote):
                 a,b = match.span('subject')
                 c,d = match.span('verb')
+                omitted = a == -1
+                if omitted:
+                    a = b = match.start()
+                    # An omitted actor needs a local date-only entry prefix.
+                    # Never inherit an actor across another action or speaker.
+                    prefix = quote[:a].strip()
+                    if not prefix or not DATE_PREFIX.fullmatch(prefix):
+                        continue
                 tail = quote[d:]
                 constraints = plan['constraints']
                 argument = None
@@ -55,7 +80,7 @@ def observations(chunk, plan, query):
                     recipient = constraints[0]['forms'] if len(constraints)==1 else []
                     if recipient and not re.search(r'被|受命|获封|担任|出任|改任|任职|封为|谁',query):
                         names = '|'.join(map(re.escape,recipient))
-                        argument = re.match(r'(?:'+names+r')为'+OFFICE+r'(?=$|[，,。；！？])',tail)
+                        argument = re.match(r'(?:'+names+r')(?:[为爲])?'+OFFICE+r'(?=$|[，,。；！？、])',tail)
                     bound = argument is not None
                 elif kind == 'military':
                     if len(constraints)==1:
@@ -67,9 +92,24 @@ def observations(chunk, plan, query):
                 if argument:
                     d += argument.end()
                 offset = sentence.start()
-                qualifiers = assess_context(source,offset+a,offset+c,offset+d,
-                                            subject_end=offset+b)['qualifications']
-                if (not safe_start or REPORT.search(text[:sentence.end()])
+                if omitted:
+                    qualifiers = []
+                    if re.search(r'未|不',match['bridge']):
+                        qualifiers.append('negated')
+                    if re.search(r'欲|将',match['bridge']):
+                        qualifiers.append('hypothetical')
+                    # Generic attack/victory verbs may describe an army rather
+                    # than the annal subject; only explicit personal campaigns
+                    # support an omitted military actor.
+                    if kind == 'military' and match['verb'] != '亲征':
+                        qualifiers.append('unresolved_annal_actor')
+                else:
+                    qualifiers = assess_context(source,offset+a,offset+c,offset+d,
+                                                subject_end=offset+b)['qualifications']
+                preceding = (leading_text or '') + text[:sentence.start()]
+                complete_start = safe_start or (leading_text is not None and
+                    preceding.rstrip().endswith(('。','！','？')))
+                if (not complete_start or REPORT.search((leading_text or '')+text[:sentence.end()])
                         or not DATE_PREFIX.fullmatch(quote[:a].strip())
                         or not quote.endswith(('。','！','？'))):
                     qualifiers.append('unresolved_annal_actor')
@@ -80,5 +120,5 @@ def observations(chunk, plan, query):
                 result.append(dict(kind=kind,polarity='qualified' if qualifiers else 'positive_syntax',
                     qualifications=qualifiers,quote=source[offset:sentence.end()],start=offset,end=sentence.end(),
                     subject_span=[offset+a,offset+b],predicate_span=[offset+c,offset+d],
-                    subject_basis='annal_scope',relation_verified=False))
+                    subject_basis='annal_scope',subject_omitted=omitted,relation_verified=False))
     return result

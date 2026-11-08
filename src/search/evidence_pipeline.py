@@ -35,7 +35,8 @@ def time_attached(observation):
     origin=observation['start']
     a,b=subject[0]-origin,subject[1]-origin
     c,d=predicate[0]-origin,predicate[1]-origin
-    if not 0<=a<b<=c<d<=len(quote):return False
+    omitted = observation.get('subject_omitted') and observation.get('subject_basis')=='annal_scope'
+    if not (0<=a<=b<=c<d<=len(quote) and (a<b or omitted)):return False
     def date_only(text):
         text=re.sub(r'[\s，,、]', '',zh.to_simplified(text))
         return bool(re.fullmatch(annal_events.DATE_UNIT+'+',text) and re.search(ANSWER_PATTERNS['time'],text))
@@ -216,12 +217,13 @@ def evaluate(query,conn,dense,batches,book=None,rerank=None):
             if book and entry['book_id']!=book:
                 continue
             for volume in (entry,*entry.get('continuations', ())):
-                for row in conn.execute('SELECT payload FROM chunks WHERE book_id=? AND page_id=?',
-                                        (entry['book_id'],volume['page_id'])):
-                    c=json.loads(row[0])
-                    if c['revision_id']!=volume['revision_id']:
-                        continue
-                    events=annal_events.observations(c,p,normalized_query)
+                page_chunks = [json.loads(row[0]) for row in conn.execute(
+                    'SELECT payload FROM chunks WHERE book_id=? AND page_id=?',
+                    (entry['book_id'],volume['page_id']))]
+                page_chunks = [c for c in page_chunks if c['revision_id']==volume['revision_id']]
+                for c in page_chunks:
+                    prefix = annal_events.source_prefix(c,page_chunks)
+                    events=annal_events.observations(c,p,normalized_query,leading_text=prefix)
                     if events:
                         annal[c['chunk_id']]=events
                         event_hits.append(dict(chunk=c))
