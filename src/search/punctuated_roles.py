@@ -7,6 +7,7 @@ signal. Unrecognized constructions stay unknown, never false or unsupported.
 import re
 from search import zh
 from search.relation_context import assess_context
+from search.annal_events import OFFICE
 
 VERSION = 'explicit-subject-syntax-v2'
 
@@ -24,6 +25,11 @@ def assess(chunk, plan, forms_for):
         'death':name+bridge+r'(?:卒|薨|崩|殁|死)(?=$|[，。！？；、：」』]|于|於|在|年|时|后|後)',
         'accession':name+bridge+r'(?:即(?:皇帝)?位|践祚|登极)',
     }
+    if not obj and 'office' in plan.get('answer_slots',[]):
+        # An interrogative office is an answer slot. Require an explicit
+        # recipient and a bounded office title in this same predicate.
+        office=r'(?:'+OFFICE+r'|翰林学士|中书舍人|御史中丞)'
+        patterns['appointment']=name+bridge+r'(?:为|爲|拜|授|任)'+office+r'(?=$|[，。！？；、：」』])'
     if obj:
         patterns.update({
             'appointment':name+bridge+r'(?:为|拜|授|任|知|徙知|封为|入)'+obj,

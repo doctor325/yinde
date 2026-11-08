@@ -14,6 +14,7 @@ VERSION = 'context-evidence-v2'
 # 24-slot round robin silently discarded even a channel's tenth-ranked hit.
 CHANNEL_LIMIT = 20
 ANSWER_PATTERNS = {
+    'office':r'(?:'+annal_events.OFFICE+r'|翰林学士|中书舍人|御史中丞)',
     'time':r'[元一二三四五六七八九十百千〇零\d]+年|[正一二三四五六七八九十冬腊]+月|[甲乙丙丁戊己庚辛壬癸][子丑寅卯辰巳午未申酉戌亥]',
     'place':r'(?:于|於|至|在)[\u3400-\u9fff]{1,12}',
     'reason':r'(?:以|因|坐|为|為)[^。；]{1,16}(?:故|罪|丧|喪)|故|缘|緣',
@@ -74,10 +75,14 @@ def place_attached(observation):
 
 
 def parse(query):
-    p=R.plan(query);text=zh.to_simplified(query)
+    text=zh.to_simplified(query)
+    office_question = r'(?:担任|出任)(?:过)?(?:什么|哪些|何种)(?:官职|职务)'
+    asks_office = bool(re.search(office_question,text))
+    p=R.plan(re.sub(office_question,'担任',text))
     # Asking where to find a record is not asking where its event happened.
     text=re.sub(r'(?:史料|记载|文献|证据)(?:在)?(?:哪里|何处|什么地方)', '', text)
     slots=[]
+    if asks_office:slots.append('office')
     for name,pattern in (('time',r'何时|什么时候|哪一年|时间'),('place',r'哪里|何处|什么地方'),
                          ('reason',r'为什么|为何|原因'),('quantity',r'多少|几次|几年|几卷')):
         if re.search(pattern,text):slots.append(name)
@@ -182,7 +187,7 @@ def audit(chunk, p, neighbors, annal=()):
         quotes=[o['quote'] for o in positive if (checker(o) if checker else not o.get('subject_basis') and
                 re.search(ANSWER_PATTERNS[slot],zh.to_simplified(o['quote'])))]
         slot_evidence[slot]=list(dict.fromkeys(quotes))
-        if not quotes:missing.append('当前事件句缺少'+{'time':'时间','place':'地点','reason':'原因','quantity':'数量'}[slot]+'线索')
+        if not quotes:missing.append('当前事件句缺少'+{'time':'时间','place':'地点','reason':'原因','quantity':'数量','office':'官职'}[slot]+'线索')
     # Context is available for reading/model scoring, but not identity invention.
     adjacent_only=any(R.features(c,p)['all_clues'] for c in neighbors if c['chunk_id']!=chunk['chunk_id'])
     return dict(status='clues_present' if not missing else 'insufficient',missing=missing,
