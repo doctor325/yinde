@@ -123,6 +123,7 @@ class TestResultBlockUnit(unittest.TestCase):
             _p(3, 1, 3, 1, "丙丙丙丙丙", section="舜典"),   # section 变 → 边界
             _p(4, 1, 4, 1, "丁丁丁丁丁", section="舜典"),
         ])
+        self.addCleanup(conn.close)
         b = self.blocks(conn, [hit(1, 1, 1, 1)])[0]
         self.assertEqual(b["passage_ids"], [1, 2])         # 不含 3/4
         self.assertEqual(b["text"], "甲甲甲甲甲乙乙乙乙乙")
@@ -134,6 +135,7 @@ class TestResultBlockUnit(unittest.TestCase):
             _p(3, 1, 3, 1, "注文一", layer="commentary_candidate"),
             _p(4, 1, 4, 1, "注文二", layer="commentary_candidate"),
         ])
+        self.addCleanup(conn.close)
         b = self.blocks(conn, [hit(1, 1, 1, 1)])[0]
         self.assertEqual(b["passage_ids"], [1, 2])
         self.assertEqual(b["layer"], "main")
@@ -143,6 +145,7 @@ class TestResultBlockUnit(unittest.TestCase):
             _p(1, 1, 1, 1, "第一篇"),
             _p(9, 2, 2, 1, "第二篇"),      # 另一文件，紧邻 row_no 也不得越界
         ])
+        self.addCleanup(conn.close)
         b = self.blocks(conn, [hit(1, 1, 1, 1)])[0]
         self.assertEqual(b["passage_ids"], [1])
         self.assertEqual(b["file_id"], 1)
@@ -154,6 +157,7 @@ class TestResultBlockUnit(unittest.TestCase):
             _p(3, 1, 3, 1, "經文", subsection="17.1", ab="A"),   # 经/传不混
             _p(4, 1, 4, 1, "傳文三", subsection="17.2", ab="B"),  # 条目号变
         ])
+        self.addCleanup(conn.close)
         b = self.blocks(conn, [hit(1, 1, 1, 1)])[0]
         self.assertEqual(b["passage_ids"], [1, 2])
 
@@ -166,6 +170,7 @@ class TestResultBlockUnit(unittest.TestCase):
             _p(3, 1, 3, 1, "<pb:KR2a0001_tls_100-150a>", kind="page", layer="structure"),
             _p(4, 1, 4, 1, "後句。"),
         ])
+        self.addCleanup(conn.close)
         b = self.blocks(conn, [hit(4, 1, 4, 1)])[0]
         self.assertEqual(b["passage_ids"], [1, 4])       # 元数据行不在其中
         self.assertEqual(b["text"], "前句。後句。")       # 也没被写进正文
@@ -190,6 +195,7 @@ class TestResultBlockUnit(unittest.TestCase):
             _p(4, 1, 6, 1, "四二甲"),
             _p(5, 1, 7, 1, "四二乙"),
         ])
+        self.addCleanup(conn.close)
         b = self.blocks(conn, [hit(5, 1, 7, 1)])[0]
         self.assertEqual(b["passage_ids"], [4, 5])      # 只管到 004.42 的自己
         self.assertEqual(b["text"], "四二甲四二乙")
@@ -218,6 +224,7 @@ class TestResultBlockUnit(unittest.TestCase):
                src=json.dumps({"section_ref": "ZUO Xi 18.1.1"})),   # 更细的段号
             _p(4, 1, 4, 1, "僖公十七年三", section="僖公十七年"),
         ])
+        self.addCleanup(conn.close)
         b = self.blocks(conn, [hit(1, 1, 1, 1)])[0]
         self.assertEqual(b["passage_ids"], [1, 2, 4])   # 段号没有把它切碎
 
@@ -228,6 +235,7 @@ class TestResultBlockUnit(unittest.TestCase):
             _p(2, 1, 2, 1, "丁戊己"),
             _p(3, 1, 3, 1, "庚辛壬"),
         ])
+        self.addCleanup(conn.close)
         blocks = self.blocks(conn, [hit(1, 1, 1, 1), hit(2, 1, 2, 1), hit(3, 1, 3, 1)])
         self.assertEqual(len(blocks), 1)
         self.assertEqual(blocks[0]["match_count"], 3)
@@ -237,6 +245,7 @@ class TestResultBlockUnit(unittest.TestCase):
         conn = make_db([
             _p(1, 1, 1, 1, "甲¶"), _p(2, 1, 2, 1, "乙¶"), _p(3, 1, 3, 1, "丙¶"),
         ])
+        self.addCleanup(conn.close)
         b = self.blocks(conn, [hit(1, 1, 1, 1), hit(3, 1, 3, 1)])[0]
         rows = conn.execute(
             "SELECT text_orig FROM passages WHERE passage_id IN (%s) ORDER BY row_no, seq"
@@ -246,11 +255,13 @@ class TestResultBlockUnit(unittest.TestCase):
     # ---- 边界与硬上限 ----
     def test_max_chars_is_hard(self):
         conn = make_db([_p(i, 1, i, 1, "字" * 100) for i in range(1, 31)])
+        self.addCleanup(conn.close)
         b = self.blocks(conn, [hit(15, 1, 15, 1)], mode="short")[0]
         self.assertLessEqual(b["n_chars"], RB.MODE_LIMITS["short"]["max_chars"])
 
     def test_mode_length_monotonic(self):
         conn = make_db([_p(i, 1, i, 1, "字" * 50) for i in range(1, 61)])
+        self.addCleanup(conn.close)
         lens = [self.blocks(conn, [hit(30, 1, 30, 1)], mode=m)[0]["n_chars"]
                 for m in ("short", "standard", "long")]
         self.assertLess(lens[0], lens[1])
@@ -258,6 +269,7 @@ class TestResultBlockUnit(unittest.TestCase):
 
     def test_file_edges_do_not_wrap(self):
         conn = make_db([_p(1, 1, 1, 1, "首句"), _p(2, 1, 2, 1, "次句")])
+        self.addCleanup(conn.close)
         b = self.blocks(conn, [hit(1, 1, 1, 1)])[0]
         self.assertEqual(b["row_first"], 1)
         self.assertFalse(b["more_before"])             # 已到文件开头
@@ -268,6 +280,7 @@ class TestResultBlockUnit(unittest.TestCase):
             _p(1, 1, 1, 1, "甲", pb_page="100", pb_side="a"),
             _p(2, 1, 2, 1, "乙", pb_page="101", pb_side="b"),
         ])
+        self.addCleanup(conn.close)
         b = RB._public_block(self.blocks(conn, [hit(1, 1, 1, 1)])[0])
         for k in ("block_id", "hit_passage_id", "file_id", "row_first", "row_last",
                   "passage_ids", "match_count", "text", "juan", "section", "layer",
@@ -284,10 +297,12 @@ class TestResultBlockUnit(unittest.TestCase):
     def test_reach_edges_detects_truncation(self):
         """被展示长度截断（而非读到尽头）时才提示可展开。"""
         conn = make_db([_p(i, 1, i, 1, "字" * 200) for i in range(1, 11)])
+        self.addCleanup(conn.close)
         blocks = self.blocks(conn, [hit(5, 1, 5, 1)], mode="short")
         self.assertTrue(blocks[0]["more_after"] or blocks[0]["more_before"])
         # 短到能全读下时，两侧都到头 → 不给展开按钮
         conn2 = make_db([_p(1, 1, 1, 1, "甲"), _p(2, 1, 2, 1, "乙")])
+        self.addCleanup(conn2.close)
         b2 = self.blocks(conn2, [hit(1, 1, 1, 1)], mode="short")[0]
         self.assertFalse(b2["more_before"])
         self.assertFalse(b2["more_after"])
@@ -371,6 +386,7 @@ class TestSectionMatchUnit(unittest.TestCase):
 
     def setUp(self):
         self.conn = section_db()
+        self.addCleanup(self.conn.close)
 
     def test_section_hit_anchors_at_first_body_row(self):
         """锚点是区间内**首条正文**，不是标题行——标题行不进片段正文。"""
@@ -400,14 +416,18 @@ class TestSectionMatchUnit(unittest.TestCase):
 
     def test_text_hits_come_before_section_hits(self):
         """§6：正文命中排在篇名命中之前。"""
-        d = self.search(dedup_db(), "夏本紀")
+        conn = dedup_db()
+        self.addCleanup(conn.close)
+        d = self.search(conn, "夏本紀")
         rank = {"text": 0, "both": 1, "section": 2}
         kinds = [b["match_type"] for b in d["results"]]
         self.assertEqual(kinds, sorted(kinds, key=lambda k: rank[k]))
 
     def test_section_dedup_marks_both_without_duplicate(self):
         """篇名块与正文块撞在同一条记录上 → 合成一块并标 both，不出现重复 Passage。"""
-        d = self.search(dedup_same_section_db(), "夏本紀")
+        conn = dedup_same_section_db()
+        self.addCleanup(conn.close)
+        d = self.search(conn, "夏本紀")
         both = [b for b in d["results"] if b["match_type"] == "both"]
         self.assertEqual(len(both), 1, "「夏本紀」既是篇名又是正文，应当正好一块标 both")
         pids = [p for b in d["results"] for p in b["passage_ids"]]
@@ -419,7 +439,9 @@ class TestSectionMatchUnit(unittest.TestCase):
         第六点二阶段跨篇界修复的正向断言（合成数据版）：修复前两个块被合成一个
         跨篇界的块，修复后各归各篇。
         """
-        d = self.search(dedup_db(), "夏本紀")
+        conn = dedup_db()
+        self.addCleanup(conn.close)
+        d = self.search(conn, "夏本紀")
         self.assertEqual([b["match_type"] for b in d["results"]], ["text", "section"])
         text, sec = d["results"]
         self.assertEqual((text["row_first"], text["row_last"]), (2, 4),
@@ -441,7 +463,9 @@ class TestSectionMatchUnit(unittest.TestCase):
 
     def test_section_truncated_flag(self):
         """篇名命中超过 MAX_SECTION_BLOCKS 时如实报 section_truncated。"""
-        d = self.search(self._crowded_db(), "共名篇")
+        conn = self._crowded_db()
+        self.addCleanup(conn.close)
+        d = self.search(conn, "共名篇")
         self.assertTrue(d["section_truncated"], "命中超过上限时必须如实标注")
 
     def test_section_truncation_keeps_the_best(self):
@@ -451,6 +475,7 @@ class TestSectionMatchUnit(unittest.TestCase):
         这里直接验锚点集合——展示层会把相邻锚点并成一个块（那是另一回事）。
         """
         conn = self._crowded_db()
+        self.addCleanup(conn.close)
         idx = RB._section_index(conn.cursor())
         hits, trunc = RB._section_hits(conn.cursor(), "共名篇", None, None, idx)
         self.assertTrue(trunc)
@@ -476,6 +501,7 @@ class TestBlockInvariantsUnit(unittest.TestCase):
         self.conn = make_db([_p(i, 1, i, 0, "甲" * 30)
                              for i in range(1, RB.WINDOW_HARD_CAP * 2 + 1)],
                             files=[(1, "f1")])
+        self.addCleanup(self.conn.close)
 
     def search(self, q, mode="short", page_size=100):
         return RB.search_result_blocks(self.conn.cursor(), q, None, None, 1,
@@ -545,6 +571,7 @@ class TestExpandBlock(unittest.TestCase):
             _p(4, 1, 4, 1, "四"), _p(5, 1, 5, 1, "五"), _p(6, 1, 6, 1, "六"),
             _p(7, 1, 7, 1, "七", section="別篇"),      # 同文件的另一篇 → 段落边界
         ])
+        self.addCleanup(self.conn.close)
         self.cur = self.conn.cursor()
 
     def test_expand_after_from_block_tail(self):
@@ -583,6 +610,7 @@ class TestExpandBlock(unittest.TestCase):
             _p(1, 1, 1, 1, "正文"),
             _p(2, 1, 2, 1, "# src: X", kind="comment", layer="structure"),
         ])
+        self.addCleanup(conn.close)
         with self.assertRaises(ValueError):
             RB.expand_block(conn.cursor(), 2, "after", 5)
 
@@ -599,11 +627,14 @@ class TestResultBlockApi(unittest.TestCase):
     def setUpClass(cls):
         cls.srv = ThreadingHTTPServer(("127.0.0.1", 0), api_main.Handler)
         cls.port = cls.srv.server_address[1]
-        threading.Thread(target=cls.srv.serve_forever, daemon=True).start()
+        cls.t = threading.Thread(target=cls.srv.serve_forever, daemon=True)
+        cls.t.start()
 
     @classmethod
     def tearDownClass(cls):
         cls.srv.shutdown()
+        cls.srv.server_close()
+        cls.t.join(timeout=5)
 
     def get(self, path):
         with urllib.request.urlopen(f"http://127.0.0.1:{self.port}{path}") as r:
@@ -614,6 +645,7 @@ class TestResultBlockApi(unittest.TestCase):
             self.get(path)
             return 200
         except urllib.error.HTTPError as e:
+            e.close()
             return e.code
 
     def search(self, **kw):

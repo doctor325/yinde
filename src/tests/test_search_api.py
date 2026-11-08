@@ -202,6 +202,8 @@ class TestSearchApiContract(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         cls.srv.shutdown()
+        cls.srv.server_close()
+        cls.t.join(timeout=5)
 
     def get(self, path):
         with urllib.request.urlopen(f"http://127.0.0.1:{self.port}{path}") as r:
@@ -212,6 +214,7 @@ class TestSearchApiContract(unittest.TestCase):
             self.get(path)
             return 200
         except urllib.error.HTTPError as e:
+            e.close()
             return e.code
 
     def test_search_endpoint_defaults(self):

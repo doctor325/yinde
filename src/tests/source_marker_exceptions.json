@@ -1,0 +1,70 @@
+{
+  "KR2a0012_000.txt": {
+    "origin_path": "sanguozhi/KR2a0012_000.txt",
+    "sha256": "4c125bd1f61e265f5ebc9c68ed1777ba617fe23c9eb365167b7a237631e3f097",
+    "markers": [
+      {
+        "row_no": 13,
+        "marker": "<pb:KR2a0012_WYG_1a>"
+      }
+    ]
+  },
+  "KR2a0015_000.txt": {
+    "origin_path": "jinshu/KR2a0015_000.txt",
+    "sha256": "6c866f0ed67b007d6355b229f84282ad46eaf609dff408f75719189b0f78d308",
+    "markers": [
+      {
+        "row_no": 18,
+        "marker": "<pb:KR2a0015_WYG_1a>"
+      },
+      {
+        "row_no": 25,
+        "marker": "<pb:KR2a0015_WYG_1a>"
+      }
+    ]
+  },
+  "KR2a0038_046.txt": {
+    "origin_path": "mingshi/KR2a0038_046.txt",
+    "sha256": "322fed1e24390933b0fb1e102d179d363d29d073347b59fdcab2dd24d7c3154f",
+    "markers": [
+      {
+        "row_no": 204,
+        "marker": "<pb:KR2a0038_WYG_WYG0297-0606c>"
+      },
+      {
+        "row_no": 310,
+        "marker": "<pb:KR2a0038_WYG_WYG0297-0609b>"
+      }
+    ]
+  },
+  "KR2a0038_074.txt": {
+    "origin_path": "mingshi/KR2a0038_074.txt",
+    "sha256": "fe35f9d397bc6d34d0bb7edc52e4c49f75010f2d0ac66a3d92c259f287240e46",
+    "markers": [
+      {
+        "row_no": 348,
+        "marker": "<pb:KR2a0038_WYG_WYG0298-0179c>"
+      }
+    ]
+  },
+  "KR2a0038_216.txt": {
+    "origin_path": "mingshi/KR2a0038_216.txt",
+    "sha256": "de7434bf237c3293ed75d15db8a171d652efd8e445b071906ecaa5117ec1daa3",
+    "markers": [
+      {
+        "row_no": 25,
+        "marker": "<pb:KR2a0038_WYG_WYG0299-0648b>"
+      }
+    ]
+  },
+  "KR2a0038_239.txt": {
+    "origin_path": "mingshi/KR2a0038_239.txt",
+    "sha256": "f697166d55e175ccf7fc986a7d18792d738b6a62d31e7f593df48991f6ce890e",
+    "markers": [
+      {
+        "row_no": 8,
+        "marker": "<pb:KR2a0038_WYG_WYG0299-0802c>"
+      }
+    ]
+  }
+}

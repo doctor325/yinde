@@ -3,13 +3,15 @@
 不只查 HTTP 200 —— 每个问题都断言：意图、实体、扩展词、真实命中内容、
 片段完整性、跨层/跨文件。数据来自真实语料（只读），不伪造命中。
 
-跑法（在 HistoryAI 目录下，需先启动 api.main）：
+跑法（在 src 目录下，测试自动启动并关闭独立临时端口服务）：
     PYTHONPATH=. PYTHONIOENCODING=utf-8 python tests/test_phase4_questions.py
 """
 import json
 import sqlite3
 import sys
 import unittest
+import threading
+from http.server import ThreadingHTTPServer
 import urllib.parse
 import urllib.request
 from pathlib import Path
@@ -19,6 +21,22 @@ sys.path.insert(0, str(ROOT))
 from scripts.pipeline import config  # noqa: E402
 
 BASE = "http://127.0.0.1:8600"
+
+
+# Own the tested server rather than relying on an unrelated process on 8600.
+def setUpModule():
+    global BASE, server, server_thread
+    from api.main import Handler
+    server=ThreadingHTTPServer(('127.0.0.1',0),Handler)
+    server_thread=threading.Thread(target=server.serve_forever,daemon=True)
+    server_thread.start()
+    BASE='http://127.0.0.1:'+str(server.server_port)
+
+
+def tearDownModule():
+    server.shutdown()
+    server.server_close()
+    server_thread.join(timeout=5)
 
 
 def ask(q, **kw):
@@ -219,33 +237,25 @@ class Phase4RealQuestions(unittest.TestCase):
         self.assertIsNotNone(r, "没召回城濮的原文")
         self.assertLessEqual(r, 2, f"城濮 的原文排到了第 {r} 个事件")
 
-    def test_no_three_kingdoms(self):
-        """语料外的历史时期 —— 必须如实返回空，不编造。
+    def test_expanded_corpus_recalls_an_lushan(self):
+        self.assertGreater(db_count('安祿山'),0)
+        d=ask('安祿山')
+        self.assertTrue(events(d))
+        self.assertIn('安祿山',all_text(d))
 
-        探针词换过两次，两次都是它自己红着报出来的：
-          董卓  → 姜維  ：第六点二阶段加 後漢書，董卓进了语料（157 处正文命中，
-                          还成了召回集里的正例 qh-person-16）；
-          姜維  → 安祿山：第六点三阶段加 三國志，姜維进了语料（42 段）。
-        安祿山只属于尚未收录的舊唐書/新唐書：第二批要加的南北朝 10 部与隋書
-        （止于 618 年）都写不到他，所以这个名字能撑到那 9 部正史真的入库为止。
-
-        下面那条断言是防复发的闸门：探针词一旦进语料，这条用例会在**当次**就
-        红着告诉你换词，而不是悄悄变成一条永远为真的空断言。
-        """
-        probe = "安祿山"
-        n_corpus = db_count(probe)
-        self.assertEqual(n_corpus, 0,
-                         f"探针词「{probe}」已在语料中（{n_corpus} 段）：它不能再充当"
-                         f"「语料确实没有」的探针，请改这条用例的 probe")
-        d = ask(probe)
-        self.assertEqual(d["counts"]["entity_pool"], 0)
-        self.assertEqual(d["counts"]["fallback_pool"], 0)
-        self.assertEqual(events(d), [])
-        self.assertEqual(all_text(d), "")
-        self.assertTrue(any("不编造" in n for n in d["notes"]),
-                        f"空结果没有说明：{d['notes']}")
-        # 「安祿山」三个字允许出现在 question.raw / 扩展词里（那是在复述用户的问题），
-        # 绝不允许出现在任何**片段正文**里 —— 正文只能是 text_orig。
+    def test_verified_absent_probe(self):
+        # Synthetic rare-character probe. Check every possible topic window,
+        # so a shorter expansion cannot silently hit another historical name.
+        probe='龘靐齉爩'
+        for size in (1,2,3,4):
+            for i in range(len(probe)-size+1):
+                self.assertEqual(db_count(probe[i:i+size]),0)
+        d=ask(probe)
+        self.assertEqual(d['counts']['entity_pool'],0)
+        self.assertEqual(d['counts']['fallback_pool'],0)
+        self.assertEqual(events(d),[])
+        self.assertEqual(all_text(d),'')
+        self.assertTrue(any('不编造' in n for n in d['notes']))
 
     def test_ambiguous_huan_gong(self):
         """光杆「桓公」分不清齊/魯/秦/東周桓公 —— 不能当成某一位。"""
