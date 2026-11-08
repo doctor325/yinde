@@ -54,6 +54,7 @@ def validate_file(cur, frow, library_root: Path) -> dict:
         "sha256_ok": False, "meta_ok": False, "rows": 0,
         "body_ok": False, "diff_n": 0, "diff_pos": None, "diff_ctx": None,
         "skip_blank": 0, "pb_bad": 0, "kr_bad": 0, "notes": [],
+        "pb_errors": [],
     }
     path = library_root / frow["origin_path"]
     if not path.is_file():
@@ -87,6 +88,9 @@ def validate_file(cur, frow, library_root: Path) -> dict:
         for m in PB_ANY_RE.finditer(t):
             if not PB_SPLIT_RE.match(m.group(0)):
                 out["pb_bad"] += 1
+                out["pb_errors"].append({"row_no": r["row_no"], "marker": m.group(0),
+                    "text_orig": t, "rule": PB_SPLIT_RE.pattern,
+                    "in_source": m.group(0) in text})
         for m in KR_RE.finditer(t):
             if not re.fullmatch(r"&KR[A-Za-z0-9]+;", m.group(0)):
                 out["kr_bad"] += 1
@@ -155,6 +159,7 @@ def run_validation(db_path: Path | None = None, quiet: bool = False) -> dict:
             "body_ok": r["body_ok"], "pb_bad": r["pb_bad"],
             "kr_bad": r["kr_bad"], "notes": r["notes"],
             "diff_ctx": r["diff_ctx"],
+            "pb_errors": r["pb_errors"],
         } for r in bad],
     }
     if not quiet:

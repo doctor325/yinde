@@ -280,7 +280,7 @@ def _fts_build(conn: sqlite3.Connection, stats: dict) -> None:
         stats["fts_bg"] = {"ok": False, "docs": 0, "note": str(e)[:120]}
 
 
-def rebuild(db_path: Path | None = None) -> dict:
+def rebuild(db_path: Path | None = None, *, processed_files=None) -> dict:
     """Step 6 入口：data/processed/parsed_*.jsonl → SQLite 全量重建，返回统计。"""
     conn = connect(db_path)
     cur = conn.cursor()
@@ -362,7 +362,8 @@ def rebuild(db_path: Path | None = None) -> dict:
 
     ensure_file._key = None
 
-    for jl in sorted(config.PROCESSED_DIR.glob("parsed_*.jsonl")):
+    inputs = sorted(config.PROCESSED_DIR.glob("parsed_*.jsonl")) if processed_files is None else processed_files
+    for jl in inputs:
         with open(jl, encoding="utf-8") as fh:
             for line in fh:
                 line = line.strip()
