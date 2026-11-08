@@ -14,7 +14,7 @@ VERSION = 'context-evidence-v2'
 # 24-slot round robin silently discarded even a channel's tenth-ranked hit.
 CHANNEL_LIMIT = 20
 ANSWER_PATTERNS = {
-    'office':r'(?:'+annal_events.OFFICE+r'|翰林学士|中书舍人|御史中丞)',
+    'office':r'(?:'+annal_events.OFFICE+r'|翰林学士|中书舍人|御史中丞|[左右]司郎中|召权知[\u3400-\u9fff]{1,4}府)',
     'time':r'[元一二三四五六七八九十百千〇零\d]+年|[正一二三四五六七八九十冬腊]+月|[甲乙丙丁戊己庚辛壬癸][子丑寅卯辰巳午未申酉戌亥]',
     'place':r'(?:于|於|至|在)[\u3400-\u9fff]{1,12}',
     'reason':r'(?:以|因|坐|为|為)[^。；]{1,16}(?:故|罪|丧|喪)|故|缘|緣',
@@ -184,7 +184,7 @@ def audit(chunk, p, neighbors, annal=()):
     slot_evidence={}
     for slot in p['answer_slots']:
         checker={'time':time_attached,'place':place_attached}.get(slot)
-        quotes=[o['quote'] for o in positive if (checker(o) if checker else not o.get('subject_basis') and
+        quotes=[o['quote'] for o in positive if (checker(o) if checker else (not o.get('subject_basis') or (slot=='office' and o.get('subject_basis')=='biography_recipient_chain')) and
                 re.search(ANSWER_PATTERNS[slot],zh.to_simplified(o['quote'])))]
         slot_evidence[slot]=list(dict.fromkeys(quotes))
         if not quotes:missing.append('当前事件句缺少'+{'time':'时间','place':'地点','reason':'原因','quantity':'数量','office':'官职'}[slot]+'线索')
@@ -239,11 +239,19 @@ def evaluate(query,conn,dense,batches,book=None,rerank=None):
     channels=(('semantic',dense),('lexical',literal),('relation',relation_ranked),
               ('biography',biography),('annal_event',event_hits),('grounded',fallback))
     hits=admit(channels);texts=[]
+    from search import biography_office
+    biography_pages={}
     candidate_ids=[h['chunk']['chunk_id'] for h in hits]
     for h in hits:
         c=h['chunk'];neighbors=context(conn,c)
         h['context_chunks']=neighbors
-        observations=annal.get(c['chunk_id'],())
+        observations=list(annal.get(c['chunk_id'],()))
+        if p['answer_slots']==['office']:
+            page=c['page_id']
+            if page not in biography_pages:
+                biography_pages[page]=[json.loads(row[0]) for row in conn.execute(
+                    'SELECT payload FROM chunks WHERE page_id=?',(page,))]
+            observations+=biography_office.observations(c,p,biography_pages[page])
         h['evidence_audit']=audit(c,p,neighbors,observations)
         # Center the pairwise comparison on the event sentence. Large unrelated
         # annal entries next to a six-character event used to dominate scoring.
