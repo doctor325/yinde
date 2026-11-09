@@ -246,7 +246,7 @@ def bm25_stats(cur) -> dict:
     for name, table, probe, totals in (
             ("trigram", "passages_fts", PROBE_TRIGRAM, bm25.totals_rebuilt_twice),
             ("bigram", "passages_bg", PROBE_BIGRAM, bm25.totals_single_build)):
-        n_row, n_token = totals(table, cur)
+        n_row, n_token = bm25.totals_stored(table, cur)
         bad = bm25.verify_against_sqlite(table, cur, probe, n_row, n_token)
         if bad:
             raise SystemExit(

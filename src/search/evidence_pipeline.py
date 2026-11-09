@@ -29,6 +29,7 @@ def time_attached(observation):
     person's action, or another action of the same person, can own that date.
     Unknown era-name constructions remain unconfirmed rather than guessed.
     """
+    if observation.get('time_reference',{}).get('status')=='anchored_relative':return True
     quote=observation['quote']
     subject=observation.get('subject_span')
     predicate=observation.get('predicate_span')
@@ -179,6 +180,12 @@ def audit(chunk, p, neighbors, annal=()):
     scoped = [o for o in annal if o['polarity']=='positive_syntax']
     if not f['all_clues'] and not scoped:missing.append('主体或约束未在当前片段同时出现')
     observations=f['subject_syntax']['observations']+list(annal)
+    from search.relative_time import reference
+    observations=[dict(o) for o in observations]
+    for o in observations:
+        if o['polarity']=='positive_syntax':
+            ref=reference(chunk,o)
+            if ref:o['time_reference']=ref
     positive=[o for o in observations if o['polarity']=='positive_syntax']
     needed={g['kind'] for g in p['relation_groups']}
     if not needed.issubset({o['kind'] for o in positive}) or not needed:
@@ -188,12 +195,14 @@ def audit(chunk, p, neighbors, annal=()):
     for slot in p['answer_slots']:
         checker={'time':time_attached,'place':place_attached}.get(slot)
         quotes=[o['quote'] for o in positive if (checker(o) if checker else (not o.get('subject_basis') or (slot=='office' and o.get('subject_basis')=='biography_recipient_chain')) and
-                re.search(ANSWER_PATTERNS[slot],zh.to_simplified(o['quote'])))]
+                (re.search(ANSWER_PATTERNS[slot],zh.to_simplified(o['quote'])) or
+                 (slot=='time' and o.get('time_reference',{}).get('status')=='anchored_relative')))]
         slot_evidence[slot]=list(dict.fromkeys(quotes))
         if not quotes:missing.append('当前事件句缺少'+{'time':'时间','place':'地点','reason':'原因','quantity':'数量','office':'官职'}[slot]+'线索')
     # Context is available for reading/model scoring, but not identity invention.
     adjacent_only=any(R.features(c,p)['all_clues'] for c in neighbors if c['chunk_id']!=chunk['chunk_id'])
     return dict(status='clues_present' if not missing else 'insufficient',missing=missing,
+                time_references=[o['time_reference'] for o in positive if 'time_reference' in o],
                 answer_slot_evidence=slot_evidence,
                 subject_syntax={**f['subject_syntax'],'observations':observations,
                                 'positive_groups':sorted({o['kind'] for o in positive})},

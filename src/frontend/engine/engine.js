@@ -166,7 +166,10 @@
   // ---------------------------------------------------------------- bm25
 
   /** FTS5 的 idf；SQLite 的 bm25() 返回负值，这里一路按正值算最后取负。 */
-  function idf(nRow, df) { return Math.log((nRow - df + 0.5) / (df + 0.5)); }
+  function idf(nRow, df) {
+    const value = Math.log((nRow - df + 0.5) / (df + 0.5));
+    return value <= 0 ? 1e-6 : value;
+  }
 
   function bm25(st, df, dl, f) {
     if (f <= 0) return 0;

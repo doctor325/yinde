@@ -64,6 +64,18 @@ K1 = 1.2
 B = 0.75
 
 
+def decode_docsize(blob):
+    """One-column FTS5 docsize is a SQLite varint, not a big-endian integer."""
+    value=0
+    for i,byte in enumerate(blob):
+        if i>8:raise ValueError('Oversized FTS docsize')
+        value=(value << (8 if i==8 else 7)) | (byte if i==8 else byte & 127)
+        if i==8 or byte<128:
+            if i!=len(blob)-1:raise ValueError('Expected one FTS column')
+            return value
+    raise ValueError('Truncated FTS docsize')
+
+
 # 管线重插的行（sqlite_store.py:196-197 的 SELECT，同文件 201-204 又数了一遍）。
 # 这个谓词一变，两个总量就不再成立 —— 所以它是这里唯一的外部依赖，
 # 并由 verify_against_sqlite() 兜底。
@@ -83,7 +95,7 @@ def _sum_dl(conn: sqlite3.Connection, fts: str) -> tuple[int, int]:
     rows = conn.execute(f"SELECT sz FROM '{fts}_docsize'").fetchall()
     if not rows:
         raise ValueError(f"{fts}_docsize 为空，无法推导总量")
-    dls = [int.from_bytes(r[0], "big") for r in rows]
+    dls = [decode_docsize(r[0]) for r in rows]
     return len(dls), sum(dls)
 
 
@@ -103,6 +115,30 @@ def totals_rebuilt_twice(fts: str, conn: sqlite3.Connection,
     return n_doc + n_inserted, sum_dl * 2
 
 
+def totals_stored(fts: str, conn: sqlite3.Connection) -> tuple[int, int]:
+    """Read FTS5 averages record, rather than assume how many builds occurred.
+
+    Record 1 contains SQLite varints: document count followed by column token
+    counts. These search tables each have one indexed column. Callers still
+    verify against SQLite bm25 before exporting anything.
+    """
+    if fts not in ('passages_fts', 'passages_bg'):
+        raise ValueError('Unsupported FTS table')
+    blob = conn.execute(f'SELECT block FROM {fts}_data WHERE id=1').fetchone()[0]
+    values=[];i=0
+    while i<len(blob):
+        value=0
+        for n in range(9):
+            if i>=len(blob):raise ValueError('Truncated FTS statistics')
+            byte=blob[i];i+=1
+            value=(value << (8 if n==8 else 7)) | (byte if n==8 else byte & 127)
+            if n==8 or byte<128:break
+        values.append(value)
+    if len(values)!=2 or values[0]<=0:
+        raise ValueError('Expected nonempty single-column FTS statistics')
+    return tuple(values)
+
+
 def totals_single_build(fts: str, conn: sqlite3.Connection) -> tuple[int, int]:
     """只 INSERT 一次建出来的独立表（passages_bg）。"""
     return _sum_dl(conn, fts)
@@ -113,7 +149,8 @@ def avgdl_of(n_row_eff: int, n_token_eff: int) -> float:
 
 
 def idf(n_row_eff: int, df: int) -> float:
-    return math.log((n_row_eff - df + 0.5) / (df + 0.5))
+    value = math.log((n_row_eff - df + 0.5) / (df + 0.5))
+    return 1e-6 if value <= 0 else value
 
 
 def score(n_row_eff: int, avgdl: float, df: int, dl: int, f: int) -> float:
@@ -126,7 +163,7 @@ def score(n_row_eff: int, avgdl: float, df: int, dl: int, f: int) -> float:
 
 def docsize(fts: str, conn: sqlite3.Connection) -> dict[int, int]:
     """{rowid: dl}。"""
-    return {i: int.from_bytes(b, "big")
+    return {i: decode_docsize(b)
             for i, b in conn.execute(f"SELECT id, sz FROM '{fts}_docsize'")}
 
 

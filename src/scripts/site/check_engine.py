@@ -27,6 +27,7 @@ from urllib.parse import quote
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
+from scripts.site.bm25 import decode_docsize
 from api import db as api_db  # noqa: E402
 from scripts.pipeline import config  # noqa: E402
 from search import dual_text, engine, entities, question, query_expansion, zh  # noqa: E402
@@ -376,9 +377,9 @@ def check_dl() -> bool:
     print("④ dl 推导：JS 现算 vs 数据库影子表（全表）")
     conn = api_db.connect()
     try:
-        tg = {i: int.from_bytes(b, "big") for i, b in
+        tg = {i: decode_docsize(b) for i, b in
               conn.execute("SELECT id, sz FROM passages_fts_docsize")}
-        bg = {i: int.from_bytes(b, "big") for i, b in
+        bg = {i: decode_docsize(b) for i, b in
               conn.execute("SELECT id, sz FROM passages_bg_docsize")}
         rows = conn.execute("SELECT passage_id FROM passages ORDER BY passage_id")
         h = hashlib.sha256()
