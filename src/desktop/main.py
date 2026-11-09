@@ -198,7 +198,9 @@ def main(argv=None):
                       await until(()=>document.querySelector('#punctuatedSearchResult .evidence-pipeline-note')
                         && document.querySelector('#punctuatedSearchResult .evidence-audit'),90000);
                       evidencePipeline=location.hash.includes('strategy=evidence')
-                        && document.querySelector('#punctuatedSearchResult').textContent.includes('不是已核实的答案')
+                        && ['部分史料包含所问要素和句式线索，请结合出处核对。',
+                            '本次找到的史料中，尚未确认有片段能回答这个问题。']
+                          .includes(document.querySelector('.evidence-pipeline-note').textContent)
                         && document.querySelector('.evidence-pipeline-note').dataset.pipelineVersion==='context-evidence-v2';
                     }
                   }
