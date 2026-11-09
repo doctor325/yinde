@@ -291,7 +291,10 @@ class Phase4TextModes(unittest.TestCase):
     def test_bad_text_mode_rejected(self):
         with self.assertRaises(urllib.error.HTTPError) as cm:
             ask("管仲", text="日本語")
-        self.assertEqual(cm.exception.code, 400)
+        try:
+            self.assertEqual(cm.exception.code, 400)
+        finally:
+            cm.exception.close()
 
 
 if __name__ == "__main__":

@@ -45,11 +45,11 @@ class Evidence(unittest.TestCase):
         db=sqlite3.connect(':memory:');self.addCleanup(db.close)
         db.executescript('''CREATE TABLE books(book_id TEXT,title TEXT);
             INSERT INTO books VALUES('a','甲史'),('b','乙史');
-            CREATE TABLE chunks(chunk_id INTEGER PRIMARY KEY,book_id TEXT,search_text TEXT,payload TEXT);
+            CREATE TABLE chunks(chunk_id INTEGER PRIMARY KEY,book_id TEXT,page_id INTEGER,search_text TEXT,payload TEXT);
             CREATE VIRTUAL TABLE chunk_fts USING fts5(search_text,tokenize='trigram');''')
         for cid,text,book in [(1,'甲乙丙入东城。','a'),(2,'甲乙丙来朝。','a'),(3,'甲乙丙出兵东城。','b')]:
             c=chunk(text,cid);c['book_id']=book
-            db.execute('INSERT INTO chunks VALUES(?,?,?,?)',(cid,book,S.normalize(text),json.dumps(c)))
+            db.execute('INSERT INTO chunks VALUES(?,?,?,?,?)',(cid,book,c['page_id'],S.normalize(text),json.dumps(c)))
             db.execute('INSERT INTO chunk_fts(rowid,search_text) VALUES(?,?)',(cid,S.normalize(text)))
         p=E.parse('甲乙丙出兵东城的史料有哪些？')
         original=json.dumps(p)
@@ -109,10 +109,10 @@ class Evidence(unittest.TestCase):
     def evaluation_database(self):
         db=sqlite3.connect(':memory:');self.addCleanup(db.close)
         db.executescript('''CREATE TABLE books(book_id TEXT,title TEXT);
-            CREATE TABLE chunks(chunk_id INTEGER PRIMARY KEY,book_id TEXT,search_text TEXT,payload TEXT);''')
+            CREATE TABLE chunks(chunk_id INTEGER PRIMARY KEY,book_id TEXT,page_id INTEGER,search_text TEXT,payload TEXT);''')
         chunks=[chunk('元年，甲公卒。',1),chunk('甲公来朝。',2)]
         for c in chunks:
-            db.execute('INSERT INTO chunks VALUES(?,?,?,?)',(c['chunk_id'],c['book_id'],S.normalize(c['text_orig']),json.dumps(c)))
+            db.execute('INSERT INTO chunks VALUES(?,?,?,?,?)',(c['chunk_id'],c['book_id'],c['page_id'],S.normalize(c['text_orig']),json.dumps(c)))
         return db,chunks
 
     def test_model_rank_is_distinct_from_final_rank_and_audit_is_not_truth(self):
@@ -129,6 +129,13 @@ class Evidence(unittest.TestCase):
         for scores in ([1.],[1.,float('nan')],['1','2']):
             with self.subTest(scores=scores), self.assertRaises(ValueError):
                 E.evaluate('甲公何时去世',db,[],[],rerank=lambda q,t:dict(scores=scores,ms=1))
+
+    def test_explicit_death_needs_no_whole_page_query(self):
+        db,_=self.evaluation_database()
+        statements=[]
+        db.set_trace_callback(statements.append)
+        E.evaluate('甲公何时去世',db,[],[],rerank=lambda q,t:dict(scores=[0.,0.],ms=1))
+        self.assertFalse(any('WHERE page_id=' in sql for sql in statements))
 
 
 if __name__=='__main__':unittest.main()

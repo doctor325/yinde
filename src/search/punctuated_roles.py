@@ -34,7 +34,7 @@ def assess(chunk, plan, forms_for):
         patterns.update({
             'appointment':name+bridge+r'(?:为|拜|授|任|知|徙知|封为|入)'+obj,
             'movement':name+bridge+r'(?:迁都|迁|徙|奔|出奔|至|入)(?:于|於)?'+obj,
-            'military':name+bridge+r'(?:破|攻取|克|伐)'+obj,
+            'military':name+bridge+r'(?:破|攻取|克|伐|袭)'+obj,
             'document':name+bridge+r'(?:撰|作|修|著|上|造|通)[《〈]?'+obj,
             'exam':name+bridge+r'(?:中|登|举|赐)(?:礼部)?'+obj,
         })
@@ -65,7 +65,7 @@ def assess(chunk, plan, forms_for):
                 aliases.append((full,short,anchor))
             object_forms=sorted(set(objects+[short for _,short,_ in aliases]),key=len,reverse=True)
             target='(?P<object>'+'|'.join(map(re.escape,object_forms))+')'
-            local_patterns['military']=name+r'(?:等)?'+bridge+r'(?P<predicate>(?:破|攻取|克|伐)'+target+r')(?=$|[，。！？；、：」』]|于|於)'
+            local_patterns['military']=name+r'(?:等)?'+bridge+r'(?P<predicate>(?:破|攻取|克|伐|袭)'+target+r')(?=$|[，。！？；、：」』]|于|於)'
         if 'death' in kinds:
             # The named subject is the patient, not the intervening killer.
             local_patterns['death']=name+bridge+r'(?P<predicate>(?:卒|薨|崩|殁|死|被杀|为[\u3400-\u9fff]{1,6}所杀))(?=$|[，。！？；、：」』]|于|於|在|年|时|后|後)'

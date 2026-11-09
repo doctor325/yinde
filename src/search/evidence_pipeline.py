@@ -249,13 +249,20 @@ def evaluate(query,conn,dense,batches,book=None,rerank=None):
         c=h['chunk'];neighbors=context(conn,c)
         h['context_chunks']=neighbors
         observations=list(annal.get(c['chunk_id'],()))
-        if p['answer_slots']==['office'] or any(g['kind']=='death' for g in p['relation_groups']):
+        needs_office = p['answer_slots']==['office']
+        needs_patient = (len(p['clues'])==1 and
+                         {g['kind'] for g in p['relation_groups']}=={'death'})
+        # Explicit subjects need no page-wide appellation discovery.
+        needs_alias = (needs_patient and zh.to_simplified(c.get('heading','')).strip()==p['clues'][0]['text']
+                       and p['clues'][0]['text'] not in zh.to_simplified(c['text_orig']))
+        if needs_office or needs_patient:
             page=c['page_id']
-            if page not in biography_pages:
+            if (needs_office or needs_alias) and page not in biography_pages:
                 biography_pages[page]=[json.loads(row[0]) for row in conn.execute(
                     'SELECT payload FROM chunks WHERE page_id=?',(page,))]
-            observations+=biography_office.observations(c,p,biography_pages[page])
-            observations+=patient_references.observations(c,p,biography_pages[page])
+            peers=biography_pages.get(page,())
+            if needs_office: observations+=biography_office.observations(c,p,peers)
+            if needs_patient: observations+=patient_references.observations(c,p,peers)
         h['evidence_audit']=audit(c,p,neighbors,observations)
         # Center the pairwise comparison on the event sentence. Large unrelated
         # annal entries next to a six-character event used to dominate scoring.

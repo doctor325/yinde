@@ -8,6 +8,16 @@ from test_punctuated_relevance import chunk
 
 
 class Roles(unittest.TestCase):
+    def test_attack_roles_and_qualifiers(self):
+        for subject,target in [('甲公','乙侯'),('丙君','丁伯')]:
+            plan=R.plan(subject+'袭击'+target+'的记载')
+            self.assertEqual([c['text'] for c in plan['clues']],[subject,target])
+            positive=R.features(chunk(subject+'袭'+target+'于东城。'),plan)
+            self.assertIn('military',positive['subject_syntax']['positive_groups'])
+            for text in (target+'袭'+subject+'。',subject+'未袭'+target+'。',
+                         '传言'+subject+'袭'+target+'。',subject+'令他将袭'+target+'。'):
+                self.assertEqual(R.features(chunk(text),plan)['subject_syntax']['positive_groups'],[])
+
     def test_death_subject_metamorphic(self):
         for name in ('甲公','乙侯','丙君','丁伯','子平','子安','戊王','己卿'):
             plan=R.plan(name+'何时去世？')

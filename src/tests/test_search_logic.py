@@ -88,6 +88,7 @@ def _fake_books_cursor():
 class TestResolveBook(unittest.TestCase):
     def setUp(self):
         self.cur = _fake_books_cursor()
+        self.addCleanup(self.cur.connection.close)
 
     def test_none_or_blank(self):
         self.assertIsNone(resolve_book(self.cur, None))
