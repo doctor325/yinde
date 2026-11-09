@@ -51,16 +51,43 @@ def assess(chunk, plan, forms_for):
         if len(converted)!=len(quote):continue
         offsets=[i for i,c in enumerate(converted) if not c.isspace()]
         clause=''.join(converted[i] for i in offsets)
+        local_patterns=dict(patterns)
+        # Short objects are hypotheses restricted to a preceding full-name
+        # anchor in this same sentence. Never add them to global aliases.
+        aliases=[]
+        if 'military' in kinds:local_patterns.pop('military',None)
+        if obj and 'military' in kinds and len(plan['clues'])==2:
+            for full in objects:
+                if len(full) not in (2,3):continue
+                anchor=clause.find(full)
+                if anchor<0:continue
+                short=full[1:]
+                aliases.append((full,short,anchor))
+            object_forms=sorted(set(objects+[short for _,short,_ in aliases]),key=len,reverse=True)
+            target='(?P<object>'+'|'.join(map(re.escape,object_forms))+')'
+            local_patterns['military']=name+r'(?:等)?'+bridge+r'(?P<predicate>(?:破|攻取|克|伐)'+target+r')(?=$|[，。！？；、：」』]|于|於)'
+        if 'death' in kinds:
+            # The named subject is the patient, not the intervening killer.
+            local_patterns['death']=name+bridge+r'(?P<predicate>(?:卒|薨|崩|殁|死|被杀|为[\u3400-\u9fff]{1,6}所杀))(?=$|[，。！？；、：」』]|于|於|在|年|时|后|後)'
         # Preserve source offsets through whitespace removal, then scope each
         # qualifier to the particular subject/predicate observation.
         for kind in sorted(kinds):
-            pattern=patterns.get(kind)
+            pattern=local_patterns.get(kind)
             if not pattern:continue
             for match in re.finditer(pattern,clause):
                 a,b=match.span('subject');c,d=match.span('predicate')
+                alias_basis=[]
+                if kind=='military':
+                    value=match.group('object')
+                    if value not in objects:
+                        alias_basis=[(full,short,anchor) for full,short,anchor in aliases if short==value and anchor<a]
+                        if len(alias_basis)!=1:continue
+                # Quoted or reported speech is evidence to read, not an assertion.
+                quoted=bool(re.search(r'[「『“：:]|曰|云|称|谓',clause[:a]))
                 context=assess_context(quote,offsets[a],offsets[c],offsets[d-1]+1,
                                        subject_end=offsets[b-1]+1,assignment=kind=='appointment')
-                context_flags=context['qualifications']
+                context_flags=list(context['qualifications'])
+                if quoted:context_flags.append('reported')
                 # A name embedded in a reported relative's event is not an
                 # explicit predicate of that name (e.g. '甲公之父卒'). Patterns
                 # above intentionally do not bridge 之父/令/使/命/他人.
@@ -69,6 +96,9 @@ def assess(chunk, plan, forms_for):
                     subject_span=[clause_match.start()+offsets[a],clause_match.start()+offsets[b-1]+1],
                     predicate_span=[clause_match.start()+offsets[c],clause_match.start()+offsets[d-1]+1],
                     context_evidence=[dict(e,start=e['start']+clause_match.start(),end=e['end']+clause_match.start()) for e in context['evidence']],
+                    argument_role='patient' if kind=='death' and re.search(r'被杀|所杀',match['predicate']) else 'agent',
+                    object_span=([clause_match.start()+offsets[match.start('object')],clause_match.start()+offsets[match.end('object')-1]+1] if kind=='military' else None),
+                    alias_basis=[dict(full=full,short=short,start=clause_match.start()+offsets[anchor],end=clause_match.start()+offsets[anchor+len(full)-1]+1) for full,short,anchor in alias_basis],
                     relation_verified=False))
     return dict(positive_groups=sorted({o['kind'] for o in observations if o['polarity']=='positive_syntax'}),
                 observations=observations,relation_verified=False)

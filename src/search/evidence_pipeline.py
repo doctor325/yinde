@@ -71,7 +71,7 @@ def place_attached(observation):
     # Do not swallow a new action/participant into a greedy "location" span.
     if re.search(r'即位|来朝|遂|乃|而|又|未|不|后|令|命|卒|薨|崩|死|攻|杀|伐|奔|迁|徙|见|于|於|在',location):
         return False
-    return bool(re.search(r'(?:城|宫|殿|州|郡|县|邑|门|山|川|江|河|湖|海|关|塞|营|军中|里|铺)$',location))
+    return bool(re.search(r'(?:城|宫|殿|州|郡|县|邑|门|山|川|江|河|水|湖|海|关|塞|营|军中|里|铺)$',location))
 
 
 def parse(query):
