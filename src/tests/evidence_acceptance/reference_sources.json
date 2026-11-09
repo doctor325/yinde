@@ -1,0 +1,101 @@
+[
+  {
+    "full": "关羽",
+    "short": "羽",
+    "chunk": {
+      "chunk_id": 28861,
+      "page_id": 12873,
+      "book_id": "KR2a0012",
+      "book_title": "三國志",
+      "title": "三國志/卷32",
+      "heading": "先主 劉備",
+      "layer": "annotation",
+      "status": "readable",
+      "reason": "",
+      "text_orig": "胡沖《吳歷》曰：曹公數遣親近密覘諸將有賓客酒食者，輒因事害之。備時閉門，將人種蕪菁，曹公使人闚門。既去，備謂張飛、關羽曰：「吾豈種菜者乎？曹公必有疑意，不可復留。」其夜開後柵，與飛等輕騎俱去，所得賜遺衣服，悉封留之，乃往小沛收合兵眾。臣松之案：魏武帝遣先主統諸將要擊袁術，郭嘉等並諫，魏武不從，其事顯然，非因種菜遁逃而去。如胡沖所云，何乖僻之甚乎！ ",
+      "parts": [
+        {
+          "block_index": 30,
+          "start": 0,
+          "end": 175
+        }
+      ],
+      "edition": "维基文库录入本 · 标点版",
+      "revision_id": 2583378,
+      "source_url": "https://zh.wikisource.org/w/index.php?oldid=2583378",
+      "history_url": "https://zh.wikisource.org/w/index.php?title=%E4%B8%89%E5%9C%8B%E5%BF%97%2F%E5%8D%B732&action=history",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "attribution": "维基文库贡献者；作者、版本及修订历史见来源页面",
+      "source_sha256": "769cb60d6e8a361571ac998da01ee24ff1c768f8b8eb8bdb10b569af3a7ae332",
+      "text_sha256": "386087b39b859829d16e027659b7c17cc77c23400af71c13591f630823ba1ba5"
+    },
+    "expected": "unresolved",
+    "split": "independent_source_negative"
+  },
+  {
+    "full": "邓艾",
+    "short": "艾",
+    "chunk": {
+      "chunk_id": 66266,
+      "page_id": 19841,
+      "book_id": "KR2a0012",
+      "book_title": "三國志",
+      "title": "三國志/卷28",
+      "heading": "鄧艾",
+      "layer": "body",
+      "status": "readable",
+      "reason": "",
+      "text_orig": "\n\n　　泰始元年，晉室踐阼，詔曰：「昔太尉王凌謀廢齊王，而王竟不足以守位。征西將軍鄧艾，矜功失節，實應大辟。然被書之日，罷遣人眾，束手受罪，比於求生遂為惡者，誠復不同。今大赦得還，若無子孫者聽使立後，令祭祀不絕。」三年，議郎段灼上疏理艾曰：\n艾心懷至忠而荷反逆之名，平定巴蜀而受夷滅之誅，臣竊悼之。惜哉，言艾之反也！艾性剛急，輕犯雅俗，不能協同朋類，故莫肯理之。臣敢言艾不反之狀。昔姜維有斷隴右之志，艾脩治備守，積穀強兵。值歲凶旱，艾為區種，身被烏衣，手執耒耜，以率將士。",
+      "parts": [
+        {
+          "block_index": 73,
+          "start": 0,
+          "end": 236
+        }
+      ],
+      "edition": "维基文库录入本 · 标点版",
+      "revision_id": 2386518,
+      "source_url": "https://zh.wikisource.org/w/index.php?oldid=2386518",
+      "history_url": "https://zh.wikisource.org/w/index.php?title=%E4%B8%89%E5%9C%8B%E5%BF%97%2F%E5%8D%B728&action=history",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "attribution": "维基文库贡献者；作者、版本及修订历史见来源页面",
+      "source_sha256": "775fbbfafba87ba1fa76e83444f9adbe5329667430abf76e2e618f5cb999fb3c",
+      "text_sha256": "cccb238ff3417edeb9ff19b7aa98ac7d69912db35ded07c5078a47f4aac42479"
+    },
+    "expected": "unresolved",
+    "split": "independent_source_negative"
+  },
+  {
+    "full": "韩信",
+    "short": "信",
+    "chunk": {
+      "chunk_id": 10418,
+      "page_id": 9504,
+      "book_id": "KR2a0001",
+      "book_title": "史記",
+      "title": "史記/淮陰侯列傳",
+      "heading": "",
+      "layer": "body",
+      "status": "readable",
+      "reason": "",
+      "text_orig": "不輟耕釋耒，褕衣甘食，傾耳以待命者。若此，將軍之所長也。然而眾勞卒罷，其實難用。今將軍欲舉倦獘之兵，頓之燕堅城之下，欲戰恐久力不能拔，情見勢屈，曠日糧竭，而弱燕不服，齊必距境以自彊也。燕齊相持而不下，則劉項之權未有所分也。若此者，將軍所短也。臣愚，竊以爲亦過矣。故善用兵者不以短擊長，而以長擊短。』韓信曰：『然則何由？』廣武君對曰：『方今爲將軍計，莫如案甲休兵，鎮趙撫其孤，百里之內，牛酒日至，以饗士大夫醳兵，北首燕路，而後遣辯士奉咫尺之書，暴其所長於燕，燕必不敢不聽從。",
+      "parts": [
+        {
+          "block_index": 2,
+          "start": 2673,
+          "end": 2909
+        }
+      ],
+      "edition": "维基文库录入本 · 标点版",
+      "revision_id": 2256147,
+      "source_url": "https://zh.wikisource.org/w/index.php?oldid=2256147",
+      "history_url": "https://zh.wikisource.org/w/index.php?title=%E5%8F%B2%E8%A8%98%2F%E6%B7%AE%E9%99%B0%E4%BE%AF%E5%88%97%E5%82%B3&action=history",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "attribution": "维基文库贡献者；作者、版本及修订历史见来源页面",
+      "source_sha256": "ef173175a49e1ca113378d9278f541a73355d31b6605226783a32fc2fb5be999",
+      "text_sha256": "35e12e0b45fcf4a63cb521680203547a37763a84e144619f9ae99dc5d28533c2"
+    },
+    "expected": "unresolved",
+    "split": "independent_source_negative"
+  }
+]

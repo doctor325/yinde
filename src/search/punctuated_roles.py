@@ -124,5 +124,7 @@ def assess(chunk, plan, forms_for):
                         predicate_span=[origin+c,origin+d],argument_role='recipient',
                         alias_basis=([dict(full=full,short=short,start=origin+anchor,end=origin+anchor+len(full))] if shortened else []),
                         relation_verified=False))
+    from search.person_references import observations as reference_observations
+    observations.extend(reference_observations(chunk,plan))
     return dict(positive_groups=sorted({o['kind'] for o in observations if o['polarity']=='positive_syntax'}),
                 observations=observations,relation_verified=False)
