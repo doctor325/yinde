@@ -210,7 +210,10 @@ def audit(chunk, p, neighbors, annal=()):
         if not quotes:missing.append('当前事件句缺少'+{'time':'时间','place':'地点','reason':'原因','quantity':'数量','office':'官职'}[slot]+'线索')
     # Context is available for reading/model scoring, but not identity invention.
     adjacent_only=any(R.features(c,p)['all_clues'] for c in neighbors if c['chunk_id']!=chunk['chunk_id'])
+    from search.causal_evidence import source_labels
+    causal_labels=source_labels(chunk) if 'cause' in needed else []
     return dict(status='clues_present' if not missing else 'insufficient',missing=missing,
+                causal_source_labels=causal_labels,
                 time_references=[o['time_reference'] for o in positive if 'time_reference' in o],
                 answer_slot_evidence=slot_evidence,
                 subject_syntax={**f['subject_syntax'],'observations':observations,

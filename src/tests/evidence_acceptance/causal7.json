@@ -1,0 +1,277 @@
+[
+  {
+    "id": "fu",
+    "split": "development",
+    "query": "富弼为什么辞官？",
+    "chunk": {
+      "chunk_id": 108579,
+      "page_id": 29649,
+      "book_id": "KR2a0032",
+      "book_title": "宋史",
+      "title": "宋史/卷012",
+      "heading": "嘉祐六年",
+      "layer": "body",
+      "status": "readable",
+      "reason": "",
+      "text_orig": "\n\n　　六年春正月乙未，許兩制與台諫相見。\n\n　　二月丁巳，詔宗室賜名授官者，須年及十五方許轉官。乙丑，詔良民子弟或為人誘隸軍籍，自今兩月內，父母訴官者還之。丙寅，錄系囚，降罪一等，徒以下釋之。\n\n　　三月己亥，富弼以母喪去位。庚子，以富弼母喪，罷大宴。戊申，給西京周廟祭享器服。是月，賜進士、諸科及第同出身二百九十五人。\n\n　　夏四月辛酉，詔嶺南官吏死于儂賊而其家流落未能自歸者，所在給食，護送還鄉。庚辰，陳升之罷，以包拯為樞密副使。出諫官唐介、趙抃、御史范師道、呂誨。\n\n",
+      "parts": [
+        {
+          "block_index": 24,
+          "start": 0,
+          "end": 238
+        }
+      ],
+      "edition": "维基文库录入本 · 标点版",
+      "revision_id": 7908327,
+      "source_url": "https://zh.wikisource.org/w/index.php?oldid=7908327",
+      "history_url": "https://zh.wikisource.org/w/index.php?title=%E5%AE%8B%E5%8F%B2%2F%E5%8D%B7012&action=history",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "attribution": "维基文库贡献者；作者、版本及修订历史见来源页面",
+      "source_sha256": "f3498ea2b192211b4e9afad1841a77fbc47c16e0da567070a10e5f2f8ec44492",
+      "text_sha256": "8a624bcd197a6ca7ef4116ace48831520e35655f1cdb8e72dbe2bb5d09846e4c"
+    },
+    "evidence": "富弼以母喪去位",
+    "classification": "direct_reason",
+    "gold_policy": "Source supports the attributed explanation only; no unique-answer or historical-truth claim",
+    "background_chunk_ids": [],
+    "evidence_scope": "母丧与去位由明确主语和以字连接。",
+    "background_policy": "同条其他官员任免不得充当富弼原因。",
+    "insufficiency_policy": "无此绑定时保持未知。"
+  },
+  {
+    "id": "bao",
+    "split": "development",
+    "query": "包拯为什么辞官？",
+    "chunk": {
+      "chunk_id": 95242,
+      "page_id": 24813,
+      "book_id": "KR2a0032",
+      "book_title": "宋史",
+      "title": "宋史/卷316",
+      "heading": "包拯",
+      "layer": "body",
+      "status": "readable",
+      "reason": "",
+      "text_orig": "\n\n　　包拯，字希仁，廬州合肥人也。始舉進士，除大理評事，出知建昌縣。以父母皆老，辭不就。得監和州稅，父母又不欲行，拯即解官歸養。後數年，親繼亡，拯廬墓終喪，猶裴徊不忍去，里中父老數來勸勉。久之，赴調，知天長縣。有盜割人牛舌者，主來訴。拯曰：「第歸，殺而鬻之。」尋復有來告私殺牛者，拯曰：「何為割牛舌而又告之？」盜驚服。徙知端州，遷殿中丞。端土產硯，前守緣貢，率取數十倍以遺權貴。拯命制者才足貢數，歲滿不持一硯歸。\n\n　　尋拜監察御史裏行，改監察御史。",
+      "parts": [
+        {
+          "block_index": 1,
+          "start": 0,
+          "end": 226
+        }
+      ],
+      "edition": "维基文库录入本 · 标点版",
+      "revision_id": 2094023,
+      "source_url": "https://zh.wikisource.org/w/index.php?oldid=2094023",
+      "history_url": "https://zh.wikisource.org/w/index.php?title=%E5%AE%8B%E5%8F%B2%2F%E5%8D%B7316&action=history",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "attribution": "维基文库贡献者；作者、版本及修订历史见来源页面",
+      "source_sha256": "5b69b0b16c5d2300d2c3898ae803f3f744f0bd23d2e3dc31dae8f8e770336391",
+      "text_sha256": "c1e915731fa4f87b2cb641374990a59354e8e18fef76a7ecaa6fb64740dde9a8"
+    },
+    "evidence": "以父母皆老，辭不就",
+    "classification": "direct_reason",
+    "gold_policy": "Source supports the attributed explanation only; no unique-answer or historical-truth claim",
+    "background_chunk_ids": [],
+    "evidence_scope": "辞不就与后次解官归养是不同事件；当前问题未限定哪次辞官，需结合父母又不欲行的上下文。",
+    "background_policy": "父母皆老只能直接解释辞不就，不可单句挪作后次解官的完整答案。",
+    "insufficiency_policy": "事件未消歧时不确认。"
+  },
+  {
+    "id": "chao",
+    "split": "development",
+    "query": "晁错削藩导致了什么事？",
+    "chunk": {
+      "chunk_id": 357,
+      "page_id": 7545,
+      "book_id": "KR2a0001",
+      "book_title": "史記",
+      "title": "史記/卷011",
+      "heading": "評論",
+      "layer": "body",
+      "status": "readable",
+      "reason": "",
+      "text_orig": "\n\n太史公曰：漢興，孝文施大德，天下懷安，至孝景，不復憂異姓，而晁錯刻削諸侯，遂使七國俱起，合從而西鄉，以諸侯太盛，而錯為之不以漸也。及主父偃言之，而諸侯以弱，卒以安。安危之機，豈不以謀哉？\n\n【索隐述赞】景帝即位，因脩靜默。勉人於農，率下以德。制度斯創，禮法可則。一朝吳楚，乍起凶慝。提局成釁，拒輪致惑。晁錯雖誅，梁城未克。條侯出將，追奔逐北。坐見梟黥，立翦牟賊。如何太尉，後卒下獄。惜哉明君，斯功不錄！\n\n",
+      "parts": [
+        {
+          "block_index": 3,
+          "start": 0,
+          "end": 205
+        }
+      ],
+      "edition": "维基文库录入本 · 标点版",
+      "revision_id": 2520527,
+      "source_url": "https://zh.wikisource.org/w/index.php?oldid=2520527",
+      "history_url": "https://zh.wikisource.org/w/index.php?title=%E5%8F%B2%E8%A8%98%2F%E5%8D%B7011&action=history",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "attribution": "维基文库贡献者；作者、版本及修订历史见来源页面",
+      "source_sha256": "36acebeb558e30b682f3d6b6fab1972d11d004ad9bd3a1e86aff40371fecd83e",
+      "text_sha256": "30da7fa34756bdb5831aaca77f364d0c8d179263e5434e3274456f1b8888ba34"
+    },
+    "evidence": "晁錯刻削諸侯，遂使七國俱起",
+    "classification": "historian_explanation",
+    "gold_policy": "Source supports the attributed explanation only; no unique-answer or historical-truth claim",
+    "background_chunk_ids": [],
+    "evidence_scope": "太史公评论中明确提出政策与七国起事的解释关系。",
+    "background_policy": "应以史家观点归属展示，不升级为独占或已验证原因。",
+    "insufficiency_policy": "只有事件先后或削藩字样不足。"
+  },
+  {
+    "id": "wang",
+    "split": "acceptance",
+    "query": "王羲之为什么辞官？",
+    "chunk": {
+      "chunk_id": 84739,
+      "page_id": 22611,
+      "book_id": "KR2a0015",
+      "book_title": "晉書",
+      "title": "晉書/卷080",
+      "heading": "王羲之",
+      "layer": "body",
+      "status": "readable",
+      "reason": "",
+      "text_orig": "射。更求會稽，便自邈然。」及述蒙顯授，羲之恥為之下，遣使詣朝廷，求分會稽為越州。行人失辭，大為時賢所笑。既而內懷愧歎，謂其諸子曰：「吾不減懷祖，而位遇懸邈，當由汝等不及坦之故邪！」述後檢察會稽郡，辯其刑政，主者疲于簡對。羲之深恥之，遂稱病去郡，于父母墓前自誓曰：「維永和十一年三月癸卯朔，九日辛亥，小子羲之敢告二尊之靈。羲之不天，夙遭閔凶，不蒙過庭之訓。母兄鞠育，得漸庶幾，遂因人乏，蒙國寵榮。",
+      "parts": [
+        {
+          "block_index": 1,
+          "start": 3913,
+          "end": 4110
+        }
+      ],
+      "edition": "维基文库录入本 · 标点版",
+      "revision_id": 2603570,
+      "source_url": "https://zh.wikisource.org/w/index.php?oldid=2603570",
+      "history_url": "https://zh.wikisource.org/w/index.php?title=%E6%99%89%E6%9B%B8%2F%E5%8D%B7080&action=history",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "attribution": "维基文库贡献者；作者、版本及修订历史见来源页面",
+      "source_sha256": "4f3f42dd7d8ab0ca3c45e6524e4977db40332e845080367088be0419a3a0e8a0",
+      "text_sha256": "74d0b9475cbbcc6972b62e215d0a0d7c39fc58da2bf38b2e09df1a52886db3da"
+    },
+    "evidence": "羲之深恥之，遂稱病去郡",
+    "classification": "direct_reason",
+    "gold_policy": "Source supports the attributed explanation only; no unique-answer or historical-truth claim",
+    "background_chunk_ids": [],
+    "evidence_scope": "叙述者将深耻之、称病去郡相连；称病是对外理由，前文检查争议是背景。",
+    "background_policy": "人物以羲之简称出现，需有来源范围的人物关联。",
+    "insufficiency_policy": "仅称病不能证明真实病因。"
+  },
+  {
+    "id": "sima",
+    "split": "acceptance",
+    "query": "司马迁为什么受刑？",
+    "chunk": {
+      "chunk_id": 65055,
+      "page_id": 19829,
+      "book_id": "KR2a0012",
+      "book_title": "三國志",
+      "title": "三國志/卷13",
+      "heading": "子　肅",
+      "layer": "body",
+      "status": "readable",
+      "reason": "",
+      "text_orig": "順之節。原其本意，皆欲盡心，念存補國。且帝者之威，過於雷霆，殺一匹夫，無異螻蟻。寬而宥之，可以示容受切言，廣德宇於天下。故臣以爲殺之未必爲是也。」帝又問：「司馬遷以受刑之故，內懷隱切，著《史記》非貶孝武，令人切齒。」對曰：「司馬遷記事，不虛美，不隱惡。劉向、揚雄服其善叙事，有良史之才，謂之實錄。漢武帝聞其述《史記》，取孝景及己本紀覽之，於是大怒，削而投之。於今此兩紀有錄無書。後遭李陵事，遂下遷蠶室。此爲隱切在孝武，而不在於史遷也。」\n\n正始元年，出爲廣平太守。",
+      "parts": [
+        {
+          "block_index": 76,
+          "start": 944,
+          "end": 1176
+        }
+      ],
+      "edition": "维基文库录入本 · 标点版",
+      "revision_id": 2331498,
+      "source_url": "https://zh.wikisource.org/w/index.php?oldid=2331498",
+      "history_url": "https://zh.wikisource.org/w/index.php?title=%E4%B8%89%E5%9C%8B%E5%BF%97%2F%E5%8D%B713&action=history",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "attribution": "维基文库贡献者；作者、版本及修订历史见来源页面",
+      "source_sha256": "9a44f69d7c1f42821de7b70bc049b6738151e90ccac63d0e829c793cc44de942",
+      "text_sha256": "9ce89e8117821642041911665f8e1824e8e2a318d3cc586828283473af6da62a"
+    },
+    "evidence": "後遭李陵事，遂下遷蠶室",
+    "classification": "reported_explanation",
+    "gold_policy": "Source supports the attributed explanation only; no unique-answer or historical-truth claim",
+    "background_chunk_ids": [],
+    "evidence_scope": "引述对答中以李陵事解释受刑，是人物陈述。",
+    "background_policy": "文中另有史记贬武帝的争论，须保留说话者及争议。",
+    "insufficiency_policy": "不把引述内容无归属地当事实。"
+  },
+  {
+    "id": "han",
+    "split": "acceptance",
+    "query": "韩愈为什么被贬？",
+    "chunk": {
+      "chunk_id": 220566,
+      "page_id": 99934,
+      "book_id": "KR2a0026",
+      "book_title": "舊唐書",
+      "title": "舊唐書/卷160",
+      "heading": "韓愈",
+      "layer": "body",
+      "status": "readable",
+      "reason": "",
+      "text_orig": "前過。懷痛窮天，死不閉目！瞻望宸極，魂神飛去。伏惟陛下，天地父母，哀而憐之。\n\n憲宗謂宰臣曰：「昨得韓愈到潮州表，因思其所諫佛骨事，大是愛我，我豈不知！然愈為人臣，不當言人主事佛乃年促也。我以是惡其容易。」上欲復用愈，故先語及，觀宰臣之奏對。而皇甫镈惡愈狷直，恐其復用，率先對曰：「愈終大狂疏，且可量移一郡。」乃授袁州刺史。\n\n初，愈至潮陽，既視事，詢吏民疾苦，皆曰：「郡西湫水有鱷魚，卵而化，長數丈，食民畜產將盡，以是民貧。",
+      "parts": [
+        {
+          "block_index": 1,
+          "start": 3555,
+          "end": 3768
+        }
+      ],
+      "edition": "维基文库录入本 · 标点版",
+      "revision_id": 2689841,
+      "source_url": "https://zh.wikisource.org/w/index.php?oldid=2689841",
+      "history_url": "https://zh.wikisource.org/w/index.php?title=%E8%88%8A%E5%94%90%E6%9B%B8%2F%E5%8D%B7160&action=history",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "attribution": "维基文库贡献者；作者、版本及修订历史见来源页面",
+      "source_sha256": "11e48df8c18739bf6eee8813707fe5376e496e807006bd92277480cb931a51bb",
+      "text_sha256": "d5b0604fb2e309bf4b9a81f37dd3c19c4b19f57e24d703956c0c31fbff489cea"
+    },
+    "evidence": "我以是惡其容易",
+    "classification": "speaker_explanation",
+    "gold_policy": "Source supports the attributed explanation only; no unique-answer or historical-truth claim",
+    "background_chunk_ids": [],
+    "evidence_scope": "宪宗直接说明自己恶韩愈的理由，属于当事者解释。",
+    "background_policy": "弹佛骨表及贬潮州的事件记载只是背景，不能替代当事者话语。",
+    "insufficiency_policy": "需保留说话者与所问被贬事件的关联。"
+  },
+  {
+    "id": "yue",
+    "split": "acceptance",
+    "query": "为什么岳飞被关进监狱？",
+    "chunk": {
+      "chunk_id": 28650,
+      "page_id": 12489,
+      "book_id": "KR2a0032",
+      "book_title": "宋史",
+      "title": "宋史/卷365",
+      "heading": "",
+      "layer": "body",
+      "status": "readable",
+      "reason": "",
+      "text_orig": "岳飛方為河北圖，必殺飛，始可和。」檜亦以飛不死，終梗和議，己必及禍，故力謀殺之。以諫議大夫万俟禼與飛有怨，風禼劾飛，又風中丞何鑄、侍御史羅汝楫交章彈論，大率謂：「今春金人攻淮西，飛略至舒、蘄而不進，比與俊按兵淮上，又欲棄山陽而不守。」飛累章請罷樞柄，尋還兩鎮節，充萬壽觀使、奉朝請。檜志未伸也，又諭張俊令劫王貴、誘王俊誣告張憲謀還飛兵。\n\n檜遣使捕飛父子證張憲事，使者至，飛笑曰：「皇天后土，可表此心。」初命何鑄鞠之，飛裂裳以背示鑄，有「盡忠報國」四大字，深入膚理。",
+      "parts": [
+        {
+          "block_index": 16,
+          "start": 185,
+          "end": 418
+        }
+      ],
+      "edition": "维基文库录入本 · 标点版",
+      "revision_id": 2016348,
+      "source_url": "https://zh.wikisource.org/w/index.php?oldid=2016348",
+      "history_url": "https://zh.wikisource.org/w/index.php?title=%E5%AE%8B%E5%8F%B2%2F%E5%8D%B7365&action=history",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "attribution": "维基文库贡献者；作者、版本及修订历史见来源页面",
+      "source_sha256": "b9707eef7c51114852b7274332ce4a90674eb3dc28ec6fff10f8deb6389af595",
+      "text_sha256": "a7effb5889f30499d813c307c335d4f7d61e7d899ea8b3b6cc5767a73a4101b5"
+    },
+    "evidence": "誘王俊誣告張憲謀還飛兵",
+    "classification": "accusation",
+    "gold_policy": "Source supports the attributed explanation only; no unique-answer or historical-truth claim",
+    "background_chunk_ids": [
+      28651
+    ],
+    "evidence_scope": "原文将诬告明确标为诬告，另有捕岳飞父子证张宪事的记载。",
+    "background_policy": "28651系两月无可证者属案情/证据不足，不能独立回答为何入狱。",
+    "insufficiency_policy": "指控内容不得被当作岳飞实际谋反的原因。"
+  }
+]

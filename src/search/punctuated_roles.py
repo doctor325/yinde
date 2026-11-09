@@ -125,6 +125,8 @@ def assess(chunk, plan, forms_for):
                         predicate_span=[origin+c,origin+d],argument_role='recipient',
                         alias_basis=([dict(full=full,short=short,start=origin+anchor,end=origin+anchor+len(full))] if shortened else []),
                         relation_verified=False))
+    from search.causal_evidence import observations as causal_observations
+    observations.extend(causal_observations(chunk,plan))
     from search.event_links import observations as linked_observations
     observations.extend(linked_observations(chunk,plan))
     from search.person_references import observations as reference_observations
