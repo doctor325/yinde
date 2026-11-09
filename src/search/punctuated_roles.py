@@ -100,5 +100,29 @@ def assess(chunk, plan, forms_for):
                     object_span=([clause_match.start()+offsets[match.start('object')],clause_match.start()+offsets[match.end('object')-1]+1] if kind=='military' else None),
                     alias_basis=[dict(full=full,short=short,start=clause_match.start()+offsets[anchor],end=clause_match.start()+offsets[anchor+len(full)-1]+1) for full,short,anchor in alias_basis],
                     relation_verified=False))
+    # Enfeoffment names the recipient after 封. A short recipient needs a
+    # preceding full query name in the exact same source sentence.
+    if kinds=={'appointment'} and plan.get('answer_slots')==['office'] and not objects:
+        fulls=[f for f in forms if len(f) in (2,3)]
+        for sentence in re.finditer(r'[^。！？；\n]+[。！？；]?',chunk['text_orig']):
+            quote=sentence.group();text=zh.to_simplified(quote)
+            if len(text)!=len(quote):continue
+            for full in fulls:
+                short=full[1:]
+                for m in re.finditer(r'封(?P<subject>'+re.escape(full)+'|'+re.escape(short)+r')(?P<title>[\u3400-\u9fff]{1,5}侯)(?=$|[，。；！？])',text):
+                    a,b=m.span('subject');c,d=m.span('title')
+                    anchor=text.find(full)
+                    shortened=m['subject']!=full
+                    if shortened and not (0<=anchor<m.start()):continue
+                    # No quoted, hypothetical, negated or delegated assignments.
+                    if re.search(r'[「『“：:]|曰|云|谓|传言|传闻',text[:m.start()]):continue
+                    prefix=re.split(r'[，,]',text[:m.start()])[-1]
+                    if re.search(r'未|不|欲|将|若|令|使',prefix):continue
+                    origin=sentence.start()
+                    observations.append(dict(kind='appointment',polarity='positive_syntax',qualifications=[],
+                        quote=quote,start=origin,end=sentence.end(),subject_span=[origin+a,origin+b],
+                        predicate_span=[origin+c,origin+d],argument_role='recipient',
+                        alias_basis=([dict(full=full,short=short,start=origin+anchor,end=origin+anchor+len(full))] if shortened else []),
+                        relation_verified=False))
     return dict(positive_groups=sorted({o['kind'] for o in observations if o['polarity']=='positive_syntax'}),
                 observations=observations,relation_verified=False)

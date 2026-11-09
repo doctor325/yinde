@@ -14,7 +14,7 @@ VERSION = 'context-evidence-v2'
 # 24-slot round robin silently discarded even a channel's tenth-ranked hit.
 CHANNEL_LIMIT = 20
 ANSWER_PATTERNS = {
-    'office':r'(?:'+annal_events.OFFICE+r'|翰林学士|中书舍人|御史中丞|[左右]司郎中|召权知[\u3400-\u9fff]{1,4}府)',
+    'office':r'(?:'+annal_events.OFFICE+r'|[\u3400-\u9fff]{1,5}侯|翰林学士|中书舍人|御史中丞|[左右]司郎中|召权知[\u3400-\u9fff]{1,4}府)',
     'time':r'[元一二三四五六七八九十百千〇零\d]+年|[正一二三四五六七八九十冬腊]+月|[甲乙丙丁戊己庚辛壬癸][子丑寅卯辰巳午未申酉戌亥]',
     'place':r'(?:于|於|至|在)[\u3400-\u9fff]{1,12}',
     'reason':r'(?:以|因|坐|为|為)[^。；]{1,16}(?:故|罪|丧|喪)|故|缘|緣',
@@ -77,12 +77,15 @@ def place_attached(observation):
 def parse(query):
     text=zh.to_simplified(query)
     office_question = r'(?:担任|出任)(?:过)?(?:什么|哪些|何种)(?:官职|职务)'
+    title_question=r'(?:被)?封为(?:什么|何种)(?:侯|爵位|爵)'
+    asks_title=bool(re.search(title_question,text))
+    text=re.sub(title_question,'获封',text)
     asks_office = bool(re.search(office_question,text))
     p=R.plan(re.sub(office_question,'担任',text))
     # Asking where to find a record is not asking where its event happened.
     text=re.sub(r'(?:史料|记载|文献|证据)(?:在)?(?:哪里|何处|什么地方)', '', text)
     slots=[]
-    if asks_office:slots.append('office')
+    if asks_office or asks_title:slots.append('office')
     for name,pattern in (('time',r'何时|什么时候|哪一年|时间'),('place',r'哪里|何处|什么地方'),
                          ('reason',r'为什么|为何|原因'),('quantity',r'多少|几次|几年|几卷')):
         if re.search(pattern,text):slots.append(name)

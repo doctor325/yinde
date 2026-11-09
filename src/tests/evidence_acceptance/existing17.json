@@ -1,0 +1,954 @@
+[
+  {
+    "id": "time-han",
+    "query": "霍光何時去世？",
+    "split": "development_existing17",
+    "gold_chunk": 53046,
+    "gold_quote": "明年，大將軍霍光薨",
+    "chunk": {
+      "chunk_id": 53046,
+      "page_id": 19648,
+      "book_id": "KR2a0007",
+      "book_title": "前漢書",
+      "title": "漢書/卷027",
+      "heading": "星孛",
+      "layer": "body",
+      "status": "readable",
+      "reason": "",
+      "text_orig": "然。此明東井、三台為秦地效也。\n\n宣帝地節元年正月，有星孛于西方，去太白二丈所。劉向以為太白為大將，彗孛加之，掃滅象也。明年，大將軍霍光薨，後二年家夷滅。\n\n成帝建始元年正月，有星孛于營室，青白色，長六七丈，廣尺餘。劉向、谷永以為營室為後宮懷任之象，彗星加之，將有害懷任絕繼嗣者。一曰，後宮將受害也。其後許皇后坐祝詛後宮懷任者廢。趙皇后立妹為昭儀，害兩皇子，上遂無嗣。趙后姊妹卒皆伏辜。\n\n元延元年七月辛未，有星孛于東井，踐五諸侯，出河戍北率行軒轅、太微，後日六度有餘，晨出東方。",
+      "parts": [
+        {
+          "block_index": 39,
+          "start": 2799,
+          "end": 3039
+        }
+      ],
+      "edition": "维基文库录入本 · 标点版",
+      "revision_id": 5977220,
+      "source_url": "https://zh.wikisource.org/w/index.php?oldid=5977220",
+      "history_url": "https://zh.wikisource.org/w/index.php?title=%E6%BC%A2%E6%9B%B8%2F%E5%8D%B7027&action=history",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "attribution": "维基文库贡献者；作者、版本及修订历史见来源页面",
+      "source_sha256": "c56d198dfe38e71e4418f617f075da07b070f0899eebe58ce52acfd9b9617dd7",
+      "text_sha256": "7e5c06997e52737526cb620164a20d8629db8d8c8ae63720bfb2a337ef4f4325"
+    },
+    "baseline": {
+      "id": "time-han",
+      "query": "霍光何時去世？",
+      "gold_chunk": 53046,
+      "gold_quote": "明年，大將軍霍光薨",
+      "gold_matches": [
+        {
+          "chunk_id": 53046,
+          "channel_ranks": {
+            "lexical": 13,
+            "relation": 2
+          },
+          "model_rank": 3,
+          "final_rank": 3,
+          "score": 2.7484805583953857,
+          "audit_status": "insufficient",
+          "displayed": true
+        }
+      ],
+      "marked": [],
+      "elapsed_ms": 17442.4,
+      "trace_id": "8b421f1d4f1a4f42891b9763992ffda2"
+    },
+    "scoped_observations": []
+  },
+  {
+    "id": "time-tang",
+    "query": "唐高祖李渊何时即位？",
+    "split": "development_existing17",
+    "gold_chunk": 77707,
+    "gold_quote": "甲子，高祖即皇帝位於太極殿",
+    "chunk": {
+      "chunk_id": 77707,
+      "page_id": 20439,
+      "book_id": "KR2a0026",
+      "book_title": "舊唐書",
+      "title": "舊唐書/卷1",
+      "heading": "武德元年",
+      "layer": "body",
+      "status": "readable",
+      "reason": "",
+      "text_orig": "懷。假手真人，俾除醜逆，濟濟多士，明知朕意。仍敕有司，凡有表奏，皆不得以聞。\n\n遣使持節、兼太保、邢部尚書、光祿大夫、梁郡公蕭造，兼太尉、司農少卿裴之隱奉皇帝璽綬於高祖。高祖辭讓，百僚上表勸進，至於再三，乃從之。隋帝遜於舊邸。改大興殿為太極殿。\n\n甲子，高祖即皇帝位於太極殿，命刑部尚書蕭造兼太尉，告於南郊，大赦天下，改隋義寧二年為唐武德元年。官人百姓，賜爵一級。義師所行之處，給復三年。罷郡置州，改太守為刺史。丁卯，宴百官於太極殿，賜帛有差。東都留守官共立隋越王侗為帝。",
+      "parts": [
+        {
+          "block_index": 3,
+          "start": 578,
+          "end": 814
+        }
+      ],
+      "edition": "维基文库录入本 · 标点版",
+      "revision_id": 2646080,
+      "source_url": "https://zh.wikisource.org/w/index.php?oldid=2646080",
+      "history_url": "https://zh.wikisource.org/w/index.php?title=%E8%88%8A%E5%94%90%E6%9B%B8%2F%E5%8D%B71&action=history",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "attribution": "维基文库贡献者；作者、版本及修订历史见来源页面",
+      "source_sha256": "5f06f4005255f82342f6ed524aac4983a83b8ee68164c762d030274f795d5c32",
+      "text_sha256": "cd0689504feb1e0f539f38fc5a5a742eaf9c8786968ecacff0398bbdf07abad2"
+    },
+    "baseline": {
+      "id": "time-tang",
+      "query": "唐高祖李渊何时即位？",
+      "gold_chunk": 77707,
+      "gold_quote": "甲子，高祖即皇帝位於太極殿",
+      "gold_matches": [
+        {
+          "chunk_id": 77707,
+          "channel_ranks": {
+            "relation": 1
+          },
+          "model_rank": 11,
+          "final_rank": 1,
+          "score": -0.3425033688545227,
+          "audit_status": "clues_present",
+          "displayed": true
+        }
+      ],
+      "marked": [
+        77707
+      ],
+      "elapsed_ms": 8033.56,
+      "trace_id": "0f60e88719de4ae198907422ba99dccb"
+    },
+    "scoped_observations": []
+  },
+  {
+    "id": "place-tang",
+    "query": "唐高祖李渊在哪里即位？",
+    "split": "development_existing17",
+    "gold_chunk": 77707,
+    "gold_quote": "高祖即皇帝位於太極殿",
+    "chunk": {
+      "chunk_id": 77707,
+      "page_id": 20439,
+      "book_id": "KR2a0026",
+      "book_title": "舊唐書",
+      "title": "舊唐書/卷1",
+      "heading": "武德元年",
+      "layer": "body",
+      "status": "readable",
+      "reason": "",
+      "text_orig": "懷。假手真人，俾除醜逆，濟濟多士，明知朕意。仍敕有司，凡有表奏，皆不得以聞。\n\n遣使持節、兼太保、邢部尚書、光祿大夫、梁郡公蕭造，兼太尉、司農少卿裴之隱奉皇帝璽綬於高祖。高祖辭讓，百僚上表勸進，至於再三，乃從之。隋帝遜於舊邸。改大興殿為太極殿。\n\n甲子，高祖即皇帝位於太極殿，命刑部尚書蕭造兼太尉，告於南郊，大赦天下，改隋義寧二年為唐武德元年。官人百姓，賜爵一級。義師所行之處，給復三年。罷郡置州，改太守為刺史。丁卯，宴百官於太極殿，賜帛有差。東都留守官共立隋越王侗為帝。",
+      "parts": [
+        {
+          "block_index": 3,
+          "start": 578,
+          "end": 814
+        }
+      ],
+      "edition": "维基文库录入本 · 标点版",
+      "revision_id": 2646080,
+      "source_url": "https://zh.wikisource.org/w/index.php?oldid=2646080",
+      "history_url": "https://zh.wikisource.org/w/index.php?title=%E8%88%8A%E5%94%90%E6%9B%B8%2F%E5%8D%B71&action=history",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "attribution": "维基文库贡献者；作者、版本及修订历史见来源页面",
+      "source_sha256": "5f06f4005255f82342f6ed524aac4983a83b8ee68164c762d030274f795d5c32",
+      "text_sha256": "cd0689504feb1e0f539f38fc5a5a742eaf9c8786968ecacff0398bbdf07abad2"
+    },
+    "baseline": {
+      "id": "place-tang",
+      "query": "唐高祖李渊在哪里即位？",
+      "gold_chunk": 77707,
+      "gold_quote": "高祖即皇帝位於太極殿",
+      "gold_matches": [
+        {
+          "chunk_id": 77707,
+          "channel_ranks": {
+            "relation": 1
+          },
+          "model_rank": 6,
+          "final_rank": 1,
+          "score": 1.1230499744415283,
+          "audit_status": "clues_present",
+          "displayed": true
+        }
+      ],
+      "marked": [
+        77707
+      ],
+      "elapsed_ms": 7565.62,
+      "trace_id": "47c4bc9b9bc3436a9f8368f5f5884498"
+    },
+    "scoped_observations": []
+  },
+  {
+    "id": "place-qin",
+    "query": "商鞅在哪里被杀？",
+    "split": "development_existing17",
+    "gold_chunk": 9870,
+    "gold_quote": "秦發兵攻商君，殺之於鄭黽池",
+    "chunk": {
+      "chunk_id": 9870,
+      "page_id": 9480,
+      "book_id": "KR2a0001",
+      "book_title": "史記",
+      "title": "史記/卷068",
+      "heading": "商鞅",
+      "layer": "body",
+      "status": "readable",
+      "reason": "",
+      "text_orig": "月而秦孝公卒，太子立。公子虔之徒告商君欲反，發吏捕商君。商君亡至關下，欲舍客舍。客人不知其是商君也，曰：「商君之法，舍人無驗者坐之。」商君喟然嘆曰：「嗟乎，為法自斃一至此哉！」去之魏。魏人怨其欺公子卬而破魏師，弗受。商君欲之他國。魏人曰：「商君，秦之賊。秦彊而賊入魏，弗歸，不可。」遂內秦。商君既復入秦，走商邑，與其徒屬發邑兵北出擊鄭。秦發兵攻商君，殺之於鄭黽池。秦惠王車裂商君以徇，曰：「莫如商鞅反者！」遂滅商君之家。\n\n\n",
+      "parts": [
+        {
+          "block_index": 1,
+          "start": 3008,
+          "end": 3221
+        }
+      ],
+      "edition": "维基文库录入本 · 标点版",
+      "revision_id": 8764712,
+      "source_url": "https://zh.wikisource.org/w/index.php?oldid=8764712",
+      "history_url": "https://zh.wikisource.org/w/index.php?title=%E5%8F%B2%E8%A8%98%2F%E5%8D%B7068&action=history",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "attribution": "维基文库贡献者；作者、版本及修订历史见来源页面",
+      "source_sha256": "39ff191f6954ba62162efd521cabf2954abecd814f563617f7df557b4b583a9c",
+      "text_sha256": "97f08244bcd6bc2ed0f415b7745e04a9d602591a2115d558e8610fccd7e2658d"
+    },
+    "baseline": {
+      "id": "place-qin",
+      "query": "商鞅在哪里被杀？",
+      "gold_chunk": 9870,
+      "gold_quote": "秦發兵攻商君，殺之於鄭黽池",
+      "gold_matches": [
+        {
+          "chunk_id": 9870,
+          "channel_ranks": {
+            "semantic": 1,
+            "lexical": 2,
+            "relation": 1
+          },
+          "model_rank": 1,
+          "final_rank": 1,
+          "score": 4.356419563293457,
+          "audit_status": "insufficient",
+          "displayed": true
+        }
+      ],
+      "marked": [],
+      "elapsed_ms": 7136.16,
+      "trace_id": "e040c12a1a8c41c7bff008b25a005406"
+    },
+    "scoped_observations": []
+  },
+  {
+    "id": "place-jin",
+    "query": "谢玄在哪里击败苻坚？",
+    "split": "development_existing17",
+    "gold_chunk": 38575,
+    "gold_quote": "謝玄等又破堅於淝水",
+    "chunk": {
+      "chunk_id": 38575,
+      "page_id": 18403,
+      "book_id": "KR2a0016",
+      "book_title": "宋書",
+      "title": "宋書/卷25",
+      "heading": "",
+      "layer": "body",
+      "status": "readable",
+      "reason": "",
+      "text_orig": "也。七年九月，朱綽擊襄陽，拔將六百餘家而還。\n\n太元七年十一月，太白晝見，在斗。占曰：「吳有兵喪。」八年四月甲子，太白又晝見，在參。占曰：「魏有兵喪。」是月，桓沖征沔漢，楊亮伐蜀，並拔城略地。八月，苻堅自將號百萬，九月，攻沒壽陽。十月，劉牢之破堅將梁成斬之，殺獲萬餘人。謝玄等又破堅於淝水，斬其弟融，堅大眾奔潰。九年六月，皇太后褚氏崩。八月，謝玄出屯彭城，經略中州。十年八月，苻堅為其將姚萇所殺。\n\n太元十年十二月己丑，太白犯歲星。占曰：「為兵饑。",
+      "parts": [
+        {
+          "block_index": 4,
+          "start": 759,
+          "end": 983
+        }
+      ],
+      "edition": "维基文库录入本 · 标点版",
+      "revision_id": 1748426,
+      "source_url": "https://zh.wikisource.org/w/index.php?oldid=1748426",
+      "history_url": "https://zh.wikisource.org/w/index.php?title=%E5%AE%8B%E6%9B%B8%2F%E5%8D%B725&action=history",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "attribution": "维基文库贡献者；作者、版本及修订历史见来源页面",
+      "source_sha256": "202eafcef6899ac828289a79b5b9201ca4f44b185b5ae3dcf3133a29eced6783",
+      "text_sha256": "ce7c3ae3320f1c7a2b022fcf33104fbf7e11d5373fe63ac436a5246a0106d929"
+    },
+    "baseline": {
+      "id": "place-jin",
+      "query": "谢玄在哪里击败苻坚？",
+      "gold_chunk": 38575,
+      "gold_quote": "謝玄等又破堅於淝水",
+      "gold_matches": [
+        {
+          "chunk_id": 38575,
+          "channel_ranks": {
+            "semantic": 33,
+            "lexical": 9,
+            "relation": 6
+          },
+          "model_rank": 1,
+          "final_rank": 1,
+          "score": 5.1041083335876465,
+          "audit_status": "insufficient",
+          "displayed": true
+        }
+      ],
+      "marked": [],
+      "elapsed_ms": 6325.29,
+      "trace_id": "916ce4a7b4fb47d082824e0937e108a9"
+    },
+    "scoped_observations": []
+  },
+  {
+    "id": "office-tang",
+    "query": "房玄龄担任过什么官职？",
+    "split": "development_existing17",
+    "gold_chunk": 77786,
+    "gold_quote": "房玄齡為尚書左僕射",
+    "chunk": {
+      "chunk_id": 77786,
+      "page_id": 20440,
+      "book_id": "KR2a0026",
+      "book_title": "舊唐書",
+      "title": "舊唐書/卷2",
+      "heading": "貞觀三年",
+      "layer": "body",
+      "status": "readable",
+      "reason": "",
+      "text_orig": "\n\n三年春正月辛亥，契丹渠帥來朝。戊午，謁太廟。癸亥，親耕籍田。辛未，司空、魏國公裴寂坐事免。\n\n二月戊寅，中書令、邢國公房玄齡為尚書左僕射，兵部尚書、檢校侍中、蔡國公杜如晦為尚書右僕射，刑部尚書、檢校中書令、永康縣公李靖為兵部尚書，右丞魏徵為守秘書監，參預朝政。\n\n夏四月辛巳，太上皇徙居大安宮。甲子，太宗始於太極殿聽政。\n\n五月，周王元方薨。\n\n六月戊寅，以旱，親錄囚徒。遣長孫無忌、房玄齡等祈雨於名山大川，中書舍人杜正倫等往關內諸州慰撫。又令文武官各上封事，極言得失。",
+      "parts": [
+        {
+          "block_index": 9,
+          "start": 0,
+          "end": 237
+        }
+      ],
+      "edition": "维基文库录入本 · 标点版",
+      "revision_id": 2588511,
+      "source_url": "https://zh.wikisource.org/w/index.php?oldid=2588511",
+      "history_url": "https://zh.wikisource.org/w/index.php?title=%E8%88%8A%E5%94%90%E6%9B%B8%2F%E5%8D%B72&action=history",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "attribution": "维基文库贡献者；作者、版本及修订历史见来源页面",
+      "source_sha256": "9157459f068ad4c5c30fa14977a1812120db7ea5f3eaa1e9bb186d2d499aa134",
+      "text_sha256": "6f5972c6a6c39bfb0df4d39aeeff23bc2f52a30bc119ccf95a59687054be2a2c"
+    },
+    "baseline": {
+      "id": "office-tang",
+      "query": "房玄龄担任过什么官职？",
+      "gold_chunk": 77786,
+      "gold_quote": "房玄齡為尚書左僕射",
+      "gold_matches": [
+        {
+          "chunk_id": 77786,
+          "channel_ranks": {
+            "lexical": 18,
+            "relation": 2
+          },
+          "model_rank": 18,
+          "final_rank": 3,
+          "score": 1.2611212730407715,
+          "audit_status": "clues_present",
+          "displayed": true
+        }
+      ],
+      "marked": [
+        138169,
+        77922,
+        77786,
+        77943
+      ],
+      "elapsed_ms": 36213.04,
+      "trace_id": "ba8e343ede0648b98e62f15c4f1dd56a"
+    },
+    "scoped_observations": []
+  },
+  {
+    "id": "office-song",
+    "query": "包拯担任过什么官职？",
+    "split": "development_existing17",
+    "gold_chunk": 95246,
+    "gold_quote": "召權知開封府",
+    "chunk": {
+      "chunk_id": 95246,
+      "page_id": 24813,
+      "book_id": "KR2a0032",
+      "book_title": "宋史",
+      "title": "宋史/卷316",
+      "heading": "包拯",
+      "layer": "body",
+      "status": "readable",
+      "reason": "",
+      "text_orig": "至是，請：「罷河北屯兵，分之河南兗、鄆、齊、濮、曹、濟諸郡，設有警，無後期之憂。借曰戍兵不可遽減，請訓練義勇，少給餱糧，每歲之費，不當屯兵一月之用，一州之賦，則所給者多矣。」不報。徙知瀛州，諸州以公錢貿易，積歲所負十余萬，悉奏除之。以喪子乞便郡，知揚州，徙廬州，遷刑部郎中。坐失保任，左授兵部員外郎、知池州。復官，徙江寧府，召權知開封府，遷右司郎中。\n\n　　拯立朝剛毅，貴戚宦官為之斂手，聞者皆憚之。人以包拯笑比黃河清，童稚婦女，亦知其名，呼曰「包待制」。",
+      "parts": [
+        {
+          "block_index": 1,
+          "start": 745,
+          "end": 973
+        }
+      ],
+      "edition": "维基文库录入本 · 标点版",
+      "revision_id": 2094023,
+      "source_url": "https://zh.wikisource.org/w/index.php?oldid=2094023",
+      "history_url": "https://zh.wikisource.org/w/index.php?title=%E5%AE%8B%E5%8F%B2%2F%E5%8D%B7316&action=history",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "attribution": "维基文库贡献者；作者、版本及修订历史见来源页面",
+      "source_sha256": "5b69b0b16c5d2300d2c3898ae803f3f744f0bd23d2e3dc31dae8f8e770336391",
+      "text_sha256": "d76cfe9421be10d58722ec8bfdfc8a841e64ad6399fa84721cb47782b0d120b1"
+    },
+    "baseline": {
+      "id": "office-song",
+      "query": "包拯担任过什么官职？",
+      "gold_chunk": 95246,
+      "gold_quote": "召權知開封府",
+      "gold_matches": [
+        {
+          "chunk_id": 95246,
+          "channel_ranks": {
+            "semantic": 9,
+            "lexical": 2,
+            "relation": 3
+          },
+          "model_rank": 1,
+          "final_rank": 1,
+          "score": 4.052000045776367,
+          "audit_status": "clues_present",
+          "displayed": true
+        }
+      ],
+      "marked": [
+        95246
+      ],
+      "elapsed_ms": 32325.69,
+      "trace_id": "2009c8996fdd48d0bfd9f7070d0dfadc"
+    },
+    "scoped_observations": [
+      {
+        "kind": "appointment",
+        "polarity": "positive_syntax",
+        "qualifications": [],
+        "quote": "復官，徙江寧府，召權知開封府，遷右司郎中。",
+        "start": 154,
+        "end": 175,
+        "subject_omitted": true,
+        "subject_basis": "biography_recipient_chain",
+        "subject_scope": {
+          "heading": "包拯",
+          "opening": "\n\n　　包拯，字希仁，廬州合肥人也",
+          "page_id": 24813,
+          "revision_id": 2094023,
+          "source_sha256": "5b69b0b16c5d2300d2c3898ae803f3f744f0bd23d2e3dc31dae8f8e770336391"
+        },
+        "relation_verified": false
+      }
+    ]
+  },
+  {
+    "id": "office-han",
+    "query": "张骞被封为什么侯？",
+    "split": "development_existing17",
+    "gold_chunk": 10889,
+    "gold_quote": "封騫博望侯",
+    "chunk": {
+      "chunk_id": 10889,
+      "page_id": 9523,
+      "book_id": "KR2a0001",
+      "book_title": "史記",
+      "title": "史記/卷111",
+      "heading": "衞青",
+      "layer": "body",
+      "status": "readable",
+      "reason": "",
+      "text_orig": "，亡翕侯，軍功不多，故大將軍不益封。右將軍建至，天子不誅，赦其罪，贖為庶人。\n\n大將軍既還，賜千金。是時王夫人方幸於上，甯乘說大將軍曰：「將軍所以功未甚多，身食萬戶，三子皆為侯者，徒以皇后故也。今王夫人幸而宗族未富貴，願將軍奉所賜千金為王夫人親壽。」大將軍乃以五百金為壽。天子聞之，問大將軍，大將軍以實言，上乃拜甯乘為東海都尉。\n\n張騫從大將軍，以嘗使大夏，留匈奴中久，導軍，知善水草處，軍得以無饑渴，因前使絕國功，封騫博望侯。\n\n\n",
+      "parts": [
+        {
+          "block_index": 1,
+          "start": 2241,
+          "end": 2458
+        }
+      ],
+      "edition": "维基文库录入本 · 标点版",
+      "revision_id": 8730225,
+      "source_url": "https://zh.wikisource.org/w/index.php?oldid=8730225",
+      "history_url": "https://zh.wikisource.org/w/index.php?title=%E5%8F%B2%E8%A8%98%2F%E5%8D%B7111&action=history",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "attribution": "维基文库贡献者；作者、版本及修订历史见来源页面",
+      "source_sha256": "8c55040092e12330396cd070054d318eee6603f4ac661fe27ff41c5704bc8d89",
+      "text_sha256": "d0dfd232ccb4e602463fbeb620d867000213cb62cbac0a6caf9e1606186b7172"
+    },
+    "baseline": {
+      "id": "office-han",
+      "query": "张骞被封为什么侯？",
+      "gold_chunk": 10889,
+      "gold_quote": "封騫博望侯",
+      "gold_matches": [
+        {
+          "chunk_id": 10889,
+          "channel_ranks": {
+            "lexical": 2,
+            "grounded": 4
+          },
+          "model_rank": 3,
+          "final_rank": 3,
+          "score": 4.591680526733398,
+          "audit_status": "insufficient",
+          "displayed": true
+        }
+      ],
+      "marked": [],
+      "elapsed_ms": 10066.68,
+      "trace_id": "7ebf7811e70f4e7798a32e704656a695"
+    },
+    "scoped_observations": []
+  },
+  {
+    "id": "battle-jin",
+    "query": "祖逖击退了谁对谯城的围攻？",
+    "split": "development_existing17",
+    "gold_chunk": 75664,
+    "gold_quote": "石勒將石季龍圍譙城，平西將軍祖逖擊走之",
+    "chunk": {
+      "chunk_id": 75664,
+      "page_id": 20415,
+      "book_id": "KR2a0015",
+      "book_title": "晉書",
+      "title": "晉書/卷006",
+      "heading": "建武元年",
+      "layer": "body",
+      "status": "readable",
+      "reason": "",
+      "text_orig": "外以絕敵人之志，內以固闔境之情。故曰「喪君有君，羣臣輯睦，好我者勸，惡我者懼」。前事之不忘，後代之元龜也。陛下明並日月，無幽不燭，深謀遠猷，出自胸懷。不勝犬馬憂國之情，遲睹人神開泰之路，是以陳其乃誠，布之執事。臣等忝于方任，久在遐外，不得陪列闕庭，與睹盛禮，踴躍之懷，南望罔極。\n\n　　帝優令答之。語在《琨傳》。\n\n　　石勒將石季龍圍譙城，平西將軍祖逖擊走之。己巳，帝傅檄天下曰：「逆賊石勒，肆虐河朔，逋誅歷載，遊魂縱逸。復遣凶黨石季龍犬羊之衆，越河南渡，縱其鴆毒。",
+      "parts": [
+        {
+          "block_index": 5,
+          "start": 1346,
+          "end": 1579
+        }
+      ],
+      "edition": "维基文库录入本 · 标点版",
+      "revision_id": 2674431,
+      "source_url": "https://zh.wikisource.org/w/index.php?oldid=2674431",
+      "history_url": "https://zh.wikisource.org/w/index.php?title=%E6%99%89%E6%9B%B8%2F%E5%8D%B7006&action=history",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "attribution": "维基文库贡献者；作者、版本及修订历史见来源页面",
+      "source_sha256": "4bcc7edd878f1baecc9a21f26128556c303b980fd5e43f0a1ec988c3a046b929",
+      "text_sha256": "adfcf46cfecd44558f8e717c38881080c3995aa35ab155df49e5949dbb6ff1cf"
+    },
+    "baseline": {
+      "id": "battle-jin",
+      "query": "祖逖击退了谁对谯城的围攻？",
+      "gold_chunk": 75664,
+      "gold_quote": "石勒將石季龍圍譙城，平西將軍祖逖擊走之",
+      "gold_matches": [
+        {
+          "chunk_id": 75664,
+          "channel_ranks": {
+            "lexical": 1,
+            "grounded": 1
+          },
+          "model_rank": 1,
+          "final_rank": 1,
+          "score": 3.3303205966949463,
+          "audit_status": "insufficient",
+          "displayed": true
+        }
+      ],
+      "marked": [],
+      "elapsed_ms": 7990.74,
+      "trace_id": "abf980928045441eb30697a663b72c8b"
+    },
+    "scoped_observations": []
+  },
+  {
+    "id": "battle-tang",
+    "query": "李靖在哪里袭击颉利？",
+    "split": "development_existing17",
+    "gold_chunk": 128,
+    "gold_quote": "隨李靖襲突厥頡利於磧口",
+    "chunk": {
+      "chunk_id": 128,
+      "page_id": 7533,
+      "book_id": "KR2a0026",
+      "book_title": "舊唐書",
+      "title": "舊唐書/卷83",
+      "heading": "蘇定方",
+      "layer": "body",
+      "status": "readable",
+      "reason": "",
+      "text_orig": "\n\n蘇定方，冀州武邑人也。父邕，大業末，率鄉閭數千人為本郡討賊。定方驍悍多力，膽氣絕倫，年十餘歲，隨父討捕，先登陷陣。父卒，郡守又令定方領兵，破賊首張金稱於郡南，手斬金稱，又破楊公卿於郡西，追奔二十餘里，殺獲甚眾，鄉黨賴之。後仕竇建德，建德將高雅賢甚愛之，養以為子。雅賢俄又為劉黑闥攻陷城邑，定方每有戰功。及黑闥、雅賢死，定方歸鄉里。貞觀初，為匡道府折衝，隨李靖襲突厥頡利於磧口。靖使定方率二百騎為前鋒，乘霧而行，去賊一里許，忽然霧歇，望見其牙帳，馳掩殺數十百人。",
+      "parts": [
+        {
+          "block_index": 6,
+          "start": 0,
+          "end": 232
+        }
+      ],
+      "edition": "维基文库录入本 · 标点版",
+      "revision_id": 2632780,
+      "source_url": "https://zh.wikisource.org/w/index.php?oldid=2632780",
+      "history_url": "https://zh.wikisource.org/w/index.php?title=%E8%88%8A%E5%94%90%E6%9B%B8%2F%E5%8D%B783&action=history",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "attribution": "维基文库贡献者；作者、版本及修订历史见来源页面",
+      "source_sha256": "d9da5497ef2bbb3e386fb61d76a680d2f713727eda782d184515f56dc58e7e12",
+      "text_sha256": "53dcb2f27626e75819d07fd6bbecc0976c4733e7361dcee5b4304191ff099b25"
+    },
+    "baseline": {
+      "id": "battle-tang",
+      "query": "李靖在哪里袭击颉利？",
+      "gold_chunk": 128,
+      "gold_quote": "隨李靖襲突厥頡利於磧口",
+      "gold_matches": [
+        {
+          "chunk_id": 128,
+          "channel_ranks": {
+            "lexical": 4,
+            "relation": 20
+          },
+          "model_rank": 9,
+          "final_rank": 9,
+          "score": 3.240389823913574,
+          "audit_status": "insufficient",
+          "displayed": true
+        }
+      ],
+      "marked": [],
+      "elapsed_ms": 10838.29,
+      "trace_id": "8cdc658bb92d4169931d586f9d5818b0"
+    },
+    "scoped_observations": []
+  },
+  {
+    "id": "cause-han",
+    "query": "晁错削藩导致了什么事？",
+    "split": "development_existing17",
+    "gold_chunk": 357,
+    "gold_quote": "晁錯刻削諸侯，遂使七國俱起",
+    "chunk": null,
+    "baseline": {
+      "id": "cause-han",
+      "query": "晁错削藩导致了什么事？",
+      "gold_chunk": 357,
+      "gold_quote": "晁錯刻削諸侯，遂使七國俱起",
+      "gold_matches": [],
+      "marked": [],
+      "elapsed_ms": 3481.8,
+      "trace_id": "93c4145d2fb742ec892028fd03679523"
+    },
+    "scoped_observations": []
+  },
+  {
+    "id": "cause-song",
+    "query": "为什么岳飞被关进监狱？",
+    "split": "development_existing17",
+    "gold_chunk": 28651,
+    "gold_quote": "飛坐繫兩月，無可證者",
+    "chunk": null,
+    "baseline": {
+      "id": "cause-song",
+      "query": "为什么岳飞被关进监狱？",
+      "gold_chunk": 28651,
+      "gold_quote": "飛坐繫兩月，無可證者",
+      "gold_matches": [],
+      "marked": [],
+      "elapsed_ms": 8351.34,
+      "trace_id": "0a146a16f89f466fb724c83b92509557"
+    },
+    "scoped_observations": []
+  },
+  {
+    "id": "negative-role",
+    "query": "苻坚在哪里击败谢玄？",
+    "split": "development_existing17",
+    "gold_chunk": null,
+    "gold_quote": "",
+    "chunk": null,
+    "baseline": {
+      "id": "negative-role",
+      "query": "苻坚在哪里击败谢玄？",
+      "gold_chunk": null,
+      "gold_quote": "",
+      "gold_matches": [],
+      "marked": [],
+      "elapsed_ms": 8317.71,
+      "trace_id": "bc5ab2c279ad4d32bf2f7ce1cc4ce8d3"
+    },
+    "scoped_observations": []
+  },
+  {
+    "id": "negative-era",
+    "query": "霍光何时出使大夏？",
+    "split": "development_existing17",
+    "gold_chunk": null,
+    "gold_quote": "",
+    "chunk": null,
+    "baseline": {
+      "id": "negative-era",
+      "query": "霍光何时出使大夏？",
+      "gold_chunk": null,
+      "gold_quote": "",
+      "gold_matches": [],
+      "marked": [],
+      "elapsed_ms": 5637.35,
+      "trace_id": "a58f6cba4b214905a0b38191af8212f1"
+    },
+    "scoped_observations": []
+  },
+  {
+    "id": "annal-office",
+    "query": "宋神宗何时任命王安石",
+    "split": "development_existing17",
+    "gold_chunk": 109614,
+    "gold_quote": "庚子，以王安石參知政事",
+    "chunk": {
+      "chunk_id": 109614,
+      "page_id": 30017,
+      "book_id": "KR2a0032",
+      "book_title": "宋史",
+      "title": "宋史/卷014",
+      "heading": "熙寧二年",
+      "layer": "body",
+      "status": "readable",
+      "reason": "",
+      "text_orig": "\n\n　　二年春正月甲午，奉安英宗神御于景靈宮英德殿。\n\n　　二月己亥，以富弼同中書門下平章事。庚子，以王安石參知政事。命翰林學士呂公著修《英宗實錄》。乙巳，帝以災變避正殿，減膳徹樂。甲子，陳升之、王安石創置三司條例，議行新法。\n\n　　三月乙酉，詔漕運、鹽鐵等官各具財用利害以聞。丙戌，命宰臣禱雨。戊子，秉常上誓表，納塞門、安遠二砦，乞綏州，詔許之。乙未，以旱慮囚。\n\n　　四月丁酉朔，群臣再上尊號，不許。戊戌，省內外土木工。壬寅，遼遣耶律昌等來賀同天節。丁未，唐介薨，臨其喪。",
+      "parts": [
+        {
+          "block_index": 6,
+          "start": 0,
+          "end": 238
+        }
+      ],
+      "edition": "维基文库录入本 · 标点版",
+      "revision_id": 2325088,
+      "source_url": "https://zh.wikisource.org/w/index.php?oldid=2325088",
+      "history_url": "https://zh.wikisource.org/w/index.php?title=%E5%AE%8B%E5%8F%B2%2F%E5%8D%B7014&action=history",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "attribution": "维基文库贡献者；作者、版本及修订历史见来源页面",
+      "source_sha256": "4f1410aaf22cea668eab11a0772c8020d43d868b7ec8787951b05b8771fe1f31",
+      "text_sha256": "afa854885a2cc66e0feda6a5deff159fe8e1280a7d6981f88e56be12e4228f4c"
+    },
+    "baseline": {
+      "id": "annal-office",
+      "query": "宋神宗何时任命王安石",
+      "gold_chunk": 109614,
+      "gold_quote": "庚子，以王安石參知政事",
+      "gold_matches": [
+        {
+          "chunk_id": 109614,
+          "channel_ranks": {
+            "semantic": 56,
+            "relation": 366,
+            "annal_event": 1
+          },
+          "model_rank": 8,
+          "final_rank": 1,
+          "score": 3.8703739643096924,
+          "audit_status": "clues_present",
+          "displayed": true
+        }
+      ],
+      "marked": [
+        109614,
+        109654
+      ],
+      "elapsed_ms": 16576.84,
+      "trace_id": "7c8e15e2309449d8bfa847f0c1723a2c"
+    },
+    "scoped_observations": [
+      {
+        "kind": "appointment",
+        "polarity": "qualified",
+        "qualifications": [
+          "unresolved_event_arguments"
+        ],
+        "quote": "　　二月己亥，以富弼同中書門下平章事。",
+        "start": 28,
+        "end": 47,
+        "subject_span": [
+          35,
+          35
+        ],
+        "predicate_span": [
+          35,
+          36
+        ],
+        "subject_basis": "annal_scope",
+        "subject_omitted": true,
+        "relation_verified": false
+      },
+      {
+        "kind": "appointment",
+        "polarity": "positive_syntax",
+        "qualifications": [],
+        "quote": "庚子，以王安石參知政事。",
+        "start": 47,
+        "end": 59,
+        "subject_span": [
+          50,
+          50
+        ],
+        "predicate_span": [
+          50,
+          58
+        ],
+        "subject_basis": "annal_scope",
+        "subject_omitted": true,
+        "relation_verified": false
+      },
+      {
+        "kind": "appointment",
+        "polarity": "qualified",
+        "qualifications": [
+          "unresolved_event_arguments"
+        ],
+        "quote": "乙巳，帝以災變避正殿，減膳徹樂。",
+        "start": 75,
+        "end": 91,
+        "subject_span": [
+          78,
+          79
+        ],
+        "predicate_span": [
+          79,
+          80
+        ],
+        "subject_basis": "annal_scope",
+        "subject_omitted": false,
+        "relation_verified": false
+      },
+      {
+        "kind": "appointment",
+        "polarity": "qualified",
+        "qualifications": [
+          "unresolved_event_arguments"
+        ],
+        "quote": "丙戌，命宰臣禱雨。",
+        "start": 139,
+        "end": 148,
+        "subject_span": [
+          142,
+          142
+        ],
+        "predicate_span": [
+          142,
+          143
+        ],
+        "subject_basis": "annal_scope",
+        "subject_omitted": true,
+        "relation_verified": false
+      },
+      {
+        "kind": "appointment",
+        "polarity": "qualified",
+        "qualifications": [
+          "unresolved_event_arguments"
+        ],
+        "quote": "乙未，以旱慮囚。",
+        "start": 174,
+        "end": 182,
+        "subject_span": [
+          177,
+          177
+        ],
+        "predicate_span": [
+          177,
+          178
+        ],
+        "subject_basis": "annal_scope",
+        "subject_omitted": true,
+        "relation_verified": false
+      }
+    ]
+  },
+  {
+    "id": "annal-campaign",
+    "query": "明成祖何时征伐阿鲁台",
+    "split": "development_existing17",
+    "gold_chunk": 97254,
+    "gold_quote": "丁丑，親征阿魯台，皇太子監國",
+    "chunk": {
+      "chunk_id": 97254,
+      "page_id": 25239,
+      "book_id": "KR2a0038",
+      "book_title": "明史",
+      "title": "明史/卷7",
+      "heading": "永樂二十年",
+      "layer": "body",
+      "status": "readable",
+      "reason": "",
+      "text_orig": "\n\n　　二十年春正月己未朔，日有食之，免朝賀，詔羣臣修省。辛未，大祀天地於南郊。壬申，豐城侯李彬卒於交阯。\n\n　　二月乙巳，隆平侯張信、兵部尚書李慶分督北征軍餉，役民夫二十三萬五千有奇，運糧三十七萬石。\n\n　　三月丙寅，詔有司遇災先振後聞。乙亥，阿魯台犯興和，都指揮王喚戰死。丁丑，親征阿魯台，皇太子監國。戊寅，發京師。辛巳，次雞鳴山，阿魯台遁。\n\n　　夏四月乙卯，次雲州，大閱。\n\n　　五月乙丑，獵於偏嶺。丁卯，大閱。辛未，次西涼亭。壬申，大閱。乙酉，次開平。\n\n",
+      "parts": [
+        {
+          "block_index": 21,
+          "start": 0,
+          "end": 233
+        }
+      ],
+      "edition": "维基文库录入本 · 标点版",
+      "revision_id": 2594620,
+      "source_url": "https://zh.wikisource.org/w/index.php?oldid=2594620",
+      "history_url": "https://zh.wikisource.org/w/index.php?title=%E6%98%8E%E5%8F%B2%2F%E5%8D%B77&action=history",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "attribution": "维基文库贡献者；作者、版本及修订历史见来源页面",
+      "source_sha256": "ac7f70ff46b4e46b238bf5b4355fb1ce44ae6b7aacaef639c02aa93fd14222ba",
+      "text_sha256": "375ec01a95772b70f0bcf7bbfeab520320b6d8224c14e44230be262ce7533e4f"
+    },
+    "baseline": {
+      "id": "annal-campaign",
+      "query": "明成祖何时征伐阿鲁台",
+      "gold_chunk": 97254,
+      "gold_quote": "丁丑，親征阿魯台，皇太子監國",
+      "gold_matches": [
+        {
+          "chunk_id": 97254,
+          "channel_ranks": {
+            "lexical": 6,
+            "annal_event": 1
+          },
+          "model_rank": 6,
+          "final_rank": 1,
+          "score": 4.032899856567383,
+          "audit_status": "clues_present",
+          "displayed": true
+        }
+      ],
+      "marked": [
+        97254
+      ],
+      "elapsed_ms": 13856.73,
+      "trace_id": "94d40e63ca7a4b7d886b840dbc02e8e9"
+    },
+    "scoped_observations": [
+      {
+        "kind": "military",
+        "polarity": "positive_syntax",
+        "qualifications": [],
+        "quote": "丁丑，親征阿魯台，皇太子監國。",
+        "start": 138,
+        "end": 153,
+        "subject_span": [
+          141,
+          141
+        ],
+        "predicate_span": [
+          141,
+          146
+        ],
+        "subject_basis": "annal_scope",
+        "subject_omitted": true,
+        "relation_verified": false
+      }
+    ]
+  },
+  {
+    "id": "annal-plan",
+    "query": "明成祖何时征伐蒙古",
+    "split": "development_existing17",
+    "gold_chunk": null,
+    "gold_quote": "",
+    "chunk": null,
+    "baseline": {
+      "id": "annal-plan",
+      "query": "明成祖何时征伐蒙古",
+      "gold_chunk": null,
+      "gold_quote": "",
+      "gold_matches": [],
+      "marked": [],
+      "elapsed_ms": 16375.72,
+      "trace_id": "1cf6dce5c1e04b7784386eeed03be54a"
+    },
+    "scoped_observations": []
+  }
+]
