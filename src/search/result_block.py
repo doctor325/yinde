@@ -884,6 +884,16 @@ def search_result_blocks(cur, q: str, book: str | None = None,
     bid = E.resolve_book(cur, book)
     edition = E.resolve_edition(edition)
 
+    from search import block_page_cache as page_cache
+    cache_query=(q,bid,edition,mode,variants)
+    cache_key=page_cache.key(cur,cache_query)
+    lo=(page-1)*page_size
+    cached=page_cache.get(cache_key,lo,lo+page_size)
+    if cached is not None:
+        cached['results']=[dual_text.attach(b,text_mode) for b in cached['results']]
+        cached.update(page=page,page_size=page_size,text_mode=text_mode,
+                      has_more=page*page_size<cached['total'])
+        return cached
     hit_rows = _fetch_hits(cur, q_trad, bid, edition, variants, q)
     hit_total = len(hit_rows)
     # 检索词的简体形态：前端在「只看简体/繁简对照」里要用它高亮（繁体词高亮不到
@@ -957,6 +967,10 @@ def search_result_blocks(cur, q: str, book: str | None = None,
         "limits": dict(MODE_LIMITS[mode]),
         "results": page_blocks,
     })
+    # Cache only if the database generation stayed stable during assembly.
+    if page_cache.key(cur,cache_query)==cache_key:
+        assembled=dict(base,results=[_public_block(b) for b in blocks])
+        page_cache.put(cache_key,assembled)
     return base
 
 

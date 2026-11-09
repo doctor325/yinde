@@ -182,10 +182,14 @@ def connect(db_path: Path | None = None) -> sqlite3.Connection:
     p = Path(db_path) if db_path else config.DB_PATH
     p.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(str(p))
-    conn.row_factory = sqlite3.Row
-    conn.executescript(SCHEMA)
-    _migrate(conn)
-    return conn
+    try:
+        conn.row_factory = sqlite3.Row
+        conn.executescript(SCHEMA)
+        _migrate(conn)
+        return conn
+    except BaseException:
+        conn.close()
+        raise
 
 
 def _fts_build(conn: sqlite3.Connection, stats: dict) -> None:
@@ -285,7 +289,15 @@ def rebuild(db_path: Path | None = None, *, processed_files=None) -> dict:
     if processed_files is None and config.PROCESSED_DIR == config.HISTORY_AI_DIR/'data/processed':
         from scripts.rebuild_corpus import inputs
         processed_files, _ = inputs()
+    started = time.perf_counter()
     conn = connect(db_path)
+    try:
+        return _load_retained(conn, processed_files, started)
+    finally:
+        conn.close()
+
+
+def _load_retained(conn, processed_files, started):
     cur = conn.cursor()
     for t in _TABLES:
         cur.execute(f"DELETE FROM {t}")
@@ -293,6 +305,13 @@ def rebuild(db_path: Path | None = None, *, processed_files=None) -> dict:
     cur.execute("DELETE FROM sqlite_sequence WHERE name IN "
                 "(SELECT name FROM sqlite_master WHERE type='table' AND sql LIKE '%AUTOINCREMENT%')")
     conn.commit()
+    # Bulk-load secondary indexes once, preserving their exact definitions.
+    indexes=list(conn.execute("SELECT name,sql FROM sqlite_master WHERE type='index' "
+                              "AND tbl_name IN ('passages','src_paragraphs') AND sql IS NOT NULL "
+                              "AND sql NOT LIKE 'CREATE UNIQUE%'").fetchall())
+    conn.execute('BEGIN')
+    for name,_ in indexes:
+        conn.execute('DROP INDEX "'+name.replace('"','""')+'"')
 
     stats = {"books": 0, "files": 0, "records": 0, "passages": 0, "pending": 0,
              "kr_codes": 0, "kr_occurrences": 0, "src_refs": 0,
@@ -462,6 +481,10 @@ def rebuild(db_path: Path | None = None, *, processed_files=None) -> dict:
                     last_src = None
     close_file()
 
+    stats['load_ms']=round((time.perf_counter()-started)*1000)
+    index_started=time.perf_counter()
+    for _,sql in indexes:conn.execute(sql)
+    stats['secondary_index_ms']=round((time.perf_counter()-index_started)*1000)
     # kr 汇总（由已入库的 special_chars_json 聚合）
     cur.execute("""
         INSERT INTO kr_chars(kr_code, count, first_file)
@@ -482,7 +505,7 @@ def rebuild(db_path: Path | None = None, *, processed_files=None) -> dict:
          str(config.LIBRARY_DIR), len(book_ids), stats["files"],
          stats["records"], "ok"))
     conn.commit()
-    conn.close()
+    stats["total_ms"]=round((time.perf_counter()-started)*1000)
     return stats
 
 

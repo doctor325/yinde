@@ -72,7 +72,7 @@ def place_attached(observation):
     # Do not swallow a new action/participant into a greedy "location" span.
     if re.search(r'即位|来朝|遂|乃|而|又|未|不|后|令|命|卒|薨|崩|死|攻|杀|伐|奔|迁|徙|见|于|於|在',location):
         return False
-    return bool(re.search(r'(?:城|宫|殿|州|郡|县|邑|门|山|川|江|河|水|湖|池|海|关|塞|营|军中|里|铺)$',location))
+    return bool(re.search(r'(?:城|宫|殿|州|郡|县|邑|门|山|川|江|河|水|湖|池|海|关|塞|营|军中|里|铺|口)$',location))
 
 
 def parse(query):
@@ -83,9 +83,14 @@ def parse(query):
     text=re.sub(title_question,'获封',text)
     asks_office = bool(re.search(office_question,text))
     p=R.plan(re.sub(office_question,'担任',text))
+    siege=re.fullmatch(r'([\u3400-\u9fff]{2,4})(?:击退|击败)了?谁对([\u3400-\u9fff]{2,8})的围攻[？?]?',text)
+    if siege:
+        p=R.plan(siege[1]+'攻打'+siege[2])
+        p['object_question']='besieger'
     # Asking where to find a record is not asking where its event happened.
     text=re.sub(r'(?:史料|记载|文献|证据)(?:在)?(?:哪里|何处|什么地方)', '', text)
-    slots=[]
+    slots=['object'] if siege else []
+    if re.search(r'导致|引起|造成',text):slots.append('outcome')
     if asks_office or asks_title:slots.append('office')
     for name,pattern in (('time',r'何时|什么时候|哪一年|时间'),('place',r'哪里|何处|什么地方'),
                          ('reason',r'为什么|为何|原因'),('quantity',r'多少|几次|几年|几卷')):
@@ -193,6 +198,10 @@ def audit(chunk, p, neighbors, annal=()):
     # A nearby date/place in another passage cannot silently answer this event.
     slot_evidence={}
     for slot in p['answer_slots']:
+        if slot in ('object','outcome'):
+            slot_evidence[slot]=[o['quote'] for o in positive if o.get('resolved_object' if slot=='object' else 'outcome_span')]
+            if not slot_evidence[slot]:missing.append('缺少可溯源的动作对象')
+            continue
         checker={'time':time_attached,'place':place_attached}.get(slot)
         quotes=[o['quote'] for o in positive if (checker(o) if checker else (not o.get('subject_basis') or (slot=='office' and o.get('subject_basis')=='biography_recipient_chain')) and
                 (re.search(ANSWER_PATTERNS[slot],zh.to_simplified(o['quote'])) or
@@ -210,6 +219,30 @@ def audit(chunk, p, neighbors, annal=()):
                 time_attachment_version='local-event-date-v1',
                 place_attachment_version='local-event-place-v1',
                 note='要素与句式检查，不等于答案正确；跨句指代、否定与因果未核实。')
+
+
+def biography_context_candidates(conn,p,subject,book=None):
+    """Recall within source-attested biographies; never promote heading to actor."""
+    if not any(g['kind']=='imprisonment' for g in p['relation_groups']) or len(p['clues'])!=1:
+        return [],dict(pages=0)
+    name=p['clues'][0]['text'];anchors={}
+    keys=('page_id','book_id','revision_id','source_sha256','heading','layer')
+    for h in subject:
+        c=h['chunk']
+        if book and c['book_id']!=book:continue
+        heading=zh.to_simplified(c.get('heading','')).strip()
+        opening=re.match(r'\s*'+re.escape(name)+r'[，,]?字',zh.to_simplified(c['text_orig']))
+        if (c.get('layer')=='body' and opening and heading in ('',name)):
+            anchors[tuple(c.get(k) for k in keys)]=c
+    hits=[]
+    for scope,c in anchors.items():
+        for row in conn.execute('SELECT payload FROM chunks WHERE page_id=?',(c['page_id'],)):
+            peer=json.loads(row[0])
+            if tuple(peer.get(k) for k in keys)!=scope:continue
+            text=zh.to_simplified(peer['text_orig'])
+            if any(t in text for t in ('狱','系','坐','诬','证')):hits.append(dict(chunk=peer))
+    hits.sort(key=lambda h:(-sum(t in zh.to_simplified(h['chunk']['text_orig']) for t in ('狱','系','坐','诬','证')),h['chunk']['chunk_id']))
+    return hits,dict(pages=len(anchors))
 
 
 def evaluate(query,conn,dense,batches,book=None,rerank=None):
@@ -248,7 +281,8 @@ def evaluate(query,conn,dense,batches,book=None,rerank=None):
             not any(o['polarity']=='positive_syntax' for o in annal[h['chunk']['chunk_id']]),
             -sum(c['text'] in zh.to_simplified(h['chunk']['text_orig']) for c in p['constraints']),
             h['chunk']['chunk_id']))
-    channels=(('semantic',dense),('lexical',literal),('relation',relation_ranked),
+    biography_context,biography_scan=biography_context_candidates(conn,p,subject,book)
+    channels=(('biography_context',biography_context),('semantic',dense),('lexical',literal),('relation',relation_ranked),
               ('biography',biography),('annal_event',event_hits),('grounded',fallback))
     hits=admit(channels);texts=[]
     from search import biography_office, patient_references

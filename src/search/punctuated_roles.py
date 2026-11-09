@@ -64,7 +64,8 @@ def assess(chunk, plan, forms_for):
                 short=full[1:]
                 aliases.append((full,short,anchor))
             object_forms=sorted(set(objects+[short for _,short,_ in aliases]),key=len,reverse=True)
-            target='(?P<object>'+'|'.join(map(re.escape,object_forms))+')'
+            qualifier=r'(?:突厥|匈奴|吐蕃|契丹|高丽|吐谷浑|回纥|鲜卑|柔然)?'
+            target=qualifier+'(?P<object>'+'|'.join(map(re.escape,object_forms))+')'
             local_patterns['military']=name+r'(?:等)?'+bridge+r'(?P<predicate>(?:破|攻取|克|伐|袭)'+target+r')(?=$|[，。！？；、：」』]|于|於)'
         if 'death' in kinds:
             # The named subject is the patient, not the intervening killer.
@@ -124,6 +125,8 @@ def assess(chunk, plan, forms_for):
                         predicate_span=[origin+c,origin+d],argument_role='recipient',
                         alias_basis=([dict(full=full,short=short,start=origin+anchor,end=origin+anchor+len(full))] if shortened else []),
                         relation_verified=False))
+    from search.event_links import observations as linked_observations
+    observations.extend(linked_observations(chunk,plan))
     from search.person_references import observations as reference_observations
     observations.extend(reference_observations(chunk,plan))
     return dict(positive_groups=sorted({o['kind'] for o in observations if o['polarity']=='positive_syntax'}),
