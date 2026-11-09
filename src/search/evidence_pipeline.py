@@ -71,7 +71,7 @@ def place_attached(observation):
     # Do not swallow a new action/participant into a greedy "location" span.
     if re.search(r'即位|来朝|遂|乃|而|又|未|不|后|令|命|卒|薨|崩|死|攻|杀|伐|奔|迁|徙|见|于|於|在',location):
         return False
-    return bool(re.search(r'(?:城|宫|殿|州|郡|县|邑|门|山|川|江|河|水|湖|海|关|塞|营|军中|里|铺)$',location))
+    return bool(re.search(r'(?:城|宫|殿|州|郡|县|邑|门|山|川|江|河|水|湖|池|海|关|塞|营|军中|里|铺)$',location))
 
 
 def parse(query):
@@ -242,19 +242,20 @@ def evaluate(query,conn,dense,batches,book=None,rerank=None):
     channels=(('semantic',dense),('lexical',literal),('relation',relation_ranked),
               ('biography',biography),('annal_event',event_hits),('grounded',fallback))
     hits=admit(channels);texts=[]
-    from search import biography_office
+    from search import biography_office, patient_references
     biography_pages={}
     candidate_ids=[h['chunk']['chunk_id'] for h in hits]
     for h in hits:
         c=h['chunk'];neighbors=context(conn,c)
         h['context_chunks']=neighbors
         observations=list(annal.get(c['chunk_id'],()))
-        if p['answer_slots']==['office']:
+        if p['answer_slots']==['office'] or any(g['kind']=='death' for g in p['relation_groups']):
             page=c['page_id']
             if page not in biography_pages:
                 biography_pages[page]=[json.loads(row[0]) for row in conn.execute(
                     'SELECT payload FROM chunks WHERE page_id=?',(page,))]
             observations+=biography_office.observations(c,p,biography_pages[page])
+            observations+=patient_references.observations(c,p,biography_pages[page])
         h['evidence_audit']=audit(c,p,neighbors,observations)
         # Center the pairwise comparison on the event sentence. Large unrelated
         # annal entries next to a six-character event used to dominate scoring.

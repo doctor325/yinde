@@ -1,0 +1,95 @@
+[
+  {
+    "patient": "白公",
+    "chunk": {
+      "chunk_id": 9270,
+      "page_id": 9446,
+      "book_id": "KR2a0001",
+      "book_title": "史記",
+      "title": "史記/卷040",
+      "heading": "楚惠王",
+      "layer": "body",
+      "status": "readable",
+      "reason": "",
+      "text_orig": "\n\n惠王二年，子西召故平王太子建之子勝於呉，以爲巣大夫，號曰白公。白公好兵而下士，欲報仇。六年，白公請兵令尹子西伐鄭。初，白公父建亡在鄭，鄭殺之，白公亡走呉，子西復召之，故以此怨鄭，欲伐之。子西許而未爲發兵。八年，晉伐鄭，鄭告急楚，楚使子西救鄭，受賂而去。白公勝怒，乃遂與勇力死士石乞等襲殺令尹子西、子綦於朝，因劫惠王，置之髙府，欲弒之。惠王從者屈固負王亡走昭王夫人宮。白公自立爲王。月餘，會葉公來救楚，楚惠王之徒與共攻白公，殺之。惠王乃復位。是歳也，滅陳而縣之。\n\n",
+      "parts": [
+        {
+          "block_index": 31,
+          "start": 0,
+          "end": 234
+        }
+      ],
+      "edition": "维基文库录入本 · 标点版",
+      "revision_id": 8736796,
+      "source_url": "https://zh.wikisource.org/w/index.php?oldid=8736796",
+      "history_url": "https://zh.wikisource.org/w/index.php?title=%E5%8F%B2%E8%A8%98%2F%E5%8D%B7040&action=history",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "attribution": "维基文库贡献者；作者、版本及修订历史见来源页面",
+      "source_sha256": "dce17cfd9f4c12b425774c97fcf6671f0b52ac4f9d15e5baf4e99a9d8392cab1",
+      "text_sha256": "cacfbb26239332f7bbe6b28607927c4cee278eac8aff824f8307f135e7d0bc39"
+    },
+    "split": "independent_real_positive"
+  },
+  {
+    "patient": "焦朗",
+    "chunk": {
+      "chunk_id": 45022,
+      "page_id": 18521,
+      "book_id": "KR2a0016",
+      "book_title": "宋書",
+      "title": "宋書/卷98",
+      "heading": "胡",
+      "layer": "body",
+      "status": "readable",
+      "reason": "",
+      "text_orig": "。六年，蒙遜攻破傉檀，傉檀走屯樂都。武威人焦朗入姑臧，自號驃騎大將軍，臣于李暠。八年，蒙遜攻焦朗，殺之。",
+      "parts": [
+        {
+          "block_index": 51,
+          "start": 359,
+          "end": 411
+        }
+      ],
+      "edition": "维基文库录入本 · 标点版",
+      "revision_id": 2228682,
+      "source_url": "https://zh.wikisource.org/w/index.php?oldid=2228682",
+      "history_url": "https://zh.wikisource.org/w/index.php?title=%E5%AE%8B%E6%9B%B8%2F%E5%8D%B798&action=history",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "attribution": "维基文库贡献者；作者、版本及修订历史见来源页面",
+      "source_sha256": "3b600fa2cb5a56c592c51ab624e6cbc8043b90e0a5790974c7923df65d9cc3b0",
+      "text_sha256": "ad6ce7bb5fa8fffa1dc7fb98cd8765f1c9d578541715978c598f08d62cb82f70"
+    },
+    "split": "independent_real_positive"
+  },
+  {
+    "patient": "傳圭",
+    "chunk": {
+      "chunk_id": 228312,
+      "page_id": 100399,
+      "book_id": "KR2a0027",
+      "book_title": "新唐書",
+      "title": "新唐書/卷165",
+      "heading": "子 從讜",
+      "layer": "body",
+      "status": "readable",
+      "reason": "",
+      "text_orig": "太谷。河東節度使康傳圭遣大將伊釗、張彥球、蘇弘軫引兵拒之，戰數負，傳圭斬軫以徇。彥球所部反，攻傳圭，殺之，劫府庫為亂。朝廷以為憂，帝欲大臣臨制，乃拜從讜檢校司徒，以宰相秩復為河東節度，兼行營招討使，詔自擇參佐。從讜即表長安令王調自副，兵部員外郎劉崇龜、司勛員外郎趙崇為節度觀察府判官，前進士劉崇魯推官，左拾遺李渥掌書記，長安尉崔澤支使，皆一時選。京師士人比太原為小朝廷，言得才多也。時承軍亂，剽奪日旁午。從讜既視事，奸無庾情，乃推捕反賊，誅其首惡。",
+      "parts": [
+        {
+          "block_index": 5,
+          "start": 200,
+          "end": 424
+        }
+      ],
+      "edition": "维基文库录入本 · 标点版",
+      "revision_id": 1490180,
+      "source_url": "https://zh.wikisource.org/w/index.php?oldid=1490180",
+      "history_url": "https://zh.wikisource.org/w/index.php?title=%E6%96%B0%E5%94%90%E6%9B%B8%2F%E5%8D%B7165&action=history",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "attribution": "维基文库贡献者；作者、版本及修订历史见来源页面",
+      "source_sha256": "4a9677066fd03c55da1e8f76e676ad2c073aa4bf781c715ef77bc7bdd43590db",
+      "text_sha256": "572d4ce640c427b16d526778acde824b9d469de8bd00c13c6a6a272b1e0b1215"
+    },
+    "split": "independent_real_positive"
+  }
+]
