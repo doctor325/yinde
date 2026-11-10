@@ -183,7 +183,9 @@ def audit(chunk, p, neighbors, annal=()):
     missing=[]
     if p['unsupported']:missing.append('无法可靠解析问题关系')
     from search.office_events import observations as office_observations
-    annal=list(annal)+office_observations(chunk,p)
+    from search.departure_speech import observations as speech_observations
+    speech=speech_observations(chunk,p)
+    annal=list(annal)+office_observations(chunk,p)+speech
     scoped = [o for o in annal if o['polarity']=='positive_syntax']
     if not f['all_clues'] and not scoped:missing.append('主体或约束未在当前片段同时出现')
     observations=f['subject_syntax']['observations']+list(annal)
@@ -208,6 +210,9 @@ def audit(chunk, p, neighbors, annal=()):
             slot_evidence[slot]=[o['quote'] for o in positive if o.get('reason_span') and o.get('event_type')==p['office_event']['action'] and o.get('office')==p['office_event']['office']]
             if not slot_evidence[slot]:missing.append('所问任职事件缺少绑定原因')
             continue
+        if slot=='reason' and speech:
+            slot_evidence[slot]=list(dict.fromkeys(o['quote'] for o in speech))
+            continue
         checker={'time':time_attached,'place':place_attached}.get(slot)
         quotes=[o['quote'] for o in positive if (checker(o) if checker else (not o.get('subject_basis') or (slot=='office' and o.get('subject_basis')=='biography_recipient_chain')) and
                 (re.search(ANSWER_PATTERNS[slot],zh.to_simplified(o['quote'])) or
@@ -217,7 +222,7 @@ def audit(chunk, p, neighbors, annal=()):
     # Context is available for reading/model scoring, but not identity invention.
     adjacent_only=any(R.features(c,p)['all_clues'] for c in neighbors if c['chunk_id']!=chunk['chunk_id'])
     from search.causal_evidence import source_labels, event_explanations
-    causal_events=event_explanations(chunk,p)
+    causal_events=event_explanations(chunk,p)+[o for o in speech if o['kind']=='cause']
     causal_labels=source_labels(chunk) if 'cause' in needed else []
     return dict(status='clues_present' if not missing else 'insufficient',missing=missing,
                 causal_source_labels=causal_labels,
