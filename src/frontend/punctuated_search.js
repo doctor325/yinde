@@ -112,6 +112,8 @@ function punctuatedSearchResults(result) {
       ${c.status!=='readable'?`<p class="quiet">${esc(c.reason)}</p>`:''}
       ${pipeline||hit.semantic_score==null?'':`<p class="quiet">语义相似分 ${Number(hit.semantic_score).toFixed(3)}（不是正确概率）</p>`}
       ${focus}
+      ${(hit.evidence_audit?.causal_event_explanations||[]).map(e=>`<p>${esc(e.explanation)}${e.qualification?' '+esc(e.qualification):''}（来源解释，未核实）</p>`).join('')}
+      ${(hit.evidence_audit?.causal_source_labels||[]).map(e=>`<p>来源标记：${esc(({accusation:'指控，不代表事实',insufficient_proof:'证据不足',historian_explanation:'史家评论',reported_explanation:'引述陈述，说话者尚待核定'})[e.kind]||'待核定')} · ${esc(e.quote)}（仅标记所在原文，不代表整段性质）</p>`).join('')}
       ${hit.evidence_audit?`<p class="evidence-audit">${hit.evidence_audit.status==='clues_present'?'包含所问要素与句式线索（未核实）':'自动核查尚未确认是否回答问题'}</p><details><summary>核查依据与相邻原文</summary>${hit.evidence_audit.missing.length?`<p>${esc(hit.evidence_audit.missing.join('；'))}。规则未识别不代表原文没有记载。</p>`:''}${(hit.context_chunks||[]).filter(n=>n.chunk_id!==c.chunk_id).map(n=>`<p>${readingTextHtml(n.text_orig,{pb:false})}</p><a href="#/punctuated/${Number(n.page_id)}?${qs({block:n.parts[0].block_index,start:n.parts[0].start,end:n.parts[0].end})}">定位此段</a>`).join('')||'<p>没有同层相邻片段。</p>'}<p>模型比较相关性，不核实历史事实。${hit.context_truncated?'模型输入存在截断。':''}</p></details>`:''}
       <div class="controls"><a class="btn read-link" href="${read}">标点原文与上下文</a><a href="${compare}">在原底本查找此句</a></div>
       <details class="source-detail"><summary>出处与版本</summary><p>${punctuatedSourceLink(c.source_url,'固定修订来源')} · ${punctuatedSourceLink(c.history_url,'修订历史')} · ${punctuatedSourceLink(c.license_url,'CC BY-SA 4.0')}</p>
