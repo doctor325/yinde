@@ -1,0 +1,236 @@
+[
+  {
+    "id": "tao_first",
+    "split": "independent_regression",
+    "query": "陶潜为什么辞去州祭酒？",
+    "chunk": {
+      "chunk_id": 85691,
+      "page_id": 22625,
+      "book_id": "KR2a0015",
+      "book_title": "晉書",
+      "title": "晉書/卷094",
+      "heading": "陶潛",
+      "layer": "body",
+      "status": "readable",
+      "reason": "",
+      "text_orig": "也。常著文章自娛，頗示己志，忘懷得失，以此自終。」其自序如此，時人謂之實錄。\n\n　　以親老家貧，起為州祭酒，不堪吏職，少日自解歸。州召主簿，不就，躬耕自資，遂抱羸疾。復為鎮軍、建威參軍，謂親朋曰：「聊欲弦歌，以為三徑之資可乎？」執事者聞之，以為彭澤令。在縣，公田悉令種秫穀，曰：「令吾常醉於酒足矣。」妻子固請種粳。乃使一頃五十畝種秫，五十畝種粳。素簡貴，不私事上官。郡遣督郵至縣，吏白應束帶見之，潛歎曰：「吾不能為五斗米折腰，拳拳事鄉里小人邪！",
+      "parts": [
+        {
+          "block_index": 75,
+          "start": 194,
+          "end": 416
+        }
+      ],
+      "edition": "维基文库录入本 · 标点版",
+      "revision_id": 5854886,
+      "source_url": "https://zh.wikisource.org/w/index.php?oldid=5854886",
+      "history_url": "https://zh.wikisource.org/w/index.php?title=%E6%99%89%E6%9B%B8%2F%E5%8D%B7094&action=history",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "attribution": "维基文库贡献者；作者、版本及修订历史见来源页面",
+      "source_sha256": "e392273c22b15392b11dc8bc8f8b7a6b5d6294a6e913c9bde9d57a61fb9c76ff",
+      "text_sha256": "c8061ca3fe3c5fdfb2dc25f23054ee6c1ca8f6f1b3b22e4e918c80406345f320"
+    },
+    "evidence": "不堪吏職，少日自解歸",
+    "event_type": "resignation",
+    "target_event": "州祭酒",
+    "source_attribution": "narrator_explanation",
+    "source_can_answer": true,
+    "policy": "不能把后任彭泽令的五斗米话语挪作本次原因。",
+    "selection": "Named historical contrasts chosen before evaluation; not random or blind; no production rule changes"
+  },
+  {
+    "id": "tao_pengze",
+    "split": "independent_regression",
+    "query": "陶潜为什么辞去彭泽令？",
+    "chunk": {
+      "chunk_id": 85692,
+      "page_id": 22625,
+      "book_id": "KR2a0015",
+      "book_title": "晉書",
+      "title": "晉書/卷094",
+      "heading": "陶潛",
+      "layer": "body",
+      "status": "readable",
+      "reason": "",
+      "text_orig": "。郡遣督郵至縣，吏白應束帶見之，潛歎曰：「吾不能為五斗米折腰，拳拳事鄉里小人邪！」義熙二年，解印去縣，乃賦《歸去來》。其辭曰：\n\n　　歸去來兮，田園將蕪胡不歸？既自以心為形役，奚惆悵而獨悲？悟已往之不諫，知來者之可追。實迷途其未遠，覺今是而昨非。舟遙遙以輕颺，風飄飄而吹衣，問征夫以前路，恨晨光之希微。乃瞻衡宇，載欣載奔。僮僕來迎，稚子侯門。三徑就荒，松菊猶存。攜幼入室，有酒盈樽。引壺觚以自酌，眄庭柯以怡顏，倚南窗以寄傲，審容膝之易安。園日涉而成趣，門雖設而常關；",
+      "parts": [
+        {
+          "block_index": 75,
+          "start": 376,
+          "end": 609
+        }
+      ],
+      "edition": "维基文库录入本 · 标点版",
+      "revision_id": 5854886,
+      "source_url": "https://zh.wikisource.org/w/index.php?oldid=5854886",
+      "history_url": "https://zh.wikisource.org/w/index.php?title=%E6%99%89%E6%9B%B8%2F%E5%8D%B7094&action=history",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "attribution": "维基文库贡献者；作者、版本及修订历史见来源页面",
+      "source_sha256": "e392273c22b15392b11dc8bc8f8b7a6b5d6294a6e913c9bde9d57a61fb9c76ff",
+      "text_sha256": "4c6e6bd4fbfca7989b9c90275b0b7b3f802877f5b2fb546d4fb37c8002ea435b"
+    },
+    "evidence": "吾不能為五斗米折腰，拳拳事鄉里小人邪！",
+    "event_type": "resignation",
+    "target_event": "彭泽令",
+    "source_attribution": "speaker_explanation",
+    "source_can_answer": true,
+    "policy": "本人话语与解印去县相邻；不得移用早年不堪吏职。",
+    "selection": "Named historical contrasts chosen before evaluation; not random or blind; no production rule changes"
+  },
+  {
+    "id": "shu_reason",
+    "split": "independent_regression",
+    "query": "疏广为什么辞官？",
+    "chunk": {
+      "chunk_id": 58360,
+      "page_id": 19698,
+      "book_id": "KR2a0007",
+      "book_title": "前漢書",
+      "title": "漢書/卷071",
+      "heading": "疏廣",
+      "layer": "body",
+      "status": "readable",
+      "reason": "",
+      "text_orig": "語》、《孝經》。廣謂受曰：「吾聞『知足不辱，知止不殆』，『功遂身退，天之道』也。今仕官至二千石，宦成名立，如此不去，懼有後悔，豈如父子相隨出關，歸老故鄉，以壽命終，不亦善乎？」受叩頭曰：「從大人議。」即日父子俱移病。滿三月賜告，廣遂稱篤，上疏乞骸骨。上以其年篤老，皆許之，加賜黃金二十斤，皇太子贈以五十斤。公卿大夫故人邑子設祖道，供張東都門外，送者車數百兩，辭決而去。及道路觀者皆曰：「賢哉二大夫！」或歎息為之下泣。\n\n廣既歸鄉里，日令家共具設酒食，請族人故舊賓客，與相娛樂。",
+      "parts": [
+        {
+          "block_index": 3,
+          "start": 358,
+          "end": 596
+        }
+      ],
+      "edition": "维基文库录入本 · 标点版",
+      "revision_id": 7904576,
+      "source_url": "https://zh.wikisource.org/w/index.php?oldid=7904576",
+      "history_url": "https://zh.wikisource.org/w/index.php?title=%E6%BC%A2%E6%9B%B8%2F%E5%8D%B7071&action=history",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "attribution": "维基文库贡献者；作者、版本及修订历史见来源页面",
+      "source_sha256": "be32afadfff3f8b983ce5148a790230d54f48b4d891f9c74231cd3a78010396a",
+      "text_sha256": "9c87e48284cf9cf06aa3d672a7e0a974359daa8959331ea9008cc9a1d7556325"
+    },
+    "evidence": "如此不去，懼有後悔",
+    "event_type": "resignation",
+    "target_event": "乞骸骨",
+    "source_attribution": "speaker_explanation",
+    "source_can_answer": true,
+    "policy": "广对受的陈述；称病是退职手续，不能证明真实疾病。",
+    "selection": "Named historical contrasts chosen before evaluation; not random or blind; no production rule changes"
+  },
+  {
+    "id": "shu_illness",
+    "split": "independent_regression",
+    "query": "疏广是否因为真的生病才辞官？",
+    "chunk": {
+      "chunk_id": 58360,
+      "page_id": 19698,
+      "book_id": "KR2a0007",
+      "book_title": "前漢書",
+      "title": "漢書/卷071",
+      "heading": "疏廣",
+      "layer": "body",
+      "status": "readable",
+      "reason": "",
+      "text_orig": "語》、《孝經》。廣謂受曰：「吾聞『知足不辱，知止不殆』，『功遂身退，天之道』也。今仕官至二千石，宦成名立，如此不去，懼有後悔，豈如父子相隨出關，歸老故鄉，以壽命終，不亦善乎？」受叩頭曰：「從大人議。」即日父子俱移病。滿三月賜告，廣遂稱篤，上疏乞骸骨。上以其年篤老，皆許之，加賜黃金二十斤，皇太子贈以五十斤。公卿大夫故人邑子設祖道，供張東都門外，送者車數百兩，辭決而去。及道路觀者皆曰：「賢哉二大夫！」或歎息為之下泣。\n\n廣既歸鄉里，日令家共具設酒食，請族人故舊賓客，與相娛樂。",
+      "parts": [
+        {
+          "block_index": 3,
+          "start": 358,
+          "end": 596
+        }
+      ],
+      "edition": "维基文库录入本 · 标点版",
+      "revision_id": 7904576,
+      "source_url": "https://zh.wikisource.org/w/index.php?oldid=7904576",
+      "history_url": "https://zh.wikisource.org/w/index.php?title=%E6%BC%A2%E6%9B%B8%2F%E5%8D%B7071&action=history",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "attribution": "维基文库贡献者；作者、版本及修订历史见来源页面",
+      "source_sha256": "be32afadfff3f8b983ce5148a790230d54f48b4d891f9c74231cd3a78010396a",
+      "text_sha256": "9c87e48284cf9cf06aa3d672a7e0a974359daa8959331ea9008cc9a1d7556325"
+    },
+    "evidence": "即日父子俱移病",
+    "event_type": "resignation",
+    "target_event": "真实疾病导致退职",
+    "source_attribution": "insufficient",
+    "source_can_answer": false,
+    "policy": "移病、称笃不能独立证明真实病因。",
+    "selection": "Named historical contrasts chosen before evaluation; not random or blind; no production rule changes"
+  },
+  {
+    "id": "li_refusal",
+    "split": "independent_regression",
+    "query": "李密为什么不接受太子洗马征召？",
+    "chunk": {
+      "chunk_id": 85201,
+      "page_id": 22619,
+      "book_id": "KR2a0015",
+      "book_title": "晉書",
+      "title": "晉書/卷088",
+      "heading": "李密",
+      "layer": "body",
+      "status": "readable",
+      "reason": "",
+      "text_orig": "\n\n李密，字令伯，犍為武陽人也，一名虔。父早亡，母何氏醮。密時年數歲，感戀彌至，烝烝之性，遂以成疾。祖母劉氏，躬自撫養，密奉事以孝謹聞。劉氏有疾，則涕泣側息，未嘗解衣，飲膳湯藥必先嘗後進。有暇則講學忘疲，而師事譙周，周門人方之游夏。\n\n少仕蜀，為郎。數使吳，有才辯，吳人稱之。蜀平，泰始初，詔徵為太子洗馬。密以祖母年高，無人奉養，遂不應命。乃上疏曰：\n\n臣以險釁，夙遭閔凶：生孩六月，慈父見背；行年四歲，舅奪母志。祖母劉湣臣孤弱，躬親撫養。",
+      "parts": [
+        {
+          "block_index": 3,
+          "start": 0,
+          "end": 220
+        }
+      ],
+      "edition": "维基文库录入本 · 标点版",
+      "revision_id": 2837021,
+      "source_url": "https://zh.wikisource.org/w/index.php?oldid=2837021",
+      "history_url": "https://zh.wikisource.org/w/index.php?title=%E6%99%89%E6%9B%B8%2F%E5%8D%B7088&action=history",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "attribution": "维基文库贡献者；作者、版本及修订历史见来源页面",
+      "source_sha256": "fab1b67679af144752e3f59bc39d913c31ef434bd810c899dc8faf2a3bb0107f",
+      "text_sha256": "895756c872a6704dfb4275f9906b3c2ea1450daa17edd648f87e145f7ce77644"
+    },
+    "evidence": "密以祖母年高，無人奉養，遂不應命",
+    "event_type": "appointment_refusal",
+    "target_event": "拒绝太子洗马征召",
+    "source_attribution": "narrator_explanation",
+    "source_can_answer": true,
+    "policy": "这是不应命，不能改写为已任官后辞官。",
+    "selection": "Named historical contrasts chosen before evaluation; not random or blind; no production rule changes"
+  },
+  {
+    "id": "li_resign",
+    "split": "independent_regression",
+    "query": "李密为什么辞去太子洗马？",
+    "chunk": {
+      "chunk_id": 85201,
+      "page_id": 22619,
+      "book_id": "KR2a0015",
+      "book_title": "晉書",
+      "title": "晉書/卷088",
+      "heading": "李密",
+      "layer": "body",
+      "status": "readable",
+      "reason": "",
+      "text_orig": "\n\n李密，字令伯，犍為武陽人也，一名虔。父早亡，母何氏醮。密時年數歲，感戀彌至，烝烝之性，遂以成疾。祖母劉氏，躬自撫養，密奉事以孝謹聞。劉氏有疾，則涕泣側息，未嘗解衣，飲膳湯藥必先嘗後進。有暇則講學忘疲，而師事譙周，周門人方之游夏。\n\n少仕蜀，為郎。數使吳，有才辯，吳人稱之。蜀平，泰始初，詔徵為太子洗馬。密以祖母年高，無人奉養，遂不應命。乃上疏曰：\n\n臣以險釁，夙遭閔凶：生孩六月，慈父見背；行年四歲，舅奪母志。祖母劉湣臣孤弱，躬親撫養。",
+      "parts": [
+        {
+          "block_index": 3,
+          "start": 0,
+          "end": 220
+        }
+      ],
+      "edition": "维基文库录入本 · 标点版",
+      "revision_id": 2837021,
+      "source_url": "https://zh.wikisource.org/w/index.php?oldid=2837021",
+      "history_url": "https://zh.wikisource.org/w/index.php?title=%E6%99%89%E6%9B%B8%2F%E5%8D%B7088&action=history",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "attribution": "维基文库贡献者；作者、版本及修订历史见来源页面",
+      "source_sha256": "fab1b67679af144752e3f59bc39d913c31ef434bd810c899dc8faf2a3bb0107f",
+      "text_sha256": "895756c872a6704dfb4275f9906b3c2ea1450daa17edd648f87e145f7ce77644"
+    },
+    "evidence": "遂不應命",
+    "event_type": "resignation",
+    "target_event": "辞去太子洗马",
+    "source_attribution": "event_mismatch",
+    "source_can_answer": false,
+    "policy": "本段只支持拒绝征召，不支持担任后辞职。",
+    "selection": "Named historical contrasts chosen before evaluation; not random or blind; no production rule changes"
+  }
+]
