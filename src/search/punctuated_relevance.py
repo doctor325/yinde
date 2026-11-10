@@ -35,6 +35,9 @@ DYNASTY_BOOKS = {'唐':('旧唐书','新唐书'),'宋':('宋史',),'明':('明�
 
 def plan(query):
     text=zh.to_simplified(query)
+    from search.office_events import query_frame
+    frame=query_frame(text)
+    if frame:text=frame['person']+'为什么辞官'
     rules=[(name,asks,terms) for name,asks,terms in RULES if any(a in text for a in asks)]
     # Objects (e.g. a parent) are kept as constraints even when they trigger a class.
     separators=list(FILLER)+[a for _,asks,_ in rules for a in asks if a not in ('父亲','母亲','儿子')]
@@ -64,7 +67,11 @@ def plan(query):
         if f in ('母亲','父亲','儿子'):
             c['forms'].append({'母亲':'母','父亲':'父','儿子':'子'}[f])
         if f=='宰相':c['forms']+=['丞相','同平章事','入相','为相']
-    return dict(version=VERSION,clues=clues,relation_groups=[dict(kind=n,terms=list(t)) for n,_,t in rules],
+    if frame:
+        if frame['action']=='appointment_refusal':
+            rules=[(n,a,t) for n,a,t in rules if n!='resignation']+ [('appointment_refusal',(),('不应命','不就','征为','召为'))]
+        clues.append(dict(text=frame['office'],forms=[S.normalize(frame['office'])],scope_titles=[]))
+    return dict(office_event=frame,version=VERSION,clues=clues,relation_groups=[dict(kind=n,terms=list(t)) for n,_,t in rules],
                 relation_verified=False,notes=['字面线索与近邻仅用于选取候选，未核实角色、否定、因果或人物同一性。'])
 
 

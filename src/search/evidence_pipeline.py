@@ -182,6 +182,8 @@ def audit(chunk, p, neighbors, annal=()):
     f=R.features(chunk,p)
     missing=[]
     if p['unsupported']:missing.append('无法可靠解析问题关系')
+    from search.office_events import observations as office_observations
+    annal=list(annal)+office_observations(chunk,p)
     scoped = [o for o in annal if o['polarity']=='positive_syntax']
     if not f['all_clues'] and not scoped:missing.append('主体或约束未在当前片段同时出现')
     observations=f['subject_syntax']['observations']+list(annal)
@@ -201,6 +203,10 @@ def audit(chunk, p, neighbors, annal=()):
         if slot in ('object','outcome'):
             slot_evidence[slot]=[o['quote'] for o in positive if o.get('resolved_object' if slot=='object' else 'outcome_span')]
             if not slot_evidence[slot]:missing.append('缺少可溯源的动作对象')
+            continue
+        if slot=='reason' and p.get('office_event'):
+            slot_evidence[slot]=[o['quote'] for o in positive if o.get('reason_span') and o.get('event_type')==p['office_event']['action'] and o.get('office')==p['office_event']['office']]
+            if not slot_evidence[slot]:missing.append('所问任职事件缺少绑定原因')
             continue
         checker={'time':time_attached,'place':place_attached}.get(slot)
         quotes=[o['quote'] for o in positive if (checker(o) if checker else (not o.get('subject_basis') or (slot=='office' and o.get('subject_basis')=='biography_recipient_chain')) and
