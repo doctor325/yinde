@@ -13,12 +13,15 @@ def main():
  sys.path.insert(0,str(root/'src/data/desktop/deps'))
  from PyInstaller.archive.readers import CArchiveReader
  archive=CArchiveReader(str(exe)).open_embedded_archive('PYZ.pyz')
- names=['search.evidence_pipeline','search.punctuated_roles','search.punctuated_relevance','search.person_references','search.patient_references','search.biography_office','search.event_links','search.relative_time','search.block_page_cache','search.result_block','desktop.main']
+ names=['search.evidence_pipeline','search.punctuated_roles','search.punctuated_relevance',
+        'search.person_references','search.patient_references','search.biography_office',
+        'search.event_links','search.relative_time','search.block_page_cache','search.result_block',
+        'search.office_events','search.departure_speech','search.causal_evidence','desktop.main']
  rows=[]
  for name in names:
   source=root/'src'/Path(*name.split('.')).with_suffix('.py')
-  code=archive.extract(name)
-  match=normalized(code)==normalized(compile(source.read_bytes(),str(source),'exec'))
+  code=archive.extract(name) if name in archive.toc else None
+  match=code is not None and normalized(code)==normalized(compile(source.read_bytes(),str(source),'exec'))
   rows.append(dict(module=name,source_sha256=hashlib.sha256(source.read_bytes()).hexdigest(),embedded_code_matches=match))
  with exe.open('rb') as stream:digest=hashlib.file_digest(stream,'sha256').hexdigest()
  result=dict(executable_sha256=digest,modules=rows)

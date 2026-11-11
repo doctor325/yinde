@@ -433,6 +433,8 @@
         const base = scanBgTokens(corpus, kept, filter);
         hits = u === null ? base : base.filter((i) => u.has(i));
       }
+      // Document frequency depends on the corpus and token, never on a hit.
+      const df = hits.length ? kept.map((tok) => bigramDf(corpus, tok)) : [];
       scoreNeg = new Float64Array(hits.length);
       for (let h = 0; h < hits.length; h++) {
         const i = hits[h];
@@ -443,7 +445,7 @@
         for (let k = 0; k < kept.length; k++) {
           let f = 0;
           for (let j = 0; j < own.length; j++) if (own[j] === kept[k]) f++;
-          s += bm25(st.bigram, bigramDf(corpus, kept[k]), dl, f);
+          s += bm25(st.bigram, df[k], dl, f);
         }
         scoreNeg[h] = -s;
       }

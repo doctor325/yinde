@@ -2,6 +2,15 @@ import unittest
 from search import evidence_pipeline as E
 
 class OfficeEvents(unittest.TestCase):
+    def test_dated_departure_refuses_intervening_actor(self):
+        plan=E.parse('东方明什么时候辞官？')
+        base=dict(book_title='甲史',heading='东方明',layer='body',revision_id=1,source_sha256='fixture')
+        opening='东方明字子明。除奉朝请。'
+        dated='永明十年，上表辞禄，诏许之。'
+        self.assertEqual(E.audit(dict(base,text_orig=opening+dated),plan,[])['status'],'clues_present')
+        for inserted in ('李君入朝。','张公曰：「当归。」','长子从军。'):
+            self.assertEqual(E.audit(dict(base,text_orig=opening+inserted+dated),plan,[])['status'],'insufficient')
+
     def test_queries_and_realistic_role_controls(self):
         for name in ('东方明','公孙平'):
             c=dict(book_title='甲史',heading=name,layer='body',revision_id=1,source_sha256='fixture')

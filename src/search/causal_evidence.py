@@ -80,3 +80,54 @@ def event_explanations(chunk, plan):
             qualification='称病是原文记载的对外理由，未核实真实病情。' if '称病' in m['event'] else '',
             relation_verified=False))
     return reports
+
+
+def attributed_observations(chunk, plan):
+    """Evidence of an attributed explanation, with source offsets and roles."""
+    if chunk.get('layer') != 'body' or not chunk.get('source_sha256') or not chunk.get('revision_id'):
+        return []
+    if len(plan['clues']) != 1:
+        return []
+    source=chunk['text_orig'];text=zh.to_simplified(source)
+    if len(source)!=len(text):
+        return []
+    kinds={g['kind'] for g in plan['relation_groups']}
+    name=plan['clues'][0]['text'];full=re.escape(name)
+    results=[]
+    if kinds=={'cause','resignation'} and plan.get('answer_slots')==['reason']:
+        for report in event_explanations(chunk,plan):
+            if not report['qualification']:
+                continue
+            value={**report,'polarity':'positive_syntax','qualifications':[],
+                   'predicate_span':report['event_span'],'source_attribution':report['attribution']}
+            results.extend(dict(value,kind=kind) for kind in ('resignation','cause'))
+        return results
+    if kinds=={'cause','policy'} and plan.get('answer_slots')==['outcome']:
+        pattern=(r'(?:^|[。\n])\s*(?:太史公|史臣)曰：(?:[^「」\n]{0,160}?[，。；](?:而)?)?'
+                 r'(?P<subject>'+full+r')(?P<predicate>(?:刻削|削)诸侯)，遂使'
+                 r'(?P<outcome>[\u3400-\u9fff]{1,12}(?:俱起|起兵|叛乱))(?=[，。；])')
+        attribution='historian_explanation'
+    elif kinds=={'cause','punishment'} and plan.get('answer_slots')==['reason']:
+        short=re.escape(name[-1:])
+        pattern=(r'(?:^|[。；」])对曰：「(?P<subject>'+full+r')[^「」\n]{1,180}?'
+                 r'[。；][后後]遭(?P<reason>[\u3400-\u9fff]{1,12}事)，遂'
+                 r'(?P<predicate>下(?:'+full+'|'+short+r')蚕室)[。；][^「」\n]{0,100}」')
+        attribution='reported_explanation'
+    else:
+        return []
+    for m in re.finditer(pattern,text):
+        if any(text.rfind(a,0,m.start())>text.rfind(b,0,m.start()+1)
+               for a,b in [('「','」'),('『','』'),('“','”')]):
+            continue
+        value=dict(start=m.start(),end=m.end(),quote=source[m.start():m.end()],
+                   subject_span=list(m.span('subject')),predicate_span=list(m.span('predicate')),
+                   subject_basis='explicit_source_attribution',source_attribution=attribution,
+                   polarity='positive_syntax',qualifications=[],relation_verified=False)
+        if 'reason' in m.groupdict():
+            value['reason_span']=list(m.span('reason'))
+            value['explanation']='原文对答将受刑与此事相连：'+source[slice(*m.span('reason'))]
+        else:
+            value['outcome_span']=list(m.span('outcome'))
+            value['explanation']='史家将此事记为后果：'+source[slice(*m.span('outcome'))]
+        results.extend(dict(value,kind=kind) for kind in sorted(kinds))
+    return results

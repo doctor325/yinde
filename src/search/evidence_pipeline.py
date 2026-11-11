@@ -188,9 +188,11 @@ def audit(chunk, p, neighbors, annal=()):
     if p['unsupported']:missing.append('无法可靠解析问题关系')
     from search.office_events import observations as office_observations
     from search.departure_speech import observations as speech_observations
+    from search.causal_evidence import attributed_observations
     speech=speech_observations(chunk,p)
     office=office_observations(chunk,p,neighbors)
-    annal=list(annal)+office+speech
+    attributed=attributed_observations(chunk,p)
+    annal=list(annal)+office+speech+attributed
     scoped = [o for o in annal if o['polarity']=='positive_syntax']
     if not f['all_clues'] and not scoped:missing.append('主体或约束未在当前片段同时出现')
     observations=f['subject_syntax']['observations']+list(annal)
@@ -215,8 +217,8 @@ def audit(chunk, p, neighbors, annal=()):
             slot_evidence[slot]=[o['quote'] for o in positive if o.get('reason_span') and o.get('event_type')==p['office_event']['action'] and o.get('office')==p['office_event']['office']]
             if not slot_evidence[slot]:missing.append('所问任职事件缺少绑定原因')
             continue
-        if slot=='reason' and speech:
-            slot_evidence[slot]=list(dict.fromkeys(o['quote'] for o in speech))
+        if slot=='reason' and (speech or any(o.get('reason_span') for o in attributed)):
+            slot_evidence[slot]=list(dict.fromkeys(o['quote'] for o in speech+attributed if o.get('reason_span')))
             continue
         if slot=='reason' and p.get('general_departure'):
             quotes=[o['quote'] for o in office if o['kind']=='cause' and o.get('reason_span')]
@@ -232,7 +234,8 @@ def audit(chunk, p, neighbors, annal=()):
     # Context is available for reading/model scoring, but not identity invention.
     adjacent_only=any(R.features(c,p)['all_clues'] for c in neighbors if c['chunk_id']!=chunk['chunk_id'])
     from search.causal_evidence import source_labels, event_explanations
-    causal_events=event_explanations(chunk,p)+[o for o in speech+office if o['kind']=='cause' and 'explanation' in o]
+    causal_events=event_explanations(chunk,p)+[o for o in speech+office+attributed
+        if o['kind']=='cause' and 'explanation' in o and 'event_span' not in o]
     causal_labels=source_labels(chunk) if 'cause' in needed else []
     return dict(status='clues_present' if not missing else 'insufficient',missing=missing,
                 causal_source_labels=causal_labels,

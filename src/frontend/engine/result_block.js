@@ -827,6 +827,7 @@
         const base = E.scanBgTokens(corpus, kept, filter);
         hits = u === null ? base : base.filter((i) => u.has(i));
       }
+      const df = hits.length ? kept.map((tok) => E.bigramDf(corpus, tok)) : [];
       scoreNeg = hits.map((i) => {
         const text = corpus.mtext[i];
         const own = E.bgTokens(text);
@@ -835,7 +836,7 @@
         for (let k = 0; k < kept.length; k++) {
           let f = 0;
           for (let j = 0; j < own.length; j++) if (own[j] === kept[k]) f++;
-          s += E.bm25(st.bigram, E.bigramDf(corpus, kept[k]), dl, f);
+          s += E.bm25(st.bigram, df[k], dl, f);
         }
         return -s;   // 同上：SQLite 的负分约定
       });

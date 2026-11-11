@@ -25,6 +25,23 @@ class CausalEvidence(unittest.TestCase):
 
 
 class EventExplanationTests(unittest.TestCase):
+    def test_attributed_evidence_preserves_event_roles(self):
+        import json
+        from pathlib import Path
+        cases={c['id']:c for c in json.loads(Path(__file__).with_name('evidence_acceptance').joinpath(
+            'causal7.json').read_text(encoding='utf8'))}
+        for key in ('sima','chao','wang'):
+            case=cases[key]
+            audit=E.audit(case['chunk'],E.parse(case['query']),[])
+            self.assertEqual(audit['status'],'clues_present',key)
+            self.assertFalse(audit['relation_verified'])
+        for key in ('bao','yue'):
+            case=cases[key]
+            self.assertEqual(E.audit(case['chunk'],E.parse(case['query']),[])['status'],'insufficient')
+        text='史臣曰：非甲公削诸侯，遂使七国俱起。'
+        c=dict(text_orig=text,book_title='甲史',layer='body',revision_id=1,source_sha256='fixture')
+        self.assertEqual(E.audit(c,E.parse('甲公削藩导致了什么事？'),[])['status'],'insufficient')
+
     def test_independent_names_and_event_boundary(self):
         from search.causal_evidence import event_explanations
         for name in ('诸葛明','东方平'):

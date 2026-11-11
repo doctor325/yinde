@@ -1,0 +1,18 @@
+{
+  "period_id": "moe-av8342",
+  "expected_ruler": "始皇帝",
+  "seed": 20261021,
+  "origin_path": "shiji/KR2a0001_100.txt",
+  "sha256": "b2c951b0613186eca4026c0f91d1dc913046313e778a2af368fd32fd63545991",
+  "chapter": "秦始皇本紀",
+  "cases": [
+    {"year_row": 7820, "year": "十一年", "row": 7823, "quote": "王翦攻閼與、橑楊", "content": "王翦攻阏与", "query": "王翦进攻阏与的记载"},
+    {"year_row": 7927, "year": "十九年", "row": 7928, "quote": "得趙王", "content": "秦军俘赵王", "query": "王翦和羌瘣俘赵王"},
+    {"year_row": 7949, "year": "二十年", "row": 7952, "quote": "使荊軻刺秦王", "content": "荆轲刺秦王", "query": "燕太子丹派荆轲刺秦王"},
+    {"year_row": 7961, "year": "二十一年", "row": 7965, "quote": "取燕薊城", "content": "秦军攻取蓟城", "query": "秦军攻取燕国蓟城"},
+    {"year_row": 7981, "year": "二十二年", "row": 7983, "quote": "引河溝灌大梁", "content": "王贲引水灌大梁", "query": "王贲攻魏水灌大梁"},
+    {"year_row": 7991, "year": "二十三年", "row": 7992, "quote": "秦王復召王翦", "content": "秦王复召王翦", "query": "秦王重新征召王翦攻楚"},
+    {"year_row": 8003, "year": "二十四年", "row": 8004, "quote": "王翦、蒙武攻荊", "content": "王翦蒙武攻楚", "query": "王翦和蒙武进攻楚国"},
+    {"year_row": 8029, "year": "二十六年", "row": 8032, "quote": "秦使將軍王賁從燕南攻齊", "content": "王贲从燕南攻齐", "query": "王贲从燕地南下进攻齐国"}
+  ]
+}

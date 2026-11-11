@@ -91,7 +91,12 @@ def _scoped_events(chunk, text, frame, neighbors):
         if not (before.startswith(name) and appointment and _outside_quotes(text,m.start('record'))):
             continue
         bridge=before[appointment.end():]
-        if len(bridge)>65 or re.search(r'曰|云|引|妻|子[名字]|兄|弟|父|母|卒|薨|诏|罢|免|徙|迁|除|拜',bridge):
+        # Allow closed continuations of the appointee's conduct or an
+        # impersonal assessment. An arbitrary sentence can introduce a new actor.
+        if not re.fullmatch(
+            r'(?:虽在'+HAN+r'{1,8}，(?:闭影|杜门|屏居)不交'+HAN+r'{1,8}，唯以'+HAN+r'{1,8}[为爲]务。)?'
+            r'(?:'+HAN+r'{2,8}，(?:多|皆|悉)取决焉。)?',bridge
+        ):
             continue
         result.extend(_event(chunk,frame,m,office=appointment['office']))
     return result
