@@ -1,0 +1,149 @@
+[
+  {
+    "id": "huang-refusal",
+    "query": "皇甫谧为什么不接受太子中庶子征召？",
+    "answerable": true,
+    "sources": [
+      {
+        "chunk_id": 82118,
+        "page_id": 20575,
+        "revision_id": 7904591,
+        "source_sha256": "653a7d6f80a35aa08842f52a230663b6ba5ede52b8df668f06133bac6360b420",
+        "source_url": "https://zh.wikisource.org/w/index.php?oldid=7904591",
+        "title": "晉書/卷051",
+        "heading": "皇甫謐",
+        "quote": "其以謐為太子中庶子。」謐固辭篤疾",
+        "offset": 191
+      }
+    ],
+    "policy": "史书记载皇甫谧以重病坚辞，应保留陈述归属。"
+  },
+  {
+    "id": "huang-office-mismatch",
+    "query": "皇甫谧为什么辞去议郎？",
+    "answerable": false,
+    "sources": [
+      {
+        "chunk_id": 82119,
+        "page_id": 20575,
+        "revision_id": 7904591,
+        "source_sha256": "653a7d6f80a35aa08842f52a230663b6ba5ede52b8df668f06133bac6360b420",
+        "source_url": "https://zh.wikisource.org/w/index.php?oldid=7904591",
+        "title": "晉書/卷051",
+        "heading": "皇甫謐",
+        "quote": "又召補著作郎。司隸校尉劉毅請為功曹，並不應",
+        "offset": 33
+      }
+    ],
+    "policy": "议郎是后续征召之一。不得把未应命作任职后离任，也不得移用此前坚辞太子中庶子的理由。"
+  },
+  {
+    "id": "zhang-statement",
+    "query": "张翰为什么辞去大司马东曹掾？",
+    "answerable": true,
+    "sources": [
+      {
+        "chunk_id": 85487,
+        "page_id": 22623,
+        "revision_id": 2835641,
+        "source_sha256": "2088778269922e63797ae3420bf72ddf97e4615516dfab674b8b504e2fc47233",
+        "source_url": "https://zh.wikisource.org/w/index.php?oldid=2835641",
+        "title": "晉書/卷092",
+        "heading": "張翰",
+        "quote": "齊王冏辟為大司馬東曹掾",
+        "offset": 119
+      },
+      {
+        "chunk_id": 85488,
+        "page_id": 22623,
+        "revision_id": 2835641,
+        "source_sha256": "2088778269922e63797ae3420bf72ddf97e4615516dfab674b8b504e2fc47233",
+        "source_url": "https://zh.wikisource.org/w/index.php?oldid=2835641",
+        "title": "晉書/卷092",
+        "heading": "張翰",
+        "quote": "人生貴得適志，何能羈宦數千里以要名爵乎！」遂命駕而歸",
+        "offset": 65
+      }
+    ],
+    "policy": "85487标记官职，85488载张翰自述并归去。顾荣的对话、后人见机的看法不可替代本人自述。"
+  },
+  {
+    "id": "gu-actor-mismatch",
+    "query": "顾荣为什么辞去大司马东曹掾？",
+    "answerable": false,
+    "sources": [
+      {
+        "chunk_id": 85487,
+        "page_id": 22623,
+        "revision_id": 2835641,
+        "source_sha256": "2088778269922e63797ae3420bf72ddf97e4615516dfab674b8b504e2fc47233",
+        "source_url": "https://zh.wikisource.org/w/index.php?oldid=2835641",
+        "title": "晉書/卷092",
+        "heading": "張翰",
+        "quote": "翰謂同郡顧榮曰",
+        "offset": 136
+      },
+      {
+        "chunk_id": 85488,
+        "page_id": 22623,
+        "revision_id": 2835641,
+        "source_sha256": "2088778269922e63797ae3420bf72ddf97e4615516dfab674b8b504e2fc47233",
+        "source_url": "https://zh.wikisource.org/w/index.php?oldid=2835641",
+        "title": "晉書/卷092",
+        "heading": "張翰",
+        "quote": "遂命駕而歸",
+        "offset": 86
+      }
+    ],
+    "policy": "顾荣是对话另一方。该离任及官职属于张翰。"
+  },
+  {
+    "id": "xue-joint-departure",
+    "query": "薛广德为什么辞官？",
+    "answerable": true,
+    "sources": [
+      {
+        "chunk_id": 58372,
+        "page_id": 19698,
+        "revision_id": 7904576,
+        "source_sha256": "be32afadfff3f8b983ce5148a790230d54f48b4d891f9c74231cd3a78010396a",
+        "source_url": "https://zh.wikisource.org/w/index.php?oldid=7904576",
+        "title": "漢書/卷071",
+        "heading": "薛廣德",
+        "quote": "以歲惡民流，與丞相定國、大司馬車騎將軍史高俱乞骸骨",
+        "offset": 185
+      }
+    ],
+    "policy": "原文以年成差和百姓流离解释共同乞退，须绑定到薛广德，不取张猛此前进言。"
+  },
+  {
+    "id": "taoh-retirement-date",
+    "query": "陶弘景什么时候辞官？",
+    "answerable": true,
+    "sources": [
+      {
+        "chunk_id": 157446,
+        "page_id": 58260,
+        "revision_id": 1504714,
+        "source_sha256": "293fc08207806d94794975b330f9f4434d0d8ae9072e16b41c2bb98b2e9b853e",
+        "source_url": "https://zh.wikisource.org/w/index.php?oldid=1504714",
+        "title": "梁書/卷51",
+        "heading": "陶弘景",
+        "quote": "永明十年，上表辭祿，詔許之",
+        "offset": 193
+      },
+      {
+        "chunk_id": 157447,
+        "page_id": 58260,
+        "revision_id": 1504714,
+        "source_sha256": "293fc08207806d94794975b330f9f4434d0d8ae9072e16b41c2bb98b2e9b853e",
+        "source_url": "https://zh.wikisource.org/w/index.php?oldid=1504714",
+        "title": "梁書/卷51",
+        "heading": "陶弘景",
+        "quote": "永明十年，上表辭祿，詔許之",
+        "offset": 21
+      }
+    ],
+    "policy": "梁书明确给出辞禄年份及准许，既往诸王侍读和奉朝请两任职记录不等于离任。"
+  }
+]
