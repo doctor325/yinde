@@ -1,0 +1,74 @@
+[
+  {
+    "id": "he-refusal",
+    "query": "何琦为什么不接受参军征召？",
+    "answerable": true,
+    "sources": [
+      {
+        "chunk_id": 85252,
+        "page_id": 22619,
+        "revision_id": 2837021,
+        "source_sha256": "fab1b67679af144752e3f59bc39d913c31ef434bd810c899dc8faf2a3bb0107f",
+        "source_url": "https://zh.wikisource.org/w/index.php?oldid=2837021",
+        "heading": "何琦",
+        "quote": "召為參軍，固辭以疾",
+        "offset": 213
+      }
+    ],
+    "policy": "该次征召紧接坚辞，以疾为由。"
+  },
+  {
+    "id": "he-departure-mismatch",
+    "query": "何琦为什么辞去参军？",
+    "answerable": false,
+    "sources": [
+      {
+        "chunk_id": 85252,
+        "page_id": 22619,
+        "revision_id": 2837021,
+        "source_sha256": "fab1b67679af144752e3f59bc39d913c31ef434bd810c899dc8faf2a3bb0107f",
+        "source_url": "https://zh.wikisource.org/w/index.php?oldid=2837021",
+        "heading": "何琦",
+        "quote": "召為參軍，固辭以疾",
+        "offset": 213
+      }
+    ],
+    "policy": "征召后拒任不能证明任职后辞去。"
+  },
+  {
+    "id": "zhang-multiple-offices",
+    "query": "张茂度为什么不接受都官尚书征召？",
+    "answerable": false,
+    "sources": [
+      {
+        "chunk_id": 41982,
+        "page_id": 18433,
+        "revision_id": 1996685,
+        "source_sha256": "95226c86fe13d535c410f8134c09048a22423305a5a65c8111dbde136802cbae",
+        "source_url": "https://zh.wikisource.org/w/index.php?oldid=1996685",
+        "heading": "張茂度",
+        "quote": "徵為都官尚書，加散騎常侍，固辭以疾",
+        "offset": 104
+      }
+    ],
+    "policy": "存在同时授予的两个头衔，要求系统保留单一官职归属的不确定性。"
+  },
+  {
+    "id": "gongsun-petition",
+    "query": "公孙弘为什么辞官？",
+    "answerable": false,
+    "sources": [
+      {
+        "chunk_id": 10932,
+        "page_id": 9524,
+        "revision_id": 2089420,
+        "source_sha256": "d088a47239e11c21609fd635a557c485f26928678344701fe662fd008597f355",
+        "source_url": "https://zh.wikisource.org/w/index.php?oldid=2089420",
+        "heading": "公孫弘",
+        "quote": "居數月，病有瘳，視事",
+        "offset": 125
+      }
+    ],
+    "policy": "乞骸骨后获准养病并复职，不应当成已离任。"
+  }
+]

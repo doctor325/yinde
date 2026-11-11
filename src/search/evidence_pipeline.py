@@ -30,6 +30,8 @@ def time_attached(observation):
     Unknown era-name constructions remain unconfirmed rather than guessed.
     """
     if observation.get('time_reference',{}).get('status')=='anchored_relative':return True
+    if observation.get('date_span') and observation.get('subject_basis')=='source_local_office_chain':
+        return True
     quote=observation['quote']
     subject=observation.get('subject_span')
     predicate=observation.get('predicate_span')
@@ -76,6 +78,7 @@ def place_attached(observation):
 
 
 def parse(query):
+    from search.office_events import general_departure_frame
     text=zh.to_simplified(query)
     office_question = r'(?:担任|出任)(?:过)?(?:什么|哪些|何种)(?:官职|职务)'
     title_question=r'(?:被)?封为(?:什么|何种)(?:侯|爵位|爵)'
@@ -96,6 +99,7 @@ def parse(query):
                          ('reason',r'为什么|为何|原因'),('quantity',r'多少|几次|几年|几卷')):
         if re.search(pattern,text):slots.append(name)
     p.update(answer_slots=slots,subject=p['clues'][:1],constraints=p['clues'][1:],
+             general_departure=general_departure_frame(text),
              unsupported=not bool(p['clues'] and p['relation_groups']),pipeline_version=VERSION)
     return p
 
@@ -214,6 +218,11 @@ def audit(chunk, p, neighbors, annal=()):
         if slot=='reason' and speech:
             slot_evidence[slot]=list(dict.fromkeys(o['quote'] for o in speech))
             continue
+        if slot=='reason' and p.get('general_departure'):
+            quotes=[o['quote'] for o in office if o['kind']=='cause' and o.get('reason_span')]
+            if quotes:
+                slot_evidence[slot]=list(dict.fromkeys(quotes))
+                continue
         checker={'time':time_attached,'place':place_attached}.get(slot)
         quotes=[o['quote'] for o in positive if (checker(o) if checker else (not o.get('subject_basis') or (slot=='office' and o.get('subject_basis')=='biography_recipient_chain')) and
                 (re.search(ANSWER_PATTERNS[slot],zh.to_simplified(o['quote'])) or
@@ -252,6 +261,8 @@ def biography_context_candidates(conn,p,subject,book=None):
         terms=('不应命','不就','不拜','辞不受','不至')
     else:
         terms=('乞骸骨','致仕','解印','去县','去官','去位','辞官','自解归','解官','去郡','乞退')
+        if frame:
+            terms+=('辄去，除吏名',)
     name=p['clues'][0]['text']
     office=frame['office'] if frame else None
     keys=('page_id','book_id','revision_id','source_sha256','heading','layer')
