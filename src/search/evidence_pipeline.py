@@ -185,7 +185,8 @@ def audit(chunk, p, neighbors, annal=()):
     from search.office_events import observations as office_observations
     from search.departure_speech import observations as speech_observations
     speech=speech_observations(chunk,p)
-    annal=list(annal)+office_observations(chunk,p)+speech
+    office=office_observations(chunk,p,neighbors)
+    annal=list(annal)+office+speech
     scoped = [o for o in annal if o['polarity']=='positive_syntax']
     if not f['all_clues'] and not scoped:missing.append('主体或约束未在当前片段同时出现')
     observations=f['subject_syntax']['observations']+list(annal)
@@ -222,7 +223,7 @@ def audit(chunk, p, neighbors, annal=()):
     # Context is available for reading/model scoring, but not identity invention.
     adjacent_only=any(R.features(c,p)['all_clues'] for c in neighbors if c['chunk_id']!=chunk['chunk_id'])
     from search.causal_evidence import source_labels, event_explanations
-    causal_events=event_explanations(chunk,p)+[o for o in speech if o['kind']=='cause']
+    causal_events=event_explanations(chunk,p)+[o for o in speech+office if o['kind']=='cause' and 'explanation' in o]
     causal_labels=source_labels(chunk) if 'cause' in needed else []
     return dict(status='clues_present' if not missing else 'insufficient',missing=missing,
                 causal_source_labels=causal_labels,
