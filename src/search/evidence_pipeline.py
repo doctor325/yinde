@@ -239,26 +239,59 @@ def audit(chunk, p, neighbors, annal=()):
 
 def biography_context_candidates(conn,p,subject,book=None):
     """Recall within source-attested biographies; never promote heading to actor."""
-    if not any(g['kind']=='imprisonment' for g in p['relation_groups']) or len(p['clues'])!=1:
-        return [],dict(pages=0)
-    name=p['clues'][0]['text'];anchors={}
+    kinds={g['kind'] for g in p['relation_groups']}
+    frame=p.get('office_event')
+    imprisonment='imprisonment' in kinds and len(p['clues'])==1
+    departure=kinds=={'cause','resignation'} and len(p['clues'])==1
+    if not (imprisonment or departure or frame):
+        return [],dict(pages=0,scanned=0)
+    if imprisonment:
+        terms=('狱','系','坐','诬','证')
+    elif frame and frame['action']=='appointment_refusal':
+        terms=('不应命','不就','不拜','辞不受','不至')
+    else:
+        terms=('乞骸骨','致仕','解印','去县','去官','去位','辞官','自解归','解官','去郡','乞退')
+    name=p['clues'][0]['text']
+    office=frame['office'] if frame else None
     keys=('page_id','book_id','revision_id','source_sha256','heading','layer')
-    for h in subject:
-        c=h['chunk']
-        if book and c['book_id']!=book:continue
-        heading=zh.to_simplified(c.get('heading','')).strip()
-        opening=re.match(r'\s*'+re.escape(name)+r'[，,]?字',zh.to_simplified(c['text_orig']))
-        if (c.get('layer')=='body' and opening and heading in ('',name)):
-            anchors[tuple(c.get(k) for k in keys)]=c
-    hits=[]
-    for scope,c in anchors.items():
-        for row in conn.execute('SELECT payload FROM chunks WHERE page_id=?',(c['page_id'],)):
+    anchors={}
+    for hit in subject:
+        chunk=hit['chunk']
+        if book and chunk['book_id']!=book:
+            continue
+        heading=zh.to_simplified(chunk.get('heading','')).strip()
+        opening=re.match(r'\s*'+re.escape(name)+r'[，,]?字',zh.to_simplified(chunk['text_orig']))
+        if chunk.get('layer')!='body' or not opening:
+            continue
+        if imprisonment:
+            if heading not in ('',name):
+                continue
+        elif heading!=name or not chunk.get('revision_id') or not chunk.get('source_sha256'):
+            continue
+        anchors[tuple(chunk.get(k) for k in keys)]=chunk
+    ranked=[]
+    scanned=0
+    for scope,anchor in anchors.items():
+        peers={}
+        for row in conn.execute('SELECT payload FROM chunks WHERE page_id=? AND book_id=?',
+                                (anchor['page_id'],anchor['book_id'])):
             peer=json.loads(row[0])
-            if tuple(peer.get(k) for k in keys)!=scope:continue
-            text=zh.to_simplified(peer['text_orig'])
-            if any(t in text for t in ('狱','系','坐','诬','证')):hits.append(dict(chunk=peer))
-    hits.sort(key=lambda h:(-sum(t in zh.to_simplified(h['chunk']['text_orig']) for t in ('狱','系','坐','诬','证')),h['chunk']['chunk_id']))
-    return hits,dict(pages=len(anchors))
+            if tuple(peer.get(k) for k in keys)==scope:
+                peers[peer['chunk_id']]=peer
+        normalized={cid:zh.to_simplified(peer['text_orig']) for cid,peer in peers.items()}
+        scanned+=len(peers)
+        for cid,text in normalized.items():
+            matches=sum(term in text for term in terms)
+            if not matches:
+                continue
+            office_rank=0
+            if office and office not in text:
+                if not any(office in normalized.get(adjacent,'') for adjacent in (cid-1,cid+1)):
+                    continue
+                office_rank=1
+            ranked.append(((office_rank,-matches,cid),dict(chunk=peers[cid])))
+    ranked.sort(key=lambda item:item[0])
+    return [hit for _,hit in ranked],dict(pages=len(anchors),scanned=scanned)
 
 
 def evaluate(query,conn,dense,batches,book=None,rerank=None):
@@ -359,7 +392,7 @@ def evaluate(query,conn,dense,batches,book=None,rerank=None):
                       displayed=i<=20) for i,h in enumerate(hits,1)]
     return dict(hits=hits[:20],query_plan=p,pipeline=dict(version=VERSION,
         candidate_counts=dict(semantic=len(dense),lexical=len(literal),subject=len(subject),context_scored=len(hits)),
-        biography_sources=identity,
+        biography_sources=identity,biography_context_scan=biography_scan,
         channel_quota=CHANNEL_LIMIT,grounded_fallback=grounding,
         admission={name:dict(available=len(items),reserved=min(len(items),CHANNEL_LIMIT),
                             admitted=sum(name in h['channels'] for h in hits)) for name,items in channels},

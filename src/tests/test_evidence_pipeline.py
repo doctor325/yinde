@@ -124,6 +124,27 @@ class Evidence(unittest.TestCase):
         self.assertTrue(all(not h['evidence_audit']['relation_verified'] for h in r['hits']))
         self.assertEqual(r['candidate_ids'],[1,2])
 
+    def test_biography_context_recall_keeps_source_and_office_scope(self):
+        db,_=self.evaluation_database()
+        anchor={**chunk('司马某，字子长。'), 'heading':'司馬某'}
+        rows=[anchor,
+              {**anchor, **dict(chunk_id=10,text_orig='任彭泽令。')},
+              {**anchor, **dict(chunk_id=11,text_orig='遂解印去县。')},
+              {**anchor, **dict(chunk_id=12,text_orig='彭泽令请致仕。',revision_id=2)},
+              {**anchor, **dict(chunk_id=13,text_orig='彭泽令请致仕。',layer='annotation')},
+              {**anchor, **dict(chunk_id=14,text_orig='彭泽令请致仕。',heading='他人')},
+              {**anchor, **dict(chunk_id=15,text_orig='彭泽令请致仕。',source_sha256='other')},
+              {**anchor, **dict(chunk_id=16,text_orig='任州祭酒，自解归。')}]
+        for c in rows[1:]:
+            db.execute('INSERT INTO chunks VALUES(?,?,?,?,?)',
+                       (c['chunk_id'],c['book_id'],c['page_id'],S.normalize(c['text_orig']),json.dumps(c)))
+        plan=E.parse('司马某为什么辞去彭泽令？')
+        hits,scan=E.biography_context_candidates(db,plan,[dict(chunk=anchor)])
+        self.assertEqual([h['chunk']['chunk_id'] for h in hits],[11])
+        self.assertEqual(scan['pages'],1)
+        self.assertEqual(E.audit(hits[0]['chunk'],plan,[])['status'],'insufficient')
+        self.assertEqual(E.biography_context_candidates(db,plan,[dict(chunk=anchor)],book='other')[0],[])
+
     def test_invalid_model_output_is_rejected(self):
         db,_=self.evaluation_database()
         for scores in ([1.],[1.,float('nan')],['1','2']):
