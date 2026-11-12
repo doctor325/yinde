@@ -1,0 +1,10 @@
+{
+  "sha256": "b3ba0ccce547b14b5840449083599ee77ea11dcab6e4ccffdef0742410937fe1",
+  "cases": 40,
+  "people": 20,
+  "selection": "source-read before reader implementation; purposive, not random or blind",
+  "split_unit": "person and chapter; same-source contrasts stay in same split",
+  "base_commit": "d070c9121ae92679d0a1d75b0d5d5546bdcb779a",
+  "original_windows_file_sha256": "e68cb3c8bd05a16d771e74f02a596ecbb0098f71d4ad47590a51f8d6efbd932b",
+  "hash_basis": "UTF-8 bytes with CRLF normalized to LF; case content unchanged"
+}

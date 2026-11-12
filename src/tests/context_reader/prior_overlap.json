@@ -1,0 +1,15 @@
+{
+  "policy": "Frozen v1 cases are unchanged. This records a limited prior-fixture name audit, not proof of blind independence.",
+  "scope": "Simplified person-name occurrence in existing src/tests/**/*.json, excluding context_reader; code fixtures and alternate spellings are not exhaustive.",
+  "overlaps": {
+    "luxun": ["tests/evidence_pipeline_holdout.json", "tests/semantic_context_holdout.json", "tests/search_cases/sanguozhi_jinshu.json"],
+    "wangxiang": ["tests/search_cases/sanguozhi_jinshu.json"],
+    "zuchongzhi": ["tests/punctuated_relevance_holdout.json"],
+    "direnjie": ["tests/semantic_context_holdout.json"],
+    "fanzhongyan": ["tests/evidence_pipeline_holdout.json", "tests/semantic_context_holdout.json"],
+    "ouyangxiu": ["tests/punctuated_relevance_queries.json", "tests/semantic_context_holdout.json"],
+    "hairui": ["tests/punctuated_relevance_queries.json", "tests/semantic_context_holdout.json"]
+  },
+  "holdout_groups_with_no_detected_prior_name": ["xiangxiu", "liuling", "shenyue", "wangwei", "yanzhenqing", "songlian", "yuqian", "mengtian"],
+  "model_pilot_has_detected_prior_name_overlap": false
+}
