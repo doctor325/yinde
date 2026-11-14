@@ -32,6 +32,40 @@ class LocalReader:
         with self.opener.open(request, timeout=timeout or self.timeout) as response:
             return json.load(response)
 
+    def _wait_ready(self, started):
+        self.startup_diagnostics = dict(attempts=0, last_error=None)
+        while True:
+            remaining = 60 - (time.perf_counter() - started)
+            if remaining <= 0:
+                raise TimeoutError('Local reader startup exceeded 60 seconds; health=' +
+                                   json.dumps(self.startup_diagnostics, ensure_ascii=False))
+            if self.process.poll() is not None:
+                raise RuntimeError('Local reader exited during startup')
+            self.startup_diagnostics['attempts'] += 1
+            try:
+                response = self.request('/health', timeout=min(1, remaining))
+                status = response.get('status')
+                if status == 'ok':
+                    return
+                # Do not log response bodies, URLs, authorization headers or keys.
+                error = dict(type='health_status', status=status if status in
+                             ('loading model', 'error', 'loading') else 'unexpected')
+            except (OSError, urllib.error.URLError) as exc:
+                cause = exc.reason if isinstance(exc, urllib.error.URLError) else exc
+                error = dict(type=type(exc).__name__, errno=getattr(cause, 'errno', None),
+                             winerror=getattr(cause, 'winerror', None))
+                if isinstance(exc, urllib.error.HTTPError):
+                    error['code'] = exc.code
+                    exc.close()
+                self.startup_diagnostics['last_error'] = error
+                if error['errno'] in (1, 13) or error['winerror'] == 10013:
+                    raise PermissionError('Loopback health connection denied; health=' +
+                                          json.dumps(error)) from exc
+            self.startup_diagnostics['last_error'] = error
+            remaining = 60 - (time.perf_counter() - started)
+            if remaining > 0:
+                time.sleep(min(.25, remaining))
+
     def __enter__(self):
         from scripts.setup_evidence_reader import ASSETS, digest
         self.receipt = json.loads((self.home/'receipt.json').read_text(encoding='utf8'))
@@ -59,13 +93,7 @@ class LocalReader:
                 '--no-context-shift','--cache-ram','0'],cwd=self.home,env=env,
                 stdin=subprocess.DEVNULL,stdout=self.log,stderr=self.log,
                 creationflags=getattr(subprocess,'CREATE_NO_WINDOW',0))
-            while time.perf_counter()-started<60:
-                if self.process.poll() is not None:raise RuntimeError('Local reader exited during startup')
-                try:
-                    if self.request('/health',timeout=1).get('status')=='ok':break
-                except (OSError,urllib.error.URLError):pass
-                time.sleep(.25)
-            else:raise TimeoutError('Local reader startup exceeded 60 seconds')
+            self._wait_ready(started)
             self.startup_ms=round((time.perf_counter()-started)*1000,2)
             return self
         except BaseException:

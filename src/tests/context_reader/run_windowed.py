@@ -138,7 +138,8 @@ def run(path):
     started = time.perf_counter()
     try:
         with LocalReader(timeout=120) as reader:
-            report['model'] = dict(receipt=reader.receipt, startup_ms=reader.startup_ms)
+            report['model'] = dict(receipt=reader.receipt, startup_ms=reader.startup_ms,
+                                  startup_diagnostics=reader.startup_diagnostics)
             phase = 'inference'
             for row in report['rows']:
                 def checkpoint(progress):
@@ -167,12 +168,37 @@ def run(path):
     return int(any('error' in row for row in report['rows']))
 
 
+def resume_startup(path):
+    """Explicit new attempt only when no question ever reached inference."""
+    path = Path(path).resolve()
+    if not path.is_relative_to(RUN_HOME.resolve()) or path.name != 'report.json':
+        raise ValueError('Resume only a repository experiment report')
+    report = json.loads(path.read_text(encoding='utf8'))
+    if (report['state'] != 'interrupted' or report.get('fatal_error', {}).get('phase') != 'startup'
+            or any('reading' in row or 'error' in row for row in report['rows'])):
+        raise ValueError('Only startup failures with no inference can be resumed')
+    report['previous_attempt'] = str(path)
+    report.pop('fatal_error')
+    report['state'] = 'prepared'
+    for row in report['rows']:
+        row['semantic_review'] = 'pending'
+    folder = RUN_HOME / uuid.uuid4().hex[:12]
+    folder.mkdir(parents=True, exist_ok=False)
+    output = folder / 'report.json'
+    save(output, report)
+    return run(output)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     modes = parser.add_mutually_exclusive_group(required=True)
     modes.add_argument('--prepare', action='store_true', help='Read source and print the pair window; no model')
     modes.add_argument('--run', metavar='PREPARED_REPORT', help='Run the prepared pair once with unchanged limits')
+    modes.add_argument('--resume-startup', metavar='FAILED_REPORT',
+                       help='Preserve a startup-only failure and attempt the identical inputs in a new directory')
     args = parser.parse_args()
+    if args.resume_startup:
+        return resume_startup(args.resume_startup)
     return prepare() if args.prepare else run(args.run)
 
 
