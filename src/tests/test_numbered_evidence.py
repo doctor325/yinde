@@ -1,4 +1,7 @@
 import unittest
+import copy
+import json
+from unittest.mock import patch
 from search import numbered_evidence as N
 
 
@@ -37,5 +40,37 @@ class NumberedEvidence(unittest.TestCase):
         self.assertFalse(N.guard(v,q,es,c)['eligible'])
         v['references']['answer']=[]
         self.assertFalse(N.guard(v,q,es,c)['eligible'])
+
+    def test_wire_preserves_text_flags_and_keeps_offsets_local(self):
+        es=N.numbered(self.context())
+        es.append(dict(es[0],id='e2',role='opening_context',complete=False,text='甲\n「乙」\\"'))
+        original=copy.deepcopy(es);wire=N.evidence_payload(es)
+        self.assertEqual(es,original)
+        self.assertEqual(wire['evidence'],{e['id']:e['text'] for e in es})
+        self.assertEqual(wire['opening_context'],['e2'])
+        self.assertEqual(wire['incomplete'],['e2'])
+        self.assertNotIn('parts',wire)
+        self.assertEqual(json.loads(N.encode(wire)),wire)
+        with self.assertRaises(ValueError):N.evidence_payload(es+[es[0]])
+        with self.assertRaises(ValueError):N.evidence_payload([dict(es[0],role='unrecognized')])
+
+    def test_timeout_preserves_completed_question_and_phase(self):
+        q=dict(output=dict(actor='甲',action='拒任',object='',requested='原因'),ms=1,usage={})
+        saved=[]
+        with patch.object(N,'generate',side_effect=[q,TimeoutError('timed out')]):
+            with self.assertRaises(N.ReadError) as error:
+                N.read(None,'甲为何拒任',self.context(),lambda r:saved.append(copy.deepcopy(r)))
+        report=error.exception.report
+        self.assertEqual(report['question'],q)
+        self.assertEqual(report['error']['phase'],'judgement')
+        self.assertFalse(report['completed'])
+        self.assertTrue(any('question' in s and 'error' not in s for s in saved))
+        self.assertEqual(saved[-1]['error']['type'],'TimeoutError')
+
+    def test_question_failure_does_not_call_judgement(self):
+        with patch.object(N,'generate',side_effect=ValueError('bad response')) as generate:
+            with self.assertRaises(N.ReadError) as error:N.read(None,'甲是谁',self.context())
+        self.assertEqual(generate.call_count,1)
+        self.assertEqual(error.exception.report['phase'],'question')
 
 if __name__=='__main__':unittest.main()
