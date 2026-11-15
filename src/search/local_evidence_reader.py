@@ -16,7 +16,10 @@ DEFAULT_HOME = ROOT / 'src/data/evidence-reader'
 
 
 class LocalReader:
-    def __init__(self, home=DEFAULT_HOME, timeout=120):
+    def __init__(self, home=DEFAULT_HOME, timeout=120, model='qwen3-4b'):
+        from scripts.setup_evidence_reader import model_spec
+        self.model_spec, self.assets = model_spec(model)
+        self.model_key = model
         self.home = Path(home).resolve()
         if not self.home.is_relative_to(ROOT):
             raise ValueError('Reader assets must remain inside this repository')
@@ -67,16 +70,16 @@ class LocalReader:
                 time.sleep(min(.25, remaining))
 
     def __enter__(self):
-        from scripts.setup_evidence_reader import ASSETS, digest
-        self.receipt = json.loads((self.home/'receipt.json').read_text(encoding='utf8'))
-        if self.receipt['assets'] != list(ASSETS):
+        from scripts.setup_evidence_reader import digest
+        self.receipt = json.loads((self.home/self.model_spec['receipt']).read_text(encoding='utf8'))
+        if self.receipt['assets'] != list(self.assets) or self.receipt['model'] != self.model_spec['id']:
             raise ValueError('Unrecognized dependency receipt')
-        for asset in ASSETS:
+        for asset in self.assets:
             path=self.home/asset['name']
             if path.stat().st_size!=asset['bytes'] or digest(path)!=asset['sha256']:
                 raise ValueError('Reader dependency failed integrity check')
         executable = self.home/'runtime/llama-server.exe'
-        model = self.home/'Qwen3-4B-Q4_K_M.gguf'
+        model = self.home/self.model_spec['asset']['name']
         if not executable.is_file():raise FileNotFoundError(executable)
         with socket.socket() as sock:
             sock.bind(('127.0.0.1',0)); port=sock.getsockname()[1]

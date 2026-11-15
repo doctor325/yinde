@@ -2,6 +2,7 @@
 
 No inference, corpus upload, system install, or modification of user settings.
 """
+import argparse
 import hashlib
 import json
 from pathlib import Path
@@ -19,6 +20,19 @@ ASSETS = (
          bytes=2497280256, sha256='7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5'),
 )
 
+MODELS = {
+    'qwen3-4b': dict(id='Qwen/Qwen3-4B-GGUF', asset=ASSETS[1], receipt='receipt.json'),
+    'qwen3-8b': dict(id='Qwen/Qwen3-8B-GGUF', receipt='receipt-qwen3-8b.json', asset=dict(
+        name='Qwen3-8B-Q4_K_M.gguf', bytes=5027783488,
+        sha256='d98cdcbd03e17ce47681435b5150e34c1417f50b5c0019dd560e4882c5745785',
+        url='https://huggingface.co/Qwen/Qwen3-8B-GGUF/resolve/7c41481f57cb95916b40956ab2f0b139b296d974/Qwen3-8B-Q4_K_M.gguf')),
+}
+
+
+def model_spec(key):
+    spec = MODELS[key]
+    return spec, (ASSETS[0], spec['asset'])
+
 
 def digest(path):
     with path.open('rb') as f:
@@ -26,20 +40,28 @@ def digest(path):
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--model', choices=tuple(MODELS), default='qwen3-4b')
+    args = parser.parse_args()
+    spec, assets = model_spec(args.model)
     DEST.mkdir(parents=True, exist_ok=True)
-    for asset in ASSETS:
+    for asset in assets:
         path = DEST / asset['name']
         if not path.exists() or path.stat().st_size != asset['bytes'] or digest(path) != asset['sha256']:
             part = path.with_suffix(path.suffix + '.partial')
             request = urllib.request.Request(asset['url'], headers={'User-Agent': 'yinde-local-reader-experiment'})
             print('Downloading ' + asset['name'], flush=True)
             with urllib.request.urlopen(request, timeout=45) as response, part.open('wb') as f:
+                count = 0
                 while data := response.read(4 * 1024 * 1024):
                     f.write(data)
+                    count += len(data)
+                    if count % (256 * 1024 * 1024) == 0:
+                        print(f'{count}/{asset["bytes"]} bytes', flush=True)
             if part.stat().st_size != asset['bytes'] or digest(part) != asset['sha256']:
                 raise ValueError('Asset size/hash mismatch: ' + asset['name'])
             part.replace(path)
-        if path.suffix == '.zip':
+        if path.suffix == '.zip' and (args.model == 'qwen3-4b' or not (DEST/'runtime/llama-server.exe').is_file()):
             runtime = DEST / 'runtime'
             with zipfile.ZipFile(path) as archive:
                 for member in archive.infolist():
@@ -47,8 +69,8 @@ def main():
                         raise ValueError('Archive path escaped runtime directory')
                 archive.extractall(runtime)
         print('Verified ' + asset['name'], flush=True)
-    (DEST / 'receipt.json').write_text(json.dumps(dict(assets=ASSETS,
-        runtime='llama.cpp b12283 CPU x64', model='Qwen/Qwen3-4B-GGUF',
+    (DEST / spec['receipt']).write_text(json.dumps(dict(assets=assets,
+        runtime='llama.cpp b12283 CPU x64', model=spec['id'],
         mode='non-thinking, offline experiment only'), indent=2), encoding='utf8')
 
 
