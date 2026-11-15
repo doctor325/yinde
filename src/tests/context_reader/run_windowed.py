@@ -109,7 +109,7 @@ def prepare():
     return 0
 
 
-def run(path):
+def run(path, reader_module=N):
     path = Path(path).resolve()
     if not path.is_relative_to(RUN_HOME.resolve()) or path.name != 'report.json':
         raise ValueError('Use a prepared report inside the repository experiment directory')
@@ -119,7 +119,7 @@ def run(path):
         raise ValueError('This pair has already been attempted; do not rerun it')
     if report['frozen'] != receipt or report['context_sha256'] != digest(report['context']):
         raise ValueError('Frozen inputs changed')
-    if report['prompt_sha256'] != digest(N.PARSE + N.JUDGE) or report['reader_version'] != N.VERSION:
+    if report['prompt_sha256'] != digest(reader_module.PARSE + reader_module.JUDGE) or report['reader_version'] != reader_module.VERSION:
         raise ValueError('Prompt/reader changed after preparation')
     if [r['id'] for r in report['rows']] != list(PAIR):
         raise ValueError('Only the prepared pair may run')
@@ -146,12 +146,13 @@ def run(path):
                     row['reading'] = progress
                     save(path, report)
                 try:
-                    N.read(reader, row['query'], report['context'], on_progress=checkpoint)
+                    reader_module.read(reader, row['query'], report['context'], on_progress=checkpoint)
                 except (OSError, ValueError, KeyError) as exc:
                     row['error'] = type(exc).__name__ + ': ' + str(exc)
                 reading = row.get('reading', {})
+                validation = {k: v for k, v in reading.get('validation', {}).items() if k != 'citations'}
                 print(json.dumps(dict(id=row['id'], question=reading.get('question'),
-                                      judgement=reading.get('judgement'), validation=reading.get('validation'),
+                                      judgement=reading.get('judgement'), validation=validation,
                                       elapsed_ms=reading.get('elapsed_ms'), error=row.get('error')),
                                  ensure_ascii=False), flush=True)
             report['state'] = 'attempted'
