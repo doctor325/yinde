@@ -16,10 +16,13 @@ DEFAULT_HOME = ROOT / 'src/data/evidence-reader'
 
 
 class LocalReader:
-    def __init__(self, home=DEFAULT_HOME, timeout=120, model='qwen3-4b'):
+    def __init__(self, home=DEFAULT_HOME, timeout=120, model='qwen3-4b', backend='cpu'):
         from scripts.setup_evidence_reader import model_spec
         self.model_spec, self.assets = model_spec(model)
         self.model_key = model
+        if backend not in ('cpu', 'vulkan'):
+            raise ValueError('Unknown local reader backend')
+        self.backend = backend
         self.home = Path(home).resolve()
         if not self.home.is_relative_to(ROOT):
             raise ValueError('Reader assets must remain inside this repository')
@@ -27,6 +30,9 @@ class LocalReader:
         self.process = self.log = None
         self.opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
         self.key = secrets.token_hex(24)
+
+    def gpu_arguments(self):
+        return ['-ngl', '0'] if self.backend == 'cpu' else ['-ngl', '99', '--device', 'Vulkan0']
 
     def request(self, path, payload=None, timeout=None):
         body = None if payload is None else json.dumps(payload, ensure_ascii=False).encode('utf8')
@@ -79,6 +85,10 @@ class LocalReader:
             if path.stat().st_size!=asset['bytes'] or digest(path)!=asset['sha256']:
                 raise ValueError('Reader dependency failed integrity check')
         executable = self.home/'runtime/llama-server.exe'
+        self.runtime_receipt = None
+        if self.backend == 'vulkan':
+            from scripts.setup_reader_vulkan import verified_runtime
+            executable, self.runtime_receipt = verified_runtime(self.home)
         model = self.home/self.model_spec['asset']['name']
         if not executable.is_file():raise FileNotFoundError(executable)
         with socket.socket() as sock:
@@ -87,12 +97,16 @@ class LocalReader:
         temp=self.home/'tmp';temp.mkdir(exist_ok=True)
         env={k:v for k,v in os.environ.items() if not k.startswith('LLAMA_')}
         env.update(TMP=str(temp),TEMP=str(temp),HF_HUB_OFFLINE='1')
-        self.log=(self.home/'reader-runtime.log').open('w',encoding='utf8')
+        if self.backend == 'vulkan':
+            from scripts.setup_reader_vulkan import environment
+            env = environment(self.home)
+        self.log_path = self.home / ('reader-runtime.log' if self.backend == 'cpu' else 'reader-vulkan-runtime.log')
+        self.log=self.log_path.open('w',encoding='utf8')
         started=time.perf_counter()
         try:
             self.process=subprocess.Popen([str(executable),'-m',str(model),'--offline',
                 '--host','127.0.0.1','--port',str(port),'--api-key',self.key,
-                '-c','8192','-np','1','-t','4','-ngl','0','--reasoning','off',
+                '-c','8192','-np','1','-t','4',*self.gpu_arguments(),'--reasoning','off',
                 '--no-context-shift','--cache-ram','0'],cwd=self.home,env=env,
                 stdin=subprocess.DEVNULL,stdout=self.log,stderr=self.log,
                 creationflags=getattr(subprocess,'CREATE_NO_WINDOW',0))
