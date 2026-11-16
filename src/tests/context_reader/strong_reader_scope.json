@@ -1,0 +1,46 @@
+{
+  "version": "strong-reader-pilot-v1",
+  "status": "awaiting_external_evidence_and_paid_call_authorization",
+  "provider": "anthropic",
+  "model": "claude-sonnet-5-5",
+  "endpoint": "https://api.anthropic.com/v1/messages",
+  "count_endpoint": "https://api.anthropic.com/v1/messages/count_tokens",
+  "frozen_cases_sha256": "b3ba0ccce547b14b5840449083599ee77ea11dcab6e4ccffdef0742410937fe1",
+  "baseline": "data/evidence-reader/brief-diagnostic/bc402a36628f/report.json",
+  "generation": {
+    "max_tokens": 650,
+    "thinking": {"type": "between_tools"},
+    "output_config": {"effort": "high"}
+  },
+  "limits": {
+    "message_requests": 8,
+    "count_requests": 8,
+    "counted_input_tokens_per_request": 6000,
+    "input_reserve_factor": 1.1,
+    "input_reserve_extra_tokens": 256,
+    "message_timeout_seconds": 120,
+    "count_timeout_seconds": 30,
+    "retries": 0,
+    "concurrency": 1,
+    "cost_ceiling_usd": 0.20,
+    "input_usd_per_million": 2,
+    "output_usd_per_million": 10
+  },
+  "selection": "Existing exposed pair, then three previously unused pilot groups chosen for temporal/cause, actor and event contrasts before source-window inspection; purposive, not random or blind.",
+  "cases": [
+    {"id": "chenping_positive", "split": "exposed_development", "parse_origin": "frozen_4b_baseline"},
+    {"id": "chenping_contrast", "split": "exposed_development", "parse_origin": "frozen_4b_baseline"},
+    {"id": "xiangxiu_positive", "split": "held_out_reader", "parse_origin": "question_only_manual",
+      "parsed_question": {"actor": "向秀", "action": "入洛", "object": "", "requested": "此前被诛的友人", "mode": "open", "proposed_answer": ""}},
+    {"id": "xiangxiu_contrast", "split": "held_out_reader", "parse_origin": "question_only_manual",
+      "parsed_question": {"actor": "向秀", "action": "入洛", "object": "", "requested": "明确原因", "mode": "verify", "proposed_answer": "嵇康被诛"}},
+    {"id": "shenyue_positive", "split": "held_out_reader", "parse_origin": "question_only_manual",
+      "parsed_question": {"actor": "沈约", "action": "永元二年上表请求解职", "object": "", "requested": "原因", "mode": "open", "proposed_answer": ""}},
+    {"id": "shenyue_contrast", "split": "held_out_reader", "parse_origin": "question_only_manual",
+      "parsed_question": {"actor": "范云", "action": "永元二年请求解职", "object": "", "requested": "原因", "mode": "verify", "proposed_answer": "以母老"}},
+    {"id": "yanzhenqing_positive", "split": "held_out_reader", "parse_origin": "question_only_manual",
+      "parsed_question": {"actor": "颜真卿", "action": "调任", "object": "平原太守", "requested": "原因", "mode": "open", "proposed_answer": ""}},
+    {"id": "yanzhenqing_contrast", "split": "held_out_reader", "parse_origin": "question_only_manual",
+      "parsed_question": {"actor": "颜真卿", "action": "调任", "object": "平原", "requested": "原因", "mode": "verify", "proposed_answer": "安禄山已经造反"}}
+  ]
+}
