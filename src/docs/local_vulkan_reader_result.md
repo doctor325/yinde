@@ -6,6 +6,8 @@
 
 再后续：[同一史料输入、64-token输出对照](backend_history_prefix_result.md)已复现GPU重复G字母，而CPU开头可读。两侧模型、程序、模板与请求一致；排查转向GPU计算配置及其兼容性。没有完成史料语义验收，当前配置继续不采用。
 
+最新排查见[GPU兼容性结果](vulkan_compatibility_result.md)：关闭Flash Attention消除了本次重复G，但输出偏题；单独禁用FP16计算未消除重复。尚无可交付配置，未改默认值或桌面版。
+
 ## 范围与硬件依据
 
 用户选择本地优先，并明确授权一次只读CPU、内存、显卡和驱动查询。原始结果保存在忽略的 `src/data/evidence-reader/hardware-2026-11-16.json`，不提交硬件清单到Git。没有修改系统设置或安装驱动。
