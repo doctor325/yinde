@@ -1,0 +1,195 @@
+{
+  "version": "strong-reader-pilot-v1",
+  "status": "prepared_pending_manual_review_and_authorization",
+  "scope_sha256": "ad3d1c89b1c01446d7472ea8964c0f5f7e8fb6a9f43b095340580eb64799f694",
+  "frozen_cases_sha256": "b3ba0ccce547b14b5840449083599ee77ea11dcab6e4ccffdef0742410937fe1",
+  "prompt_sha256": "808cd6dfbc1337f9b7834d49bc109f95df8e32bff931a369d4dc49592209b011",
+  "selector_version": "source-event-window-v1",
+  "baseline_sha256": "5ff9996a6758e44e4442c9a64651ca4c3b659f44c2c14e2a09f74b12fc76e786",
+  "reserved_usd": 0.161696,
+  "default_search_changed": false,
+  "network_requests": 0,
+  "model_calls": 0,
+  "rows": [
+    {
+      "id": "chenping_positive",
+      "split": "exposed_development",
+      "query": "陈平为什么离开项羽？",
+      "anchor_chunk_id": 9692,
+      "source": {
+        "page_id": 9468,
+        "book_id": "KR2a0001",
+        "revision_id": 1961615,
+        "source_sha256": "b91a1f647315fd8c88ad07a2d22a2c33e866d2f8b609d3ed0d45fd158be877e1"
+      },
+      "source_chars": 370,
+      "units": 15,
+      "context_sha256": "f29d826ca8702bfdb8303458a7624c88106861d4717092ae918cc0d540239e95",
+      "gold_quote_retained": true,
+      "input_ready": true,
+      "input_reasons": [],
+      "review": "pending_manual_semantic_sufficiency",
+      "request_sha256": "94c0c4a7ae9bdb7e7ef376876889f7223bc3044f01eecc7b845f421d62c01b5f",
+      "input_characters": 1113
+    },
+    {
+      "id": "chenping_contrast",
+      "split": "exposed_development",
+      "query": "陈平离开魏王也是因为项羽要诛杀平殷将吏吗？",
+      "anchor_chunk_id": 9692,
+      "source": {
+        "page_id": 9468,
+        "book_id": "KR2a0001",
+        "revision_id": 1961615,
+        "source_sha256": "b91a1f647315fd8c88ad07a2d22a2c33e866d2f8b609d3ed0d45fd158be877e1"
+      },
+      "source_chars": 370,
+      "units": 15,
+      "context_sha256": "f29d826ca8702bfdb8303458a7624c88106861d4717092ae918cc0d540239e95",
+      "gold_quote_retained": true,
+      "input_ready": true,
+      "input_reasons": [],
+      "review": "pending_manual_semantic_sufficiency",
+      "request_sha256": "105d1caa7e01eb9ea0206c976d07f86aa5554d1fbc5dfb08307f0df1c0eca369",
+      "input_characters": 1145
+    },
+    {
+      "id": "xiangxiu_positive",
+      "split": "held_out_reader",
+      "query": "向秀在哪位友人被诛以后入洛？",
+      "anchor_chunk_id": 82011,
+      "source": {
+        "page_id": 20573,
+        "book_id": "KR2a0015",
+        "revision_id": 2199702,
+        "source_sha256": "41b584495b4ef0ae3f8439289c1c2856b188f2b26668e3ecd51aa80032d04572"
+      },
+      "source_chars": 278,
+      "units": 9,
+      "context_sha256": "4800bbd6eb48c425ef822a4bb1ca93058a2045d1501031ef902712e681772efe",
+      "gold_quote_retained": true,
+      "input_ready": true,
+      "input_reasons": [],
+      "review": "pending_manual_semantic_sufficiency",
+      "request_sha256": "cde4d0eb3c23ff0cdcc4b66632af8ad9a0041afd31dd5f8cbac0645e5930be67",
+      "input_characters": 968
+    },
+    {
+      "id": "xiangxiu_contrast",
+      "split": "held_out_reader",
+      "query": "嵇康被诛就是向秀入洛的明确原因吗？",
+      "anchor_chunk_id": 82011,
+      "source": {
+        "page_id": 20573,
+        "book_id": "KR2a0015",
+        "revision_id": 2199702,
+        "source_sha256": "41b584495b4ef0ae3f8439289c1c2856b188f2b26668e3ecd51aa80032d04572"
+      },
+      "source_chars": 278,
+      "units": 9,
+      "context_sha256": "4800bbd6eb48c425ef822a4bb1ca93058a2045d1501031ef902712e681772efe",
+      "gold_quote_retained": true,
+      "input_ready": true,
+      "input_reasons": [],
+      "review": "pending_manual_semantic_sufficiency",
+      "request_sha256": "3f513be4686442f918c5bf744ac43cb7d9f55876006970ba9e43766a01f47175",
+      "input_characters": 974
+    },
+    {
+      "id": "shenyue_positive",
+      "split": "held_out_reader",
+      "query": "沈约永元二年为什么上表请求解职？",
+      "anchor_chunk_id": 157178,
+      "source": {
+        "page_id": 58252,
+        "book_id": "KR2a0018",
+        "revision_id": 1494993,
+        "source_sha256": "9dd64c455ede2510043c25fe381090339b25d1e6d51759287213de83650e3fcc"
+      },
+      "source_chars": 355,
+      "units": 12,
+      "context_sha256": "00c54e520637b45158d29fd6c606a4592f3af81d03cdbe754f4b62c1e2271d2a",
+      "gold_quote_retained": true,
+      "input_ready": true,
+      "input_reasons": [],
+      "review": "pending_manual_semantic_sufficiency",
+      "request_sha256": "5aa5d33ecdebb2056d430bdf7a96c6a51d93e933fae180a28f0e0b62cce7ad83",
+      "input_characters": 1082
+    },
+    {
+      "id": "shenyue_contrast",
+      "split": "held_out_reader",
+      "query": "范云永元二年也是以母老请求解职吗？",
+      "anchor_chunk_id": 157178,
+      "source": {
+        "page_id": 58252,
+        "book_id": "KR2a0018",
+        "revision_id": 1494993,
+        "source_sha256": "9dd64c455ede2510043c25fe381090339b25d1e6d51759287213de83650e3fcc"
+      },
+      "source_chars": 355,
+      "units": 12,
+      "context_sha256": "00c54e520637b45158d29fd6c606a4592f3af81d03cdbe754f4b62c1e2271d2a",
+      "gold_quote_retained": true,
+      "input_ready": true,
+      "input_reasons": [],
+      "review": "pending_manual_semantic_sufficiency",
+      "request_sha256": "3d11486ec9ac76671bac373294c23d5d0102b8b0bacd3350ccdf7aabc3ec6343",
+      "input_characters": 1086
+    },
+    {
+      "id": "yanzhenqing_positive",
+      "split": "held_out_reader",
+      "query": "颜真卿为什么被调出任平原太守？",
+      "anchor_chunk_id": 219130,
+      "source": {
+        "page_id": 99886,
+        "book_id": "KR2a0026",
+        "revision_id": 2511028,
+        "source_sha256": "e59bea786730b58c3b9d81937423981e6d75aab5f879c623b9dbae9c20d5e9a5"
+      },
+      "source_chars": 285,
+      "units": 14,
+      "context_sha256": "ca87540242edc53b3672ee02a05e58a6b4161fddbec06657dd44f14c8ced372c",
+      "gold_quote_retained": true,
+      "input_ready": true,
+      "input_reasons": [],
+      "review": "pending_manual_semantic_sufficiency",
+      "request_sha256": "565823903c62698a4e51befaccc273ddfc68a841583355abea999864ad6a6335",
+      "input_characters": 1021
+    },
+    {
+      "id": "yanzhenqing_contrast",
+      "split": "held_out_reader",
+      "query": "颜真卿调任平原是因为安禄山已经造反吗？",
+      "anchor_chunk_id": 219130,
+      "source": {
+        "page_id": 99886,
+        "book_id": "KR2a0026",
+        "revision_id": 2511028,
+        "source_sha256": "e59bea786730b58c3b9d81937423981e6d75aab5f879c623b9dbae9c20d5e9a5"
+      },
+      "source_chars": 285,
+      "units": 14,
+      "context_sha256": "ca87540242edc53b3672ee02a05e58a6b4161fddbec06657dd44f14c8ced372c",
+      "gold_quote_retained": true,
+      "input_ready": true,
+      "input_reasons": [],
+      "review": "pending_manual_semantic_sufficiency",
+      "request_sha256": "45e4d2b990c60cde8d6c90664d2c1727324663b1c0908203edaf7d78ceb5b79f",
+      "input_characters": 1032
+    }
+  ],
+  "requests_sha256": "9f30ec84e958e1b2d5aeb749363bfeb324156786b51b916754a03ae1e52cc826",
+  "audit_sha256": "efbd81c90d061cdca2173d2b0fdcde117107923bf9ee2dcd76617e0f724123d4",
+  "portable_inputs": {
+    "input_path": "src/data/evidence-reader/strong-reader-pilot-v1-r2/inputs.local.json",
+    "sha256_utf8_lf": "7b38eaade0b20c634ce4fed19e34adccf15e9d40a0786f6ca093004f3418b02e",
+    "cases": 8,
+    "runtime_preference": "local_first",
+    "model_selection": "pending",
+    "external_evidence_authorized": false,
+    "model_calls": 0,
+    "payload_origin": "Unmodified user payloads from the successful r2 preparation; provider and generation parameters excluded."
+  }
+}
