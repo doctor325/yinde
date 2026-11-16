@@ -1,4 +1,5 @@
 """Exactly two exposed prose judgements, using frozen model-neutral inputs."""
+import argparse
 import hashlib
 import json
 from pathlib import Path
@@ -54,8 +55,21 @@ def prepare():
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--vulkan-compatible', action='store_true',
+                        help='Use the explicit flash-off plus no-F16 diagnostic profile')
+    args = parser.parse_args()
     report = prepare()
-    folder = DEFAULT_HOME / 'local-vulkan-pilot' / uuid.uuid4().hex[:12]
+    if args.vulkan_compatible:
+        from tests.context_reader.probe_vulkan_compatibility import ProbeReader
+        from tests.context_reader.compare_backends import digest as identity_digest
+        model_reader = ProbeReader('flash-off-no-f16')
+        report['compatibility_profile'] = model_reader.profile
+        report['runtime'].update(flash_attention='off', child_disable_f16=True)
+    else:
+        model_reader = LocalReader(model='qwen3-8b', backend='vulkan', timeout=120)
+    folder_kind = 'local-vulkan-compatible-pilot' if args.vulkan_compatible else 'local-vulkan-pilot'
+    folder = DEFAULT_HOME / folder_kind / uuid.uuid4().hex[:12]
     folder.mkdir(parents=True, exist_ok=False)
     def save():
         (folder / 'report.json').write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n', encoding='utf8')
@@ -65,9 +79,15 @@ def main():
     save()
     print('Report: ' + str(folder / 'report.json'), flush=True)
     try:
-        with LocalReader(model='qwen3-8b', backend='vulkan', timeout=120) as reader:
+        with model_reader as reader:
+            if args.vulkan_compatible:
+                template = reader.request('/props').get('chat_template')
+                if not isinstance(template, str) or identity_digest(template) != 'ec8f439daaf5791f1da8686759109efa3f5ff5698cd407018a9f96a739c28fae':
+                    raise ValueError('Chat template differs from GPU comparison; no inference sent')
+                report['template_sha256'] = identity_digest(template)
             report.update(state='running', model_receipt=reader.receipt,
-                          runtime_receipt=reader.runtime_receipt, startup_ms=reader.startup_ms)
+                          runtime_receipt=reader.runtime_receipt, startup_ms=reader.startup_ms,
+                          launch_arguments=reader.gpu_arguments())
             save()
             for i, row in enumerate(report['rows']):
                 try:

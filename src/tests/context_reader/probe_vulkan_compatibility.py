@@ -1,4 +1,4 @@
-"""Single-option GPU probes. No production settings or parent env changes."""
+"""GPU probes with explicit comparisons; no production or parent env changes."""
 import argparse
 import hashlib
 import json
@@ -13,11 +13,16 @@ from tests.context_reader import compare_history_backends as H
 
 REFERENCE = DEFAULT_HOME / 'history-backend-comparison/e09e86a76614/report.json'
 REFERENCE_SHA256 = 'f726953b77ac9808da57fe292ef44f3e7d2836044f05d3c25ed4c733509c0c89'
+FLASH_REFERENCE = DEFAULT_HOME / 'vulkan-compatibility/aeed9e607c94/report.json'
+FLASH_REFERENCE_SHA256 = '995526eb92208260169e383d29f80eebab2fd41f7f410ce632c0164d21a5e750'
 PROFILES = {
     'baseline': ([], {}),
     'flash-off': (['--flash-attn', 'off'], {}),
     'no-f16': ([], {'GGML_VK_DISABLE_F16': '1'}),
+    'flash-off-no-f16': (['--flash-attn', 'off'], {'GGML_VK_DISABLE_F16': '1'}),
 }
+STEPS = {'flash': ('baseline', 'flash-off'), 'f16': ('no-f16',),
+         'combined': ('flash-off-no-f16',)}
 
 
 class ProbeReader(H.C.DiagnosticReader):
@@ -64,13 +69,28 @@ def log_configuration(log):
             if wanted.search(line)]
 
 
+def combined_reference(case, identity):
+    raw = FLASH_REFERENCE.read_bytes()
+    if hashlib.sha256(raw).hexdigest() != FLASH_REFERENCE_SHA256:
+        raise ValueError('Saved flash-off comparison changed')
+    saved = json.loads(raw)
+    row = next(r for r in saved['rows'] if r['profile'] == 'flash-off')
+    if saved['case'] != case or row['identity'] != identity or 'error' in row:
+        raise ValueError('Saved flash-off input/runtime drift')
+    return dict(report_sha256=FLASH_REFERENCE_SHA256, profile='flash-off',
+                result=row['result'], configuration_log=row['configuration_log'],
+                changed='Only child GGML_VK_DISABLE_F16 added to flash-off',
+                reused_prior_result=True)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--step', choices=('flash', 'f16'), default='flash')
+    parser.add_argument('--step', choices=tuple(STEPS), default='flash')
     args = parser.parse_args()
-    profiles = ('baseline', 'flash-off') if args.step == 'flash' else ('no-f16',)
+    profiles = STEPS[args.step]
     case, reference = prepare()
     identity = reference['rows'][1]['identity']
+    comparison = combined_reference(case, identity) if args.step == 'combined' else None
     folder = DEFAULT_HOME / 'vulkan-compatibility' / uuid.uuid4().hex[:12]
     folder.mkdir(parents=True, exist_ok=False)
     report = dict(version='vulkan-compatibility-v1', state='prepared', step=args.step,
@@ -78,6 +98,8 @@ def main():
                   shared_instrumentation=['-lv', '4'], max_tokens=H.MAX_TOKENS,
                   timeout_seconds=H.TIMEOUT, retries=0, held_out_calls=0,
                   semantic_acceptance=False, parent_environment_changed=False)
+    if comparison is not None:
+        report['comparison'] = comparison
 
     def save():
         (folder / 'report.json').write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n', encoding='utf8')
