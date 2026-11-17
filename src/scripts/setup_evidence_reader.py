@@ -20,18 +20,36 @@ ASSETS = (
          bytes=2497280256, sha256='7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5'),
 )
 
+QWEN25_REVISION = 'b466e1f8c07172155743e8e1307507d8a4f91fbd'
+QWEN25_SHARDS = tuple(
+    dict(name=f'qwen2.5-14b-instruct-q4_k_m-{i:05d}-of-00003.gguf',
+         bytes=size, sha256=sha,
+         url=f'https://huggingface.co/Qwen/Qwen2.5-14B-Instruct-GGUF/resolve/{QWEN25_REVISION}/'
+             f'qwen2.5-14b-instruct-q4_k_m-{i:05d}-of-00003.gguf')
+    for i, (size, sha) in enumerate((
+        (3991999872, 'a09ea5e7b1eafb1b30b241726c3cc3c905c96f14ad41e246ffa5f44e53904f68'),
+        (3989373504, '21b9457d079680d284e90ef69607c4b2d8ef64a09d4729cb7b5e1357bdba41ae'),
+        (1006737120, 'c8d37006760a387a35216e070e6664d7da927f10be8eb870fef2e3d4833d9976'),
+    ), 1)
+)
+
 MODELS = {
     'qwen3-4b': dict(id='Qwen/Qwen3-4B-GGUF', asset=ASSETS[1], receipt='receipt.json'),
     'qwen3-8b': dict(id='Qwen/Qwen3-8B-GGUF', receipt='receipt-qwen3-8b.json', asset=dict(
         name='Qwen3-8B-Q4_K_M.gguf', bytes=5027783488,
         sha256='d98cdcbd03e17ce47681435b5150e34c1417f50b5c0019dd560e4882c5745785',
         url='https://huggingface.co/Qwen/Qwen3-8B-GGUF/resolve/7c41481f57cb95916b40956ab2f0b139b296d974/Qwen3-8B-Q4_K_M.gguf')),
+    'qwen2.5-14b-instruct': dict(id='Qwen/Qwen2.5-14B-Instruct-GGUF',
+        receipt='receipt-qwen2.5-14b-instruct.json', asset=QWEN25_SHARDS[0],
+        additional_assets=QWEN25_SHARDS[1:]),
 }
 
 
 def model_spec(key):
     spec = MODELS[key]
-    return spec, (ASSETS[0], spec['asset'])
+    # llama.cpp loads the first shard and discovers its siblings. Verify every
+    # shard before startup; old single-file receipts remain byte-for-byte valid.
+    return spec, (ASSETS[0], spec['asset'], *spec.get('additional_assets', ()))
 
 
 def digest(path):
