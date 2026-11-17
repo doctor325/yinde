@@ -72,7 +72,7 @@ def _extract_request(reader, evidence, request):
     return report
 
 
-def compare(question, extraction, evidence):
+def compare(question, extraction, evidence, reviews=None):
     """Conservative role gate. Glyph equality is not identity/entailment proof.
 
     No question-conditioned model call can rewrite the source ledger. Aliases,
@@ -91,6 +91,7 @@ def compare(question, extraction, evidence):
         result['errors'].append('invalid_ledger')
         return result
     normalize = lambda s: zh.to_simplified(s).strip()
+    from search.event_claim_review import audit_event
     for i, event in enumerate(value['events'], 1):
         problems = []
         alignment = {}
@@ -115,8 +116,11 @@ def compare(question, extraction, evidence):
             problems.append('state_requires_review')
         if event['attribution'] != 'narrator':
             problems.append('source_voice_requires_review')
-        item = dict(event_id=f'event-{i}', alignment=alignment, problems=problems,
-                    event=event, reason_available=bool(event['reason'].strip()),
+        event_id = f'event-{i}'
+        audit = audit_event(event, evidence, (reviews or {}).get(event_id))
+        item = dict(event_id=event_id, alignment=alignment, problems=problems,
+                    event=event, reason_proposed=bool(event['reason'].strip()),
+                    reason_available=audit['fields']['reason']['trusted'], content_audit=audit,
                     citations=[dict(evidence_id=r, parts=ids[r]['parts']) for r in refs])
         result['events'].append(item)
         if not problems:
