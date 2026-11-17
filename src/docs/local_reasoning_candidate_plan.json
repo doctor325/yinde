@@ -1,0 +1,95 @@
+{
+  "version": "local-native-reasoning-evaluation-v1",
+  "status": "assessment_only_runner_not_implemented",
+  "date": "2026-11-17",
+  "selected": {
+    "base_model": "Qwen/Qwen3.5-9B",
+    "base_revision_observed": "c202236235762e1c871ad0ccb60c8ee5ba337b9a",
+    "quantizer": "unsloth",
+    "repo": "unsloth/Qwen3.5-9B-GGUF",
+    "revision": "3885219b6810b007914f3a7950a8d1b469d598a5",
+    "file": "Qwen3.5-9B-Q5_K_M.gguf",
+    "bytes": 6577841376,
+    "sha256": "dc2a39aef291f91a9116ad214058da0d86eb648743a124bd8c333787c4b9c91c",
+    "url": "https://huggingface.co/unsloth/Qwen3.5-9B-GGUF/resolve/3885219b6810b007914f3a7950a8d1b469d598a5/Qwen3.5-9B-Q5_K_M.gguf",
+    "lineage_status": "quantizer_declared_base_model_not_independently_reproduced",
+    "license": "apache-2.0",
+    "downloaded_this_round": false,
+    "semantic_acceptance": null
+  },
+  "input": {
+    "path": "src/data/evidence-reader/strong-reader-pilot-v1-r2/inputs.local.json",
+    "lf_sha256": "7b38eaade0b20c634ce4fed19e34adccf15e9d40a0786f6ca093004f3418b02e",
+    "gold_path": "src/tests/context_reader/cases40.json",
+    "gold_sha256": "b3ba0ccce547b14b5840449083599ee77ea11dcab6e4ccffdef0742410937fe1",
+    "system_digest_json_encoding": "808cd6dfbc1337f9b7834d49bc109f95df8e32bff931a369d4dc49592209b011",
+    "system_edit_only": "remove_terminal_/no_think",
+    "payload_changes_allowed": false,
+    "new_prompt_fields": false,
+    "selection": [
+      {"id": "chenping_positive", "split": "exposed_development"},
+      {"id": "chenping_contrast", "split": "exposed_development"},
+      {"id": "xiangxiu_positive", "split": "held_out_reader"},
+      {"id": "xiangxiu_contrast", "split": "held_out_reader"},
+      {"id": "shenyue_positive", "split": "held_out_reader"},
+      {"id": "shenyue_contrast", "split": "held_out_reader"},
+      {"id": "yanzhenqing_positive", "split": "held_out_reader"},
+      {"id": "yanzhenqing_contrast", "split": "held_out_reader"}
+    ]
+  },
+  "proposed_execution": {
+    "enabled": false,
+    "runtime": "existing_pinned_b12283_cpu_configuration",
+    "architecture_registered_upstream": "qwen35",
+    "local_loading_verified": false,
+    "reasoning": "on",
+    "chat_template_kwargs": {"enable_thinking": true},
+    "native_template_required": true,
+    "native_template_sha256": null,
+    "response_format": "prose_no_json_schema",
+    "sampling": {
+      "temperature": 1.0,
+      "top_p": 0.95,
+      "top_k": 20,
+      "min_p": 0.0,
+      "presence_penalty": 1.5,
+      "repeat_penalty": 1.0,
+      "seed": 20261111
+    },
+    "max_tokens_including_reasoning": 2048,
+    "context_tokens": 8192,
+    "threads": 4,
+    "request_timeout_seconds": 120,
+    "startup_timeout_seconds": 60,
+    "semantic_calls_max": 8,
+    "concurrency": 1,
+    "retries": 0,
+    "score_only_complete_final_answer": true,
+    "stop_on_infrastructure_failure_or_incomplete": true,
+    "manual_scoring_after_fixed_batch": true,
+    "mid_batch_prompt_or_parameter_changes": false,
+    "same_budget_comparison_with_old_650_token_runs": false
+  },
+  "acceptance": {
+    "development_complete_correct_required": 2,
+    "held_out_complete_correct_required": 6,
+    "false_confirmations_allowed": 0,
+    "missing_dimensions_are_failure": true,
+    "unrun_cases_retained_in_planned_denominator": true,
+    "automated_semantic_judge": false,
+    "production_promotion_allowed": false
+  },
+  "alternatives": [
+    {"model": "openai/gpt-oss-20b", "decision": "conditional_different_family_backup_native_harmony_required"},
+    {"model": "Qwen/Qwen3.6-35B-A3B", "decision": "defer_shared_memory_margin"},
+    {"model": "Qwen/Qwen3.8-27B", "decision": "defer_cpu_latency_risk"}
+  ],
+  "restrictions": {
+    "cloud_source_upload": false,
+    "training": false,
+    "default_search_changes": false,
+    "desktop_update": false,
+    "gpu_tuning": false,
+    "gold_changes": false
+  }
+}
