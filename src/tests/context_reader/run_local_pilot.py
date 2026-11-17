@@ -13,6 +13,8 @@ from tests.context_reader.prepare_strong_reader import digest
 ROOT = Path(__file__).resolve().parents[3]
 HERE = Path(__file__).resolve().parent
 PAIR = ('chenping_positive', 'chenping_contrast')
+GPU_REFERENCE = DEFAULT_HOME / 'local-vulkan-compatible-pilot/69183d2e3224/report.json'
+GPU_REFERENCE_SHA256 = 'c2b3232b0d5ea7f922d052cd24605e1497baf8abec54722c5b836ad54898da41'
 
 
 def select_pair(inputs):
@@ -54,21 +56,49 @@ def prepare():
                 scope='exposed pair only; no held-out calls, no production change', rows=rows)
 
 
+def validate_comparison_inputs(report, reference):
+    for key in ('model', 'portable_inputs_sha256', 'prompt_sha256', 'generation'):
+        if report[key] != reference[key]:
+            raise ValueError('CPU/GPU comparison drift: ' + key)
+    for key in ('context', 'cpu_threads', 'timeout_seconds'):
+        if report['runtime'][key] != reference['runtime'][key]:
+            raise ValueError('CPU/GPU runtime drift: ' + key)
+    keys = ('id', 'payload', 'evidence', 'request_sha256')
+    if [[r[k] for k in keys] for r in report['rows']] != [[r[k] for k in keys] for r in reference['rows']]:
+        raise ValueError('CPU/GPU question/evidence/request drift')
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--vulkan-compatible', action='store_true',
+    choice = parser.add_mutually_exclusive_group()
+    choice.add_argument('--vulkan-compatible', action='store_true',
                         help='Use the explicit flash-off plus no-F16 diagnostic profile')
+    choice.add_argument('--cpu-comparison', action='store_true',
+                        help='Compare the frozen full GPU pair on the same binary using CPU')
     args = parser.parse_args()
     report = prepare()
-    if args.vulkan_compatible:
-        from tests.context_reader.probe_vulkan_compatibility import ProbeReader
+    reference = None
+    if args.cpu_comparison:
+        raw = GPU_REFERENCE.read_bytes()
+        if hashlib.sha256(raw).hexdigest() != GPU_REFERENCE_SHA256:
+            raise ValueError('Saved full GPU comparison changed')
+        reference = json.loads(raw)
+        validate_comparison_inputs(report, reference)
+    if args.vulkan_compatible or args.cpu_comparison:
+        from tests.context_reader.probe_vulkan_compatibility import ProbeReader, CpuComparisonReader
         from tests.context_reader.compare_backends import digest as identity_digest
-        model_reader = ProbeReader('flash-off-no-f16')
+        model_reader = CpuComparisonReader() if args.cpu_comparison else ProbeReader('flash-off-no-f16')
         report['compatibility_profile'] = model_reader.profile
         report['runtime'].update(flash_attention='off', child_disable_f16=True)
     else:
         model_reader = LocalReader(model='qwen3-8b', backend='vulkan', timeout=120)
     folder_kind = 'local-vulkan-compatible-pilot' if args.vulkan_compatible else 'local-vulkan-pilot'
+    if args.cpu_comparison:
+        folder_kind = 'local-cpu-comparison-pilot'
+        report.update(backend='cpu', distribution='b12283 Vulkan x64',
+                      gpu_reference_sha256=GPU_REFERENCE_SHA256,
+                      changed='compute device and offloaded layers only')
+        report['runtime'].update(gpu_layers=0, device='none')
     folder = DEFAULT_HOME / folder_kind / uuid.uuid4().hex[:12]
     folder.mkdir(parents=True, exist_ok=False)
     def save():
@@ -80,11 +110,17 @@ def main():
     print('Report: ' + str(folder / 'report.json'), flush=True)
     try:
         with model_reader as reader:
-            if args.vulkan_compatible:
+            if args.vulkan_compatible or args.cpu_comparison:
                 template = reader.request('/props').get('chat_template')
                 if not isinstance(template, str) or identity_digest(template) != 'ec8f439daaf5791f1da8686759109efa3f5ff5698cd407018a9f96a739c28fae':
                     raise ValueError('Chat template differs from GPU comparison; no inference sent')
                 report['template_sha256'] = identity_digest(template)
+            if reference is not None:
+                if reader.runtime_receipt['files'] != reference['runtime_receipt']['files'] or reader.receipt != reference['model_receipt']:
+                    raise ValueError('CPU/GPU model/runtime identity drift; no inference sent')
+                if report['template_sha256'] != reference['template_sha256']:
+                    raise ValueError('CPU/GPU template drift; no inference sent')
+                report['comparison_verified_before_generation'] = True
             report.update(state='running', model_receipt=reader.receipt,
                           runtime_receipt=reader.runtime_receipt, startup_ms=reader.startup_ms,
                           launch_arguments=reader.gpu_arguments())

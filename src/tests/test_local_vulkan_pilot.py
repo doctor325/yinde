@@ -29,6 +29,32 @@ class LocalVulkanPilotTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 P.select_pair(dict(system=P.B.SYSTEM, rows=rows))
 
+    def test_cpu_comparison_changes_only_compute_arguments(self):
+        from tests.context_reader.probe_vulkan_compatibility import ProbeReader, CpuComparisonReader
+        gpu, cpu = ProbeReader('flash-off-no-f16'), CpuComparisonReader()
+        self.assertEqual(cpu.backend, gpu.backend)  # Same verified distribution.
+        self.assertEqual(cpu.assets, gpu.assets)
+        self.assertEqual(cpu.profile, gpu.profile)  # Same child env and flash flag.
+        self.assertEqual(cpu.timeout, gpu.timeout)
+        self.assertEqual(cpu.gpu_arguments()[:4], ['-ngl', '0', '--device', 'none'])
+        self.assertEqual(cpu.gpu_arguments()[4:], gpu.gpu_arguments()[4:])
+
+    def test_full_comparison_rejects_changed_questions_or_generation(self):
+        original = dict(model='qwen3-8b', portable_inputs_sha256='inputs', prompt_sha256='system',
+                        generation={'max_tokens': 650},
+                        runtime=dict(context=8192, cpu_threads=4, timeout_seconds=120),
+                        rows=[dict(id=k, payload={'query': k}, evidence=['source'], request_sha256=k)
+                              for k in P.PAIR])
+        P.validate_comparison_inputs(original, copy.deepcopy(original))
+        changed = copy.deepcopy(original)
+        changed['rows'][1]['payload']['query'] = 'different event'
+        with self.assertRaises(ValueError):
+            P.validate_comparison_inputs(changed, original)
+        changed = copy.deepcopy(original)
+        changed['generation']['max_tokens'] = 64
+        with self.assertRaises(ValueError):
+            P.validate_comparison_inputs(changed, original)
+
 
 if __name__ == '__main__':
     unittest.main()

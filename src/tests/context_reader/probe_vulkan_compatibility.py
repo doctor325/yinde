@@ -50,6 +50,13 @@ class ProbeReader(H.C.DiagnosticReader):
             return super().__enter__()
 
 
+class CpuComparisonReader(ProbeReader):
+    """Same binary, flags and child environment as the combined GPU arm."""
+    def __init__(self):
+        super().__init__('flash-off-no-f16')
+        self.compute = 'cpu'
+
+
 def prepare():
     raw = REFERENCE.read_bytes()
     if hashlib.sha256(raw).hexdigest() != REFERENCE_SHA256:
