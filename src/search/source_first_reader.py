@@ -47,7 +47,11 @@ def extraction_request(evidence):
 
 
 def extract(reader, evidence):
-    request = extraction_request(evidence)
+    return _extract_request(reader, evidence, extraction_request(evidence))
+
+
+def _extract_request(reader, evidence, request):
+    """Shared transport; callers must construct a source-only request."""
     report = dict(version=VERSION, source_sha256=digest(evidence),
                   request_sha256=digest(request), completed=False, semantic_verified=False)
     start = time.perf_counter()
