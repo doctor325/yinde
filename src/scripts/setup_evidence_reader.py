@@ -57,6 +57,58 @@ def digest(path):
         return hashlib.file_digest(f, 'sha256').hexdigest()
 
 
+def download(asset, path):
+    # Separate staging file preserves fragments from interrupted older clients.
+    part = path.with_suffix('.download.partial')
+    if not part.exists():
+        fragments = [p for p in (path.with_suffix(path.suffix + '.partial'),
+                                  path.with_suffix('.parallel.partial'))
+                     if p.is_file() and 0 < p.stat().st_size <= asset['bytes']]
+        if fragments:
+            source = max(fragments, key=lambda p: p.stat().st_size)
+            remaining = source.stat().st_size
+            with source.open('rb') as old, part.open('xb') as out:
+                while remaining:
+                    data = old.read(min(4 * 1024 * 1024, remaining))
+                    if not data:
+                        raise ValueError('Source fragment changed during copy')
+                    out.write(data)
+                    remaining -= len(data)
+    count = part.stat().st_size if part.exists() else 0
+    if count > asset['bytes']:
+        raise ValueError('Oversized download fragment: ' + asset['name'])
+    if count < asset['bytes']:
+        headers = {'User-Agent': 'yinde-local-reader-experiment', 'Accept-Encoding': 'identity'}
+        if count:
+            headers['Range'] = f'bytes={count}-'
+        request = urllib.request.Request(asset['url'], headers=headers)
+        print(f'Downloading {asset["name"]} from {count}/{asset["bytes"]}', flush=True)
+        with urllib.request.urlopen(request, timeout=45) as response:
+            if response.status == 206:
+                expected = f'bytes {count}-{asset["bytes"] - 1}/{asset["bytes"]}'
+                if response.headers.get('Content-Range') != expected:
+                    raise ValueError('Download range mismatch; fragment preserved')
+                mode = 'ab'
+            elif response.status == 200:
+                # Server ignored Range: restart, never append a whole response.
+                mode, count = 'wb', 0
+            else:
+                raise ValueError('Unexpected download status')
+            progress = count // (256 * 1024 * 1024)
+            with part.open(mode) as out:
+                while data := response.read(4 * 1024 * 1024):
+                    if count + len(data) > asset['bytes']:
+                        raise ValueError('Oversized download response')
+                    out.write(data)
+                    count += len(data)
+                    if count // (256 * 1024 * 1024) > progress:
+                        progress = count // (256 * 1024 * 1024)
+                        print(f'{count}/{asset["bytes"]} bytes', flush=True)
+    if part.stat().st_size != asset['bytes'] or digest(part) != asset['sha256']:
+        raise ValueError('Asset size/hash mismatch: ' + asset['name'])
+    part.replace(path)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--model', choices=tuple(MODELS), default='qwen3-4b')
@@ -66,19 +118,7 @@ def main():
     for asset in assets:
         path = DEST / asset['name']
         if not path.exists() or path.stat().st_size != asset['bytes'] or digest(path) != asset['sha256']:
-            part = path.with_suffix(path.suffix + '.partial')
-            request = urllib.request.Request(asset['url'], headers={'User-Agent': 'yinde-local-reader-experiment'})
-            print('Downloading ' + asset['name'], flush=True)
-            with urllib.request.urlopen(request, timeout=45) as response, part.open('wb') as f:
-                count = 0
-                while data := response.read(4 * 1024 * 1024):
-                    f.write(data)
-                    count += len(data)
-                    if count % (256 * 1024 * 1024) == 0:
-                        print(f'{count}/{asset["bytes"]} bytes', flush=True)
-            if part.stat().st_size != asset['bytes'] or digest(part) != asset['sha256']:
-                raise ValueError('Asset size/hash mismatch: ' + asset['name'])
-            part.replace(path)
+            download(asset, path)
         if path.suffix == '.zip' and (args.model == 'qwen3-4b' or not (DEST/'runtime/llama-server.exe').is_file()):
             runtime = DEST / 'runtime'
             with zipfile.ZipFile(path) as archive:
