@@ -99,6 +99,45 @@ class NativeReasoningTests(unittest.TestCase):
         for call in reader.request.call_args_list:
             self.assertEqual(json.loads(call.args[1]['messages'][1]['content']), self.payload)
 
+    def test_offline_profile_changes_only_timeout_and_selection(self):
+        report = self.report()
+        report.update(model=R.MODEL, plan_sha256='plan', input_sha256='input',
+            gold_sha256='gold', execution=copy.deepcopy(self.execution))
+        previous = copy.deepcopy(report)
+        previous['model_calls'] = 1
+        previous['rows'][0]['error'] = {'type':'TimeoutError'}
+        before = copy.deepcopy(report)
+        diagnostic = R.offline_diagnostic(report, previous)
+        self.assertEqual(report, before)
+        self.assertEqual(diagnostic['rows'], report['rows'][:1])
+        self.assertEqual(len(diagnostic['unselected_ids']), 7)
+        self.assertEqual(diagnostic['execution']['request_timeout_seconds'], 360)
+        self.assertEqual(diagnostic['execution']['semantic_calls_max'], 1)
+        self.assertEqual(diagnostic['interactive_limit_ms'], 120000)
+        self.assertEqual(report['execution']['request_timeout_seconds'], 120)
+        previous['rows'][0]['request_sha256'] = 'changed'
+        with self.assertRaisesRegex(ValueError, 'inventory drift'):
+            R.offline_diagnostic(report, previous)
+
+    def test_offline_profile_rejects_template_change_and_keeps_latency_separate(self):
+        identity = {k:k for k in ('template_sha256','native_prefill_sha256','model_receipt',
+            'runtime_receipt','launch_arguments','reasoning_arguments')}
+        R.verify_offline_runtime(identity, copy.deepcopy(identity))
+        changed = dict(identity, template_sha256='changed')
+        with self.assertRaisesRegex(ValueError, 'runtime drift'):
+            R.verify_offline_runtime(changed, identity)
+        report = self.report()
+        report['rows'] = report['rows'][:1]
+        report['interactive_limit_ms'] = 120000
+        reader = Mock()
+        reader.request.return_value = self.response()
+        with patch.object(R, 'own_process_memory', return_value={'available':False}), \
+                patch.object(R.time, 'perf_counter', side_effect=[0,180]):
+            R.run_rows(reader, report, Mock())
+        self.assertTrue(report['rows'][0]['result']['completed'])
+        self.assertFalse(report['rows'][0]['interactive_completed_within_limit'])
+        self.assertFalse(report['rows'][0]['result']['semantic_verified'])
+
 
 if __name__ == '__main__':
     unittest.main()

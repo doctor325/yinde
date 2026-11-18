@@ -1,5 +1,6 @@
 """Frozen eight-case local experiment; offline preparation unless --run."""
 import argparse
+import copy
 import hashlib
 import json
 import os
@@ -17,6 +18,8 @@ ROOT = Path(__file__).resolve().parents[3]
 PLAN = ROOT / 'src/docs/local_reasoning_candidate_plan.json'
 PLAN_SHA = '9173ace636d366f5ad0e785c35de60c5b1fb675c028ac9f2bdf7eaff06e7d24b'
 MODEL = 'qwen3.5-9b'
+TIMEOUT_REFERENCE = DEFAULT_HOME / 'native-reasoning-pilot/0d54d1b73070/report.json'
+TIMEOUT_REFERENCE_SHA = 'c77803e5d978c8325b972e89788b31eef7379a9e38f1209b3ccbff6f8d503679'
 
 
 def digest(value):
@@ -120,6 +123,37 @@ def own_process_memory(reader):
                 peak_working_set_bytes=counters.PeakWorkingSetSize)
 
 
+def offline_diagnostic(report, previous):
+    """One timed-out case, same requests; a separate latency budget, never a retry loop."""
+    for key in ('model', 'plan_sha256', 'input_sha256', 'gold_sha256'):
+        if report[key] != previous[key]:
+            raise ValueError('Offline diagnostic identity drift: ' + key)
+    if ([(r['id'], r['request_sha256']) for r in report['rows']] !=
+            [(r['id'], r['request_sha256']) for r in previous['rows']]):
+        raise ValueError('Offline diagnostic request inventory drift')
+    if (previous['model_calls'] != 1 or previous['held_out_calls'] != 0 or
+            previous['rows'][0].get('error', {}).get('type') != 'TimeoutError'):
+        raise ValueError('Reference must be the single timed-out attempt')
+    result = copy.deepcopy(report)
+    result.update(version='native-reasoning-offline-timeout-v1',
+        timeout_reference_sha256=TIMEOUT_REFERENCE_SHA,
+        unselected_ids=[r['id'] for r in result['rows'][1:]],
+        changed=['request timeout: 120s to 360s; only prior timed-out case selected'],
+        interactive_limit_ms=120000, planned_model_calls=1,
+        acceptance=dict(semantic_review_required=True, production_promotion_allowed=False,
+                        eight_case_acceptance='not_evaluated_by_this_single_case'))
+    result['rows'] = result['rows'][:1]
+    result['execution'].update(request_timeout_seconds=360, semantic_calls_max=1)
+    return result
+
+
+def verify_offline_runtime(report, previous):
+    for key in ('template_sha256', 'native_prefill_sha256', 'model_receipt',
+                'runtime_receipt', 'launch_arguments', 'reasoning_arguments'):
+        if report[key] != previous[key]:
+            raise ValueError('Offline diagnostic runtime drift: ' + key)
+
+
 def judge(response, evidence):
     choice = response['choices'][0]
     message = choice['message']
@@ -154,6 +188,8 @@ def run_rows(reader, report, save):
         row['ms'] = round((time.perf_counter() - started) * 1000, 2)
         row['process_memory'] = own_process_memory(reader)
         complete = row.get('result', {}).get('completed', False)
+        if 'interactive_limit_ms' in report:
+            row['interactive_completed_within_limit'] = bool(complete and row['ms'] <= report['interactive_limit_ms'])
         if not complete:
             for pending in report['rows'][i + 1:]:
                 pending['not_run'] = 'Previous request failed/incomplete; no retry'
@@ -167,9 +203,17 @@ def run_rows(reader, report, save):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--run', action='store_true')
+    parser.add_argument('--offline-capability', action='store_true',
+        help='One prior timed-out case, identical request, separate 360-second offline budget')
     args = parser.parse_args(argv)
     report, reference = prepare()
-    folder = DEFAULT_HOME / 'native-reasoning-pilot' / uuid.uuid4().hex[:12]
+    previous = None
+    kind = 'native-reasoning-pilot'
+    if args.offline_capability:
+        previous = frozen(TIMEOUT_REFERENCE, TIMEOUT_REFERENCE_SHA, normalize_newlines=False)
+        report = offline_diagnostic(report, previous)
+        kind = 'native-reasoning-offline-capability'
+    folder = DEFAULT_HOME / kind / uuid.uuid4().hex[:12]
     folder.mkdir(parents=True, exist_ok=False)
 
     def save():
@@ -178,12 +222,13 @@ def main(argv=None):
     save()
     print('Report: ' + str(folder / 'report.json'), flush=True)
     if not args.run:
-        print('Prepared 8 frozen cases: 2 development + 6 held out; 0 model calls.')
+        print(f'Prepared {len(report["rows"])} frozen cases; 0 model calls.')
         return 0
     log = DEFAULT_HOME / 'reader-vulkan-runtime.log'
     if log.exists():
         shutil.copyfile(log, folder / 'previous-runtime.log')
     reader = NativeReader()
+    reader.timeout = report['execution']['request_timeout_seconds']
     try:
         with reader:
             report.update(template_sha256=C.verify_runtime(reader, reference),
@@ -197,6 +242,8 @@ def main(argv=None):
             if not isinstance(prompt, str) or not prompt.rstrip().endswith('<think>'):
                 raise ValueError('Native thinking prefill not verified; no generation sent')
             report.update(state='running', native_prefill_sha256=digest(prompt))
+            if previous is not None:
+                verify_offline_runtime(report, previous)
             save()
             run_rows(reader, report, save)
             report['state'] = 'attempted'
