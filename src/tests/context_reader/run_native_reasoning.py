@@ -182,6 +182,23 @@ def budget_diagnostic(report, previous):
                   changed=['runtime reasoning budget: unrestricted to 512; no prompt changes'])
 
 
+def select_budget_contrast(report, inventory, positive):
+    """Select the existing exposed contrast; preserve the failed positive record."""
+    for key in ('model', 'execution', 'reasoning_budget', 'input_sha256', 'gold_sha256'):
+        if report[key] != positive[key]:
+            raise ValueError('Contrast configuration drift: ' + key)
+    if report['rows'][0]['request_sha256'] != positive['rows'][0]['request_sha256']:
+        raise ValueError('Positive request drift')
+    selected = next(r for r in inventory if r['id'] == 'chenping_contrast')
+    if selected['split'] != 'exposed_development':
+        raise ValueError('Contrast must not be held out')
+    report.update(version='native-reasoning-budget-512-contrast-v1',
+                  rows=[copy.deepcopy(selected)],
+                  unselected_ids=[r['id'] for r in inventory if r['id'] != selected['id']],
+                  changed=['existing exposed contrast selected; budget and instructions unchanged'],
+                  positive_semantic_failure_retained=True)
+
+
 def judge(response, evidence):
     choice = response['choices'][0]
     message = choice['message']
@@ -243,12 +260,16 @@ def main(argv=None):
         help='One prior timed-out case, identical request, separate 360-second offline budget')
     parser.add_argument('--trace-stream', action='store_true')
     parser.add_argument('--budget-512', action='store_true')
+    parser.add_argument('--contrast', action='store_true')
     args = parser.parse_args(argv)
+    if args.contrast and not args.budget_512:
+        parser.error('--contrast requires --budget-512')
     if args.budget_512 and not args.trace_stream:
         parser.error('--budget-512 requires --trace-stream')
     if args.trace_stream and not args.offline_capability:
         parser.error('--trace-stream requires --offline-capability')
     report, reference = prepare()
+    inventory = copy.deepcopy(report['rows'])
     previous = None
     kind = 'native-reasoning-pilot'
     if args.offline_capability:
@@ -262,6 +283,14 @@ def main(argv=None):
         previous = frozen(STREAM_REFERENCE, STREAM_REFERENCE_SHA, normalize_newlines=False)
         budget_diagnostic(report, previous)
         kind = 'native-reasoning-budget-512'
+    runtime_probe_request = report['rows'][0]['request']
+    if args.contrast:
+        positive_sha = 'a3893e6d60231563a2360e7d8f88c8fd9b1abcb730b7f5c1fe2afbd9b6d5b073'
+        positive = frozen(DEFAULT_HOME / 'native-reasoning-budget-512/db08859d0869/report.json',
+                          positive_sha, normalize_newlines=False)
+        select_budget_contrast(report, inventory, positive)
+        report['positive_reference_sha256'] = positive_sha
+        kind = 'native-reasoning-budget-512-contrast'
     folder = DEFAULT_HOME / kind / uuid.uuid4().hex[:12]
     folder.mkdir(parents=True, exist_ok=False)
 
@@ -284,7 +313,9 @@ def main(argv=None):
                 model_receipt=reader.receipt, runtime_receipt=reader.runtime_receipt,
                 launch_arguments=reader.gpu_arguments(), reasoning_arguments=reader.reasoning_arguments(),
                 startup_ms=reader.startup_ms, startup_memory=own_process_memory(reader))
-            request = report['rows'][0]['request']
+            # Keep the original positive prefill as the runtime identity probe.
+            # For a different question, also record its actual prefill separately.
+            request = runtime_probe_request
             rendered = reader.request('/apply-template', dict(messages=request['messages'],
                 chat_template_kwargs=request['chat_template_kwargs']))
             prompt = rendered.get('prompt')
@@ -296,6 +327,14 @@ def main(argv=None):
                     verify_budget_runtime(report, previous)
                 else:
                     verify_offline_runtime(report, previous)
+            if args.contrast:
+                selected = report['rows'][0]['request']
+                rendered = reader.request('/apply-template', dict(messages=selected['messages'],
+                    chat_template_kwargs=selected['chat_template_kwargs']))
+                selected_prompt = rendered.get('prompt')
+                if not isinstance(selected_prompt, str) or not selected_prompt.rstrip().endswith('<think>'):
+                    raise ValueError('Selected contrast prefill invalid; no generation sent')
+                report['selected_native_prefill_sha256'] = digest(selected_prompt)
             save()
             run_rows(reader, report, save, folder if args.trace_stream else None)
             report['state'] = 'attempted'
