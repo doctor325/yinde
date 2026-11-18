@@ -34,6 +34,11 @@ QWEN25_SHARDS = tuple(
 )
 
 MODELS = {
+    'gpt-oss-20b': dict(id='ggml-org/gpt-oss-20b-GGUF',
+        receipt='receipt-gpt-oss-20b.json', mode='native Harmony, isolated experiment only', asset=dict(
+            name='gpt-oss-20b-MXFP4.gguf', bytes=12109566624,
+            sha256='27cd6c432c7672cb812a92f611cf3ba7bbc35928262bb1e1253ff4ee6ae35901',
+            url='https://huggingface.co/ggml-org/gpt-oss-20b-GGUF/resolve/b97cbb20d1995efd41dce8c4dd1ddf86e8db375b/gpt-oss-20b-MXFP4.gguf')),
     'qwen3-4b': dict(id='Qwen/Qwen3-4B-GGUF', asset=ASSETS[1], receipt='receipt.json'),
     'qwen3-8b': dict(id='Qwen/Qwen3-8B-GGUF', receipt='receipt-qwen3-8b.json', asset=dict(
         name='Qwen3-8B-Q4_K_M.gguf', bytes=5027783488,
