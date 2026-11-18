@@ -171,7 +171,7 @@ def judge(response, evidence):
         citation_inventory=B.citation_inventory(text, evidence), semantic_verified=False)
 
 
-def run_rows(reader, report, save):
+def run_rows(reader, report, save, stream_folder=None):
     for i, row in enumerate(report['rows']):
         if digest(row['request']) != row['request_sha256']:
             raise ValueError('Request drift; no inference sent')
@@ -181,8 +181,16 @@ def run_rows(reader, report, save):
         save()
         started = time.perf_counter()
         try:
-            row['response'] = reader.request('/v1/chat/completions', row['request'])
+            if stream_folder is None:
+                row['response'] = reader.request('/v1/chat/completions', row['request'])
+            else:
+                from tests.context_reader.stream_trace import capture
+                row['trace'], row['response'] = capture(reader, row['request'], stream_folder)
+                if row['trace'].get('error'):
+                    row['error'] = row['trace']['error']
             row['result'] = judge(row['response'], row['evidence'])
+            if stream_folder is not None:
+                row['result']['completed'] &= row['trace']['completed']
         except (OSError, ValueError, TypeError, KeyError, IndexError) as exc:
             row['error'] = dict(type=type(exc).__name__, message=str(exc))
         row['ms'] = round((time.perf_counter() - started) * 1000, 2)
@@ -205,7 +213,10 @@ def main(argv=None):
     parser.add_argument('--run', action='store_true')
     parser.add_argument('--offline-capability', action='store_true',
         help='One prior timed-out case, identical request, separate 360-second offline budget')
+    parser.add_argument('--trace-stream', action='store_true')
     args = parser.parse_args(argv)
+    if args.trace_stream and not args.offline_capability:
+        parser.error('--trace-stream requires --offline-capability')
     report, reference = prepare()
     previous = None
     kind = 'native-reasoning-pilot'
@@ -213,6 +224,9 @@ def main(argv=None):
         previous = frozen(TIMEOUT_REFERENCE, TIMEOUT_REFERENCE_SHA, normalize_newlines=False)
         report = offline_diagnostic(report, previous)
         kind = 'native-reasoning-offline-capability'
+    if args.trace_stream:
+        kind = 'native-reasoning-stream-trace'
+        report['transport'] = 'SSE; same 360s total deadline; reasoning/final separated'
     folder = DEFAULT_HOME / kind / uuid.uuid4().hex[:12]
     folder.mkdir(parents=True, exist_ok=False)
 
@@ -245,7 +259,7 @@ def main(argv=None):
             if previous is not None:
                 verify_offline_runtime(report, previous)
             save()
-            run_rows(reader, report, save)
+            run_rows(reader, report, save, folder if args.trace_stream else None)
             report['state'] = 'attempted'
     except (OSError, ValueError, RuntimeError, KeyError, TypeError) as exc:
         report.update(state='failed', error=dict(type=type(exc).__name__, message=str(exc)))
