@@ -34,6 +34,10 @@ class LocalReader:
     def gpu_arguments(self):
         return ['-ngl', '0'] if self.backend == 'cpu' else ['-ngl', '99', '--device', 'Vulkan0']
 
+    def reasoning_arguments(self):
+        # Existing callers retain their exact non-thinking launch arguments.
+        return ['--reasoning', 'off']
+
     def request(self, path, payload=None, timeout=None):
         body = None if payload is None else json.dumps(payload, ensure_ascii=False).encode('utf8')
         request = urllib.request.Request(self.url+path, data=body,
@@ -106,7 +110,7 @@ class LocalReader:
         try:
             self.process=subprocess.Popen([str(executable),'-m',str(model),'--offline',
                 '--host','127.0.0.1','--port',str(port),'--api-key',self.key,
-                '-c','8192','-np','1','-t','4',*self.gpu_arguments(),'--reasoning','off',
+                '-c','8192','-np','1','-t','4',*self.gpu_arguments(),*self.reasoning_arguments(),
                 '--no-context-shift','--cache-ram','0'],cwd=self.home,env=env,
                 stdin=subprocess.DEVNULL,stdout=self.log,stderr=self.log,
                 creationflags=getattr(subprocess,'CREATE_NO_WINDOW',0))

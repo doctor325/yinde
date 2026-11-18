@@ -42,6 +42,11 @@ MODELS = {
     'qwen2.5-14b-instruct': dict(id='Qwen/Qwen2.5-14B-Instruct-GGUF',
         receipt='receipt-qwen2.5-14b-instruct.json', asset=QWEN25_SHARDS[0],
         additional_assets=QWEN25_SHARDS[1:]),
+    'qwen3.5-9b': dict(id='unsloth/Qwen3.5-9B-GGUF',
+        receipt='receipt-qwen3.5-9b.json', mode='native thinking, isolated experiment only', asset=dict(
+            name='Qwen3.5-9B-Q5_K_M.gguf', bytes=6577841376,
+            sha256='dc2a39aef291f91a9116ad214058da0d86eb648743a124bd8c333787c4b9c91c',
+            url='https://huggingface.co/unsloth/Qwen3.5-9B-GGUF/resolve/3885219b6810b007914f3a7950a8d1b469d598a5/Qwen3.5-9B-Q5_K_M.gguf')),
 }
 
 
@@ -129,7 +134,7 @@ def main():
         print('Verified ' + asset['name'], flush=True)
     (DEST / spec['receipt']).write_text(json.dumps(dict(assets=assets,
         runtime='llama.cpp b12283 CPU x64', model=spec['id'],
-        mode='non-thinking, offline experiment only'), indent=2), encoding='utf8')
+        mode=spec.get('mode', 'non-thinking, offline experiment only')), indent=2), encoding='utf8')
 
 
 if __name__ == '__main__':
