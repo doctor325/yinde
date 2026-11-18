@@ -376,7 +376,8 @@ footer { font-size: 12px; margin: 0; padding: 24px; }
 .punctuated-inventory { margin-top: 10px; color: var(--ink2); font-size: 13px; line-height: 1.7; }
 .punctuated-inventory span, .punctuated-inventory small { display: block; }
 .punctuated-inventory small { margin-top: 4px; font-size: 12px; }
-.punctuated-location { background: #eee9d8; scroll-margin-top: 90px; }
+.punctuated-location, .punctuated-match { scroll-margin-top: 90px; }
+.punctuated-match { background: #eee9d8; color: inherit; }
 .punctuated-table-scroll { overflow-x:auto; max-width:100%; margin:1.2rem 0; white-space:normal; }
 .punctuated-table { border-collapse:collapse; min-width:100%; font-size:.95em; }
 .punctuated-table th,.punctuated-table td { border:1px solid #cfcac0; padding:.55rem .7rem; vertical-align:top; min-width:5rem; white-space:pre-wrap; }

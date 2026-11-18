@@ -35,6 +35,11 @@ assert.ok(html.includes('back=%23%2Fsearch'));
 for(const expected of ['&lt;img&gt;','甲乙丙，国语。','来源注释','来源排版异常','#/punctuated/9?block=3','source=original','未确认逐句对应'])assert.ok(html.includes(expected),expected);
 assert.ok(!html.includes('href="javascript:'));assert.ok(!html.includes('<script>'));
 assert.ok(!html.includes('语义相似分'));
+const splitLink=new URL(run('punctuatedHitLink({...result.hits[0].chunk, parts:[{block_index:3,start:1,end:3},{block_index:4,start:0,end:2}]}, "#/search?q=甲乙")').slice(1),'http://localhost');
+assert.deepEqual(JSON.parse(splitLink.searchParams.get('ranges')),[[3,1,3],[4,0,2]]);
+assert.equal(splitLink.searchParams.get('back'),'#/search?q=甲乙');
+assert.equal(splitLink.searchParams.get('rev'),'8');
+assert.equal(splitLink.searchParams.get('sha'),'hash');
 const experiment={...fixture('甲書'),mode:'relation',candidate_counts:{semantic:1,keyword:0},
   query_plan:{clues:[{text:'<script>'}]},relation_experiment:{selection:'baseline_fallback',candidate_scan:{truncated:true}}};
 run('globalThis.put=x=>{globalThis.result=x}')(experiment);

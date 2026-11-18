@@ -143,18 +143,29 @@ async function getBooks() {
 /* ---------- 文本渲染 ---------- */
 // 富文本：<pb:> 可藏可显；¶ 灰；&KR…; 橙；注释候选整段紫
 function rich(text, opts = {}) {
-  const { pb = true, cand = false } = opts;
+  const { pb = true, cand = false, sourceRange } = opts;
+  let from = 0, to = 0;
+  if (sourceRange) {
+    const chars = Array.from(text);
+    from = chars.slice(0, sourceRange[0]).join('').length;
+    to = from + chars.slice(sourceRange[0], sourceRange[1]).join('').length;
+  }
+  const renderText = (value, offset) => {
+    const start = Math.max(from - offset, 0), end = Math.min(to - offset, value.length);
+    if (start >= end) return esc(value);
+    return `${esc(value.slice(0, start))}<mark class="punctuated-match">${esc(value.slice(start, end))}</mark>${esc(value.slice(end))}`;
+  };
   const re = /(<pb:[^>]*>)|(¶)|(&KR[A-Za-z0-9]+;)/g;
   const parts = [];
   let last = 0, m;
   while ((m = re.exec(text))) {
-    if (m.index > last) parts.push(esc(text.slice(last, m.index)));
-    if (m[1]) parts.push(pb ? `<span class="pbmark">${esc(m[1])}</span>` : "");
-    else if (m[2]) parts.push(`<span class="para">¶</span>`);
-    else parts.push(`<span class="chip kr">${esc(m[3])}</span>`);
+    if (m.index > last) parts.push(renderText(text.slice(last, m.index), last));
+    if (m[1]) parts.push(pb ? `<span class="pbmark">${renderText(m[1], m.index)}</span>` : "");
+    else if (m[2]) parts.push(`<span class="para">${renderText(m[2], m.index)}</span>`);
+    else parts.push(`<span class="chip kr">${renderText(m[3], m.index)}</span>`);
     last = m.index + m[0].length;
   }
-  parts.push(esc(text.slice(last)));
+  parts.push(renderText(text.slice(last), last));
   return `<span class="${cand ? "wrap-cand" : ""}">${parts.join("")}</span>`;
 }
 // 已在转义文本上高亮检索词（检索词已转繁）

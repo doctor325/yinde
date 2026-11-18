@@ -7,7 +7,7 @@ function punctuatedSourceLink(url, label) {
   } catch (_) { return esc(label); }
 }
 
-function punctuatedText(blocks) {
+function punctuatedText(blocks, locations = new Map()) {
   return blocks.map((b, index) => {
     if (b.kind === 'provenance') return '';
     if (b.kind === 'image') {
@@ -21,7 +21,9 @@ function punctuatedText(blocks) {
       const spans = ['td','th'].includes(b.tag) ? ['rowspan','colspan'].filter(k => Number.isInteger(b[k]) && b[k] > 0 && b[k] < 1000).map(k => ` ${k}="${b[k]}"`).join('') : '';
       return `<${b.tag}${spans}>`;
     }
-    const content = `<span id="punctuated-block-${index}">${readingTextHtml(b.text, {pb:false})}</span>`;
+    const location = locations.has(index) ? ' class="punctuated-location"' : '';
+    const sourceRange = locations.get(index);
+    const content = `<span id="punctuated-block-${index}"${location}>${readingTextHtml(b.text, {pb:false,sourceRange})}</span>`;
     if (b.kind === 'annotation') return `<span class="punctuated-note" title="来源中的注释，单独显示">〈${content}〉</span>`;
     if (b.kind === 'glyph') return `<span class="chip kr" title="来源缺字或私用区字，保留编码，显示可能不一致">${content}</span>`;
     if (b.kind === 'heading') return `<h2>${content}</h2>`;
@@ -30,31 +32,34 @@ function punctuatedText(blocks) {
   }).join('');
 }
 
-function locatePunctuatedSource(params) {
-  if (!/^\d+$/.test(String(params.block ?? ''))) return;
-  const target=document.getElementById(`punctuated-block-${params.block}`);
-  if (!target) return;
-  target.classList.add('punctuated-location');target.scrollIntoView({block:'center'});
-  const span=target.querySelector('[data-reading-source]');
-  const start=Number(params.start),end=Number(params.end);
-  if (!span || !Number.isInteger(start) || !Number.isInteger(end) || start<0 || end<=start) return;
-  const chars=Array.from(span.textContent);
-  if (end>chars.length) return;
-  // Python source offsets count Unicode code points; DOM Range counts UTF-16.
-  const first=chars.slice(0,start).join('').length,last=chars.slice(0,end).join('').length;
-  const walker=document.createTreeWalker(span,NodeFilter.SHOW_TEXT);
-  const range=document.createRange();let offset=0,opened=false,node;
-  while((node=walker.nextNode())){
-    const limit=offset+node.textContent.length;
-    if(!opened && first<limit){range.setStart(node,first-offset);opened=true;}
-    if(opened && last<=limit){
-      range.setEnd(node,last-offset);
-      const selection=window.getSelection();selection.removeAllRanges();selection.addRange(range);
-      window.scrollBy(0,range.getBoundingClientRect().top-window.innerHeight/3);
-      break;
+function punctuatedLocations(chapter, params) {
+  const locations = new Map();
+  if ((params.rev != null && String(params.rev) !== String(chapter.revision_id)) ||
+      (params.sha != null && params.sha !== chapter.source_sha256)) return locations;
+  const blockText = block => ['body','annotation','glyph','heading','editorial'].includes(chapter.blocks[block]?.kind)
+    ? chapter.blocks[block].text : undefined;
+  let ranges;
+  if (params.ranges != null) {
+    ranges = jp(params.ranges, null);
+    if (!Array.isArray(ranges)) return locations;
+  } else {
+    if (!/^\d+$/.test(String(params.block ?? ''))) return locations;
+    const block = Number(params.block);
+    if (params.start == null && params.end == null && typeof blockText(block) === 'string') {
+      return locations.set(block, undefined);
     }
-    offset=limit;
+    if (![params.start, params.end].every(value => /^\d+$/.test(String(value)))) return locations;
+    ranges = [[block, Number(params.start), Number(params.end)]];
   }
+  for (const range of ranges) {
+    if (!Array.isArray(range) || range.length !== 3 || !range.every(Number.isSafeInteger)) return new Map();
+    const [block, start, end] = range;
+    const text = blockText(block);
+    if (locations.has(block) || typeof text !== 'string' || start < 0 || end <= start ||
+        end > Array.from(text).length) return new Map();
+    locations.set(block, [start, end]);
+  }
+  return locations;
 }
 
 function punctuatedInventory(b) {
@@ -82,6 +87,8 @@ async function punctuatedView(pageId, params, revision) {
     const d = await api(`/api/punctuated/chapter/${encodeURIComponent(pageId)}`);
     if (revision !== routeRevision) return;
     const rendering = d.blocks.find(b => b.kind === 'provenance');
+    const locations = punctuatedLocations(d, params);
+    const missedLocation = (params.block != null || params.ranges != null) && !locations.size;
     const back=typeof params.back==='string' && /^#\/(?:search|semantic|history-qa)(?:\?|$)/.test(params.back)
       ? `<a class="btn" href="${esc(params.back)}">← 返回搜索结果</a>` : '';
     view.innerHTML = `<div class="controls">${back}<a class="backlink" href="#/punctuated?${qs({book:d.book_id})}">← 返回本书目录</a></div>
@@ -89,13 +96,17 @@ async function punctuatedView(pageId, params, revision) {
       <p class="collection-note">按该来源的标点显示，未逐字校勘；与原收录底本可能有异文。顶部可切换原文与简体阅读。</p>
       <p>${punctuatedSourceLink(d.source_url,'来源固定版本')} · ${punctuatedSourceLink(d.history_url,'贡献者与修订历史')} · ${punctuatedSourceLink(d.license_url,'CC BY-SA 4.0')}</p>
       ${['insufficient_punctuation','partial_render'].includes(d.status) ? `<p class="collection-note">${esc(d.reason)}。以下为原页可读取的文字，未计入标点阅读篇数。</p>` : ''}
-      ${['readable','insufficient_punctuation','partial_render'].includes(d.status) ? `<div class="read-body punctuated-body">${punctuatedText(d.blocks)}</div>` :
+      ${missedLocation ? '<p class="collection-note">无法定位链接中的片段，可在本篇原文中查找。</p>' : ''}
+      ${['readable','insufficient_punctuation','partial_render'].includes(d.status) ? `<div class="read-body punctuated-body">${punctuatedText(d.blocks, locations)}</div>` :
         `<div class="empty">原文件已下载，当前阅读转换失败：${esc(d.reason)}。可打开上方固定来源查看。</div>`}
       <details class="maintenance"><summary>版本与来源</summary><p>${esc(d.attribution)}</p>
         <p>修订 ${num(d.revision_id)} · ${esc(d.revision_timestamp)} · 校验 ${esc(d.source_sha256)}</p>
         ${rendering ? `<p>按维基文库官方渲染快照读取 · ${esc(rendering.rendered_at)}。正文修订固定，模板按当时服务器版本展开；快照校验 ${esc(rendering.html_sha256)}。</p>${rendering.warnings?.length ? `<p>${rendering.warnings.map(w=>esc(typeof w === 'string' ? w : JSON.stringify(w))).join('；')}</p>` : ''}` : ''}
         ${d.reason ? `<p>${esc(d.reason)}</p>` : ''}</details>`;
-    locatePunctuatedSource(params);
+    if (locations.size) {
+      const first = $(`#punctuated-block-${locations.keys().next().value}`, view);
+      (first?.querySelector('.punctuated-match') || first)?.scrollIntoView({block:'center'});
+    }
     return;
   }
   if (!params.book) {

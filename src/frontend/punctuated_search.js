@@ -63,7 +63,9 @@ async function punctuatedSearchView(params, revision, semantic = false) {
 
 function punctuatedHitLink(chunk, returnTo) {
   const part=chunk.parts?.[0];
-  return `#/punctuated/${Number(chunk.page_id)}?${qs({block:part?.block_index,start:part?.start,end:part?.end,back:returnTo})}`;
+  const ranges=chunk.parts?.length>1?JSON.stringify(chunk.parts.map(p=>[p.block_index,p.start,p.end])):undefined;
+  return `#/punctuated/${Number(chunk.page_id)}?${qs({block:part?.block_index,start:part?.start,end:part?.end,back:returnTo,
+    ranges,rev:chunk.revision_id,sha:chunk.source_sha256})}`;
 }
 
 function punctuatedHitContext(hit, returnTo) {

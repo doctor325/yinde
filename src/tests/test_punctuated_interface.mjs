@@ -1,10 +1,15 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
-const nodes=new Map([['#view',{innerHTML:''}],['#punctuatedSearch',{addEventListener(){}}]]);
+const scrolled=[];
+const anchor={querySelector:()=>({scrollIntoView(){scrolled.push('match');}})};
+const nodes=new Map([['#view',{innerHTML:'',querySelector:selector=>selector==='#punctuated-block-0'?anchor:null}],['#punctuatedSearch',{addEventListener(){}}]]);
+let readingNodes=[];
 const context=vm.createContext({console,URL,URLSearchParams,AbortController,DOMException,
   location:{hash:'#/punctuated'},history:{},localStorage:{getItem(){return null;}},
-  window:{addEventListener(){}},document:{querySelector:s=>nodes.get(s)||null,querySelectorAll:()=>[]}});
+  window:{addEventListener(){}},document:{querySelector:s=>nodes.get(s)||null,querySelectorAll:()=>readingNodes}});
+for(const file of ['zh_table','zh','dual_text'])
+  vm.runInContext(fs.readFileSync(new URL(`../frontend/engine/${file}.js`,import.meta.url),'utf8'),context);
 const source=fs.readFileSync(new URL('../frontend/app.js',import.meta.url),'utf8').replace(/\nroute\(\);\nheaderStats\(\);\nfootBooks\(\);\s*$/,'\n');
 vm.runInContext(source,context);
 vm.runInContext(fs.readFileSync(new URL('../frontend/punctuated.js',import.meta.url),'utf8'),context);
@@ -51,6 +56,30 @@ assert.ok(nodes.get('#view').innerHTML.includes('href="#/semantic?q=甲公&amp;b
 await run('punctuatedView(1,{back:"javascript:alert(1)"},0)');
 assert.ok(!nodes.get('#view').innerHTML.includes('← 返回搜索结果'));
 assert.ok(nodes.get('#view').innerHTML.includes('返回本书目录'));
+const locatedChapter={page_id:1,book_id:'A',title:'篇章',status:'readable',revision_id:8,source_sha256:'hash',
+  blocks:[{kind:'body',text:'𠀀國¶文'},{kind:'body',text:'漢<字'},{kind:'annotation',text:'注釋'}]};
+run('globalThis.install=fn=>{api=fn}')(async()=>locatedChapter);
+await run('punctuatedView(1,{ranges:"[[0,1,3],[1,0,2]]",rev:"8",sha:"hash"},0)');
+const located=nodes.get('#view').innerHTML;
+assert.match(located,/𠀀<mark class="punctuated-match">國<\/mark><span class="para"><mark class="punctuated-match">¶<\/mark><\/span>文/);
+assert.ok(located.includes('<mark class="punctuated-match">漢&lt;</mark>字'));
+assert.ok(!located.includes('punctuated-block-2" class="punctuated-location'));
+assert.deepEqual(scrolled,['match']);
+const readingNode={dataset:{readingSource:'𠀀國¶文',readingOptions:'{"pb":false,"sourceRange":[1,3]}',readingTerms:'[]'}};
+readingNodes=[readingNode];
+run('window.setReadingMode("simplified")');
+assert.ok(readingNode.innerHTML.includes('𠀀<mark class="punctuated-match">国</mark>'));
+run('window.setReadingMode("orig")');
+assert.ok(readingNode.innerHTML.includes('𠀀<mark class="punctuated-match">國</mark>'));
+readingNodes=[];
+await run('punctuatedView(1,{block:"0",start:"1",end:"2"},0)');
+assert.ok(nodes.get('#view').innerHTML.includes('<mark class="punctuated-match">國</mark>'));
+for(const params of ['{block:"0",start:"1",end:"2",rev:"7"}',
+  '{block:"0",start:"1",end:"2",rev:"8",sha:"old"}', '{ranges:"[[0,1,3],[1,0,99]]"}']){
+  await run(`punctuatedView(1,${params},0)`);
+  assert.ok(nodes.get('#view').innerHTML.includes('无法定位链接中的片段'));
+  assert.ok(!nodes.get('#view').innerHTML.includes('class="punctuated-match"'));
+}
 let resolve;
 run('globalThis.install=fn=>{api=fn}')(()=>new Promise(r=>{resolve=r}));
 const pending=run('punctuatedView(null,{},0)');
