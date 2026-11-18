@@ -46,20 +46,32 @@ const evidence={...fixture('甲書'),mode:'evidence',candidate_counts:{semantic:
   evidence_pipeline:{version:'context-evidence-v2',audit_clues_present:0,candidate_counts:{context_scored:57},
     candidate_scan:{truncated:false},grounded_fallback:{hypothesis:'甲乙'}},
 };
-evidence.hits[0].evidence_audit={status:'insufficient',missing:['缺少<script>线索']};
-evidence.hits[0].context_chunks=[];
+evidence.hits[0].evidence_audit={status:'insufficient',missing:['缺少<script>线索'],
+  causal_event_explanations:[{explanation:'待核的原因摘要'}]};
+const hitChunk=evidence.hits[0].chunk;
+hitChunk.source_url='https://zh.wikisource.org/w/index.php?oldid=8';
+evidence.hits[0].context_chunks=[
+  {...hitChunk,chunk_id:3,text_orig:'续段正文',parts:[{block_index:4,start:0,end:4}]},
+  {...hitChunk,chunk_id:1,text_orig:'此前正文',parts:[{block_index:2,start:1,end:5}]},
+  {...hitChunk,chunk_id:4,revision_id:7,text_orig:'另一修订内容'},
+];
 evidence.hits[0].evidence_focus={selected:true,text:'甲乙丙，國語。<script>'};
 run('globalThis.put=x=>{globalThis.result=x}')(evidence);
 const evidenceHtml=run('punctuatedSearchResults(result)');
 assert.ok(evidenceHtml.includes('尚未确认有片段能回答这个问题'));
-assert.ok(evidenceHtml.includes('仅相关 · 尚未确认'));
+assert.ok(evidenceHtml.includes('<h2>史料片段</h2>'));
 assert.ok(!evidenceHtml.includes('<h2>可能回答问题</h2>'));
 assert.ok(evidenceHtml.includes('data-pipeline-version="context-evidence-v2"'));
-assert.ok(evidenceHtml.includes('自动核查尚未确认是否回答问题'));
+assert.ok(evidenceHtml.includes('<summary>检索线索</summary>'));
 assert.ok(evidenceHtml.includes('规则未识别不代表原文没有记载'));
 assert.ok(evidenceHtml.includes('问题尚未完整解析'));
-assert.ok(evidenceHtml.includes('本次重点比较的原文'));
+assert.ok(evidenceHtml.includes('重点比较的原文'));
 assert.ok(evidenceHtml.includes('缺少&lt;script&gt;线索'));assert.ok(!evidenceHtml.includes('<script>'));
+assert.match(evidenceHtml,/href="https:\/\/zh\.wikisource\.org\/w\/index\.php\?oldid=8"[^>]*>固定版本出处<\/a>[\s\S]*<summary>展开相邻原文<\/summary>/);
+assert.match(evidenceHtml,/<summary>展开相邻原文<\/summary>[\s\S]*此前正文[\s\S]*命中片段[\s\S]*续段正文/);
+assert.match(evidenceHtml,/#\/punctuated\/9\?block=2&start=1&end=5&back=%23%2Fsearch/);
+assert.ok(!evidenceHtml.includes('另一修订内容'));
+assert.ok(!evidenceHtml.includes('待核的原因摘要'));
 await run('punctuatedSearchView({strategy:"relation"},0,true)');
 assert.ok(!nodes.get('#view').innerHTML.includes('id="punctuatedSearchStrategy"'));
 assert.equal(run('unifiedSearchStrategy("甲公何时去世？")'),'evidence');
@@ -79,7 +91,8 @@ possible.evidence_audit={status:'clues_present',missing:[]};
 pending.shift().resolve({...evidence,hits:[...evidence.hits,possible]});
 await question;
 const grouped=nodes.get('#punctuatedSearchResult').innerHTML;
-assert.match(grouped,/<h2>可能回答问题<\/h2>[\s\S]*可能结果[\s\S]*<h2>仅相关 · 尚未确认<\/h2>[\s\S]*甲書/);
+assert.match(grouped,/<h2>史料片段<\/h2>[\s\S]*甲書[\s\S]*可能结果/);
+assert.ok(!grouped.includes('<h2>可能回答问题</h2>'));
 assert.ok(!grouped.includes('尚未确认有片段能回答这个问题'));
 nodes.get('#punctuatedSearchQuery').value='旧查询';
 const first=handlers['punctuatedSearchForm:submit']({preventDefault(){}});

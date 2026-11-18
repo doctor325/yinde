@@ -61,6 +61,24 @@ async function punctuatedSearchView(params, revision, semantic = false) {
   return true;
 }
 
+function punctuatedHitLink(chunk, returnTo) {
+  const part=chunk.parts?.[0];
+  return `#/punctuated/${Number(chunk.page_id)}?${qs({block:part?.block_index,start:part?.start,end:part?.end,back:returnTo})}`;
+}
+
+function punctuatedHitContext(hit, returnTo) {
+  const c=hit.chunk;
+  const scope=['page_id','book_id','revision_id','source_sha256','layer','heading'];
+  const neighbors=(hit.context_chunks||[]).filter(n=>n.chunk_id!==c.chunk_id && scope.every(key=>n[key]===c[key]));
+  if(!neighbors.length)return '';
+  const ordered=[...neighbors,c].sort((a,b)=>a.chunk_id-b.chunk_id);
+  return `<details><summary>展开相邻原文</summary>${ordered.map(n=>{
+    const label=n.chunk_id===c.chunk_id?'命中片段':n.chunk_id<c.chunk_id?'前文':'后文';
+    return `<p class="quiet">${label} · <a href="${punctuatedHitLink(n,returnTo)}">在篇章中定位</a></p>
+      <p class="blk-text">${readingTextHtml(n.text_orig,{pb:false})}</p>`;
+  }).join('')}</details>`;
+}
+
 function punctuatedSearchResults(result) {
   // Carry the complete search state with the source link, including pagination
   // and strategy. This also works after refreshing or opening a new tab.
@@ -69,8 +87,7 @@ function punctuatedSearchResults(result) {
   const old=`#/search?${qs({q:result.query,book:result.book,source:'original'})}`;
   if (!result.book_available) return `<p>这部史书尚未收录标点版本。</p><a class="btn" href="${old}">检索所收原底本</a>`;
   const pipeline=result.evidence_pipeline;
-  const possible=pipeline?result.hits.filter(hit=>hit.evidence_audit?.status==='clues_present'):[];
-  const hits=pipeline?[...possible,...result.hits.filter(hit=>hit.evidence_audit?.status!=='clues_present')]:result.hits;
+  const hasClues=pipeline && result.hits.some(hit=>hit.evidence_audit?.status==='clues_present');
   let html=pipeline?'':`<p class="quiet">${result.mode==='keyword'?`共 ${num(result.total)} 个匹配片段 · 第 ${num(result.page)} 页`:`语义候选 ${num(result.candidate_counts.semantic)} 个 · 关键词／规则候选 ${num(result.candidate_counts.keyword)} 个 · 展示前 ${result.hits.length} 个`}
     · ${num(result.elapsed_ms)} ms</p>`;
   const biographies=result.biographies||[];
@@ -84,7 +101,7 @@ function punctuatedSearchResults(result) {
     }
   }
   if(pipeline){
-    html+=`<p class="quiet evidence-pipeline-note" data-pipeline-version="${esc(pipeline.version||'')}">${possible.length
+    html+=`<p class="quiet evidence-pipeline-note" data-pipeline-version="${esc(pipeline.version||'')}">${hasClues
       ? '部分史料包含所问要素和句式线索，请结合出处核对。'
       : '本次找到的史料中，尚未确认有片段能回答这个问题。'}</p>`;
     if(pipeline.grounded_fallback?.hypothesis)html+='<p class="quiet">问题尚未完整解析，本次补充了有原文落点的词语线索。</p>';
@@ -95,30 +112,27 @@ function punctuatedSearchResults(result) {
     html+=`<p class="quiet relation-experiment-note">关系线索实验：${experiment.selection==='baseline_fallback'?'未识别到足够的关系线索，本次使用原有语义＋规则扩展结果。':'结合人物、动作、对象与句式寻找候选；尚不能可靠判断人物归属、否定或因果。'}</p>`;
     if(experiment.candidate_scan.truncated)html+='<p class="quiet">关系候选达到本次扫描上限，结果可能遗漏相关史料。</p>';
   }
-  for(const [index,hit] of hits.entries()){
-    if(pipeline && index===0 && possible.length)html+='<h2>可能回答问题</h2>';
-    if(pipeline && index===possible.length)html+='<h2>仅相关 · 尚未确认</h2>';
+  if(pipeline && result.hits.length)html+='<h2>史料片段</h2>';
+  for(const hit of result.hits){
     const c=hit.chunk;
     // This is a phrase search in another witness, not a claimed passage alignment.
     const phrase=(c.text_orig.match(/[\u3400-\u9fff]{4,}/)||[''])[0].slice(0,10)||result.query;
     const compare=`#/search?${qs({q:phrase,book:c.book_id,source:'original'})}`;
-    const part=c.parts[0];
-    const read=`#/punctuated/${Number(c.page_id)}?${qs({block:part.block_index,start:part.start,end:part.end,back:returnTo})}`;
-    const focus=hit.evidence_focus?.selected?`<details><summary>本次重点比较的原文</summary><p>${readingTextHtml(hit.evidence_focus.text,{pb:false})}</p><p>结合前后各最多60字比较相关性；这段文字不是生成的答案。</p></details>`:'';
+    const read=punctuatedHitLink(c,returnTo);
+    const missing=hit.evidence_audit?.missing||[];
+    const focus=hit.evidence_focus?.selected?`<p class="quiet">重点比较的原文</p><p>${readingTextHtml(hit.evidence_focus.text,{pb:false})}</p>`:'';
     html+=`<article class="card punctuated-search-hit"><h3>《${esc(c.book_title)}》 ${esc(c.title)}</h3>
       <p class="quiet">标点版 · 维基文库录入本 · ${c.layer==='annotation'?'来源注释':'正文'}${c.status==='partial_render'?' · 来源排版异常':c.status==='insufficient_punctuation'?' · 短篇或低标点':''}</p>
       ${hit.channels?.includes('biography')?'<p class="quiet">按本纪记载的姓名与庙号找到</p>':''}
       <div class="blk-text">${readingTextHtml(c.text_orig,{pb:false})}</div>
       ${c.status!=='readable'?`<p class="quiet">${esc(c.reason)}</p>`:''}
       ${pipeline||hit.semantic_score==null?'':`<p class="quiet">语义相似分 ${Number(hit.semantic_score).toFixed(3)}（不是正确概率）</p>`}
-      ${focus}
-      ${(hit.evidence_audit?.causal_event_explanations||[]).map(e=>`<p>${esc(e.explanation)}${e.qualification?' '+esc(e.qualification):''}（来源解释，未核实）</p>`).join('')}
-      ${(hit.evidence_audit?.causal_source_labels||[]).map(e=>`<p>来源标记：${esc(({accusation:'指控，不代表事实',insufficient_proof:'证据不足',historian_explanation:'史家评论',reported_explanation:'引述陈述，说话者尚待核定'})[e.kind]||'待核定')} · ${esc(e.quote)}（仅标记所在原文，不代表整段性质）</p>`).join('')}
-      ${hit.evidence_audit?`<p class="evidence-audit">${hit.evidence_audit.status==='clues_present'?'包含所问要素与句式线索（未核实）':'自动核查尚未确认是否回答问题'}</p><details><summary>核查依据与相邻原文</summary>${hit.evidence_audit.missing.length?`<p>${esc(hit.evidence_audit.missing.join('；'))}。规则未识别不代表原文没有记载。</p>`:''}${(hit.context_chunks||[]).filter(n=>n.chunk_id!==c.chunk_id).map(n=>`<p>${readingTextHtml(n.text_orig,{pb:false})}</p><a href="#/punctuated/${Number(n.page_id)}?${qs({block:n.parts[0].block_index,start:n.parts[0].start,end:n.parts[0].end})}">定位此段</a>`).join('')||'<p>没有同层相邻片段。</p>'}<p>模型比较相关性，不核实历史事实。${hit.context_truncated?'模型输入存在截断。':''}</p></details>`:''}
-      <div class="controls"><a class="btn read-link" href="${read}">标点原文与上下文</a><a href="${compare}">在原底本查找此句</a></div>
-      <details class="source-detail"><summary>出处与版本</summary><p>${punctuatedSourceLink(c.source_url,'固定修订来源')} · ${punctuatedSourceLink(c.history_url,'修订历史')} · ${punctuatedSourceLink(c.license_url,'CC BY-SA 4.0')}</p>
+      <div class="controls"><a class="btn read-link" href="${read}">标点原文与上下文</a>${punctuatedSourceLink(c.source_url,'固定版本出处')}</div>
+      ${punctuatedHitContext(hit,returnTo)}
+      <details class="source-detail"><summary>版本信息与底本对照</summary><p>${punctuatedSourceLink(c.history_url,'修订历史')} · ${punctuatedSourceLink(c.license_url,'CC BY-SA 4.0')}</p>
       <p>${esc(c.attribution)}</p><p>修订 ${num(c.revision_id)} · 原文件校验 ${esc(c.source_sha256)} · 片段 ${num(c.chunk_id)}</p>
-      <p>原底本链接按此句文字另行检索，未确认逐句对应；两版可能有异文，不能仅凭无标点认定更权威。</p></details></article>`;
+      <p><a href="${compare}">在原底本查找此句</a>。按片段文字检索，未确认逐句对应。</p></details>
+      ${hit.evidence_audit?`<details class="evidence-audit"><summary>检索线索</summary><p>${missing.length?`${esc(missing.join('；'))}。规则未识别不代表原文没有记载。`:'检索规则找到了所问要素和句式线索。'}${hit.context_truncated?' 相关性比较使用的文字有截断。':''}</p>${focus}</details>`:''}</article>`;
   }
   if(!result.hits.length && !biographies.length)html+=`<p>标点版本内未找到匹配片段；这不代表史书没有记载。</p><a href="${old}">改查原底本</a>`;
   if(result.mode==='keyword')html+=`<div class="controls">${result.page>1?`<button class="btn" data-search-page="${result.page-1}">上一页</button>`:''}${result.page*result.page_size<result.total?`<button class="btn" data-search-page="${result.page+1}">下一页</button>`:''}</div>`;
