@@ -25,3 +25,13 @@
 参考：[固定运行器的Harmony专用处理](https://github.com/ggml-org/llama.cpp/blob/b12283/common/chat.cpp)。注册和代码支持不代替本机测试。
 
 本轮仅提交安装登记、实验入口、两个小测试及此记录，不提交模型片段、日志或本机信息。未下载新运行器、未改GPU、未上传史料、未调用云端。
+
+## 续传与探针验收更新（2026-11-18）
+
+原859,832,320字节完整保留，剩余字节从同一固定发布版本按区间并行续传，逐段核对HTTP 206及Content-Range。区间片段保留在忽略的数据目录，合并后仍需经过安装器的完整大小及SHA256校验。续传已实测超过2.4GB；本节记录时尚未完成，无安装通过结论。续传进行期间不要同时启动另一个安装进程写入同一片段。
+
+自动等待任务最多90分钟，只在成品及安装回执均存在时启动一次非历史算术探针；探针会再核验权重及现有运行器。进度日志为 `src/data/evidence-reader/harmony-compatibility-queued.log`，实际运行报告路径会由探针写入该日志。等待超时或初始化失败都不会启动历史题。
+
+探针现在分别记录原生输出通道、算术正确性、512推理预算激活和强制截断。完整停止、推理与最终回答分离、算术正确、日志确认预算激活才标兼容探针完成。若未耗尽预算，记录 `budget_forced_end=false`，只能确认预算被启用，不能声称已实测其截断。
+
+固定版本的 [GPT-OSS 解析器](https://raw.githubusercontent.com/ggml-org/llama.cpp/b12283/common/parsers/gpt-oss.cpp) 提供 Harmony 推理开始与结束标记；[服务端代码](https://github.com/ggml-org/llama.cpp/blob/b12283/tools/server/server-common.cpp) 表明只有存在结束标记才把预算参数传给采样层。实际激活、通道输出、耗时和峰值内存仍以本机报告为准。`python -B -X utf8 -m unittest tests.test_harmony_probe` 三项通过；未运行历史题或留出题。

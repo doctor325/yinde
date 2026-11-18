@@ -1,7 +1,7 @@
 import json
 import unittest
 from scripts.setup_evidence_reader import MODELS, model_spec
-from tests.context_reader.probe_harmony import HarmonyReader, validate_template
+from tests.context_reader.probe_harmony import HarmonyReader, validate_template, verify_probe
 from tests.context_reader.run_native_reasoning import ROOT
 
 
@@ -23,3 +23,16 @@ class HarmonyTests(unittest.TestCase):
                      '<|start|>system<|message|>high<|start|>assistant'):
             with self.assertRaises(ValueError):
                 validate_template(text)
+
+    def test_probe_distinguishes_completion_budget_and_arithmetic(self):
+        trace = {'completed': True}
+        reply = {'content': '2', 'reasoning_content': 'analysis'}
+        checks = verify_probe(trace, reply, 'activated, budget=512 tokens')
+        self.assertTrue(checks['channels_verified'])
+        self.assertTrue(checks['computation_verified'])
+        self.assertTrue(checks['budget_activated'])
+        self.assertFalse(checks['budget_forced_end'])
+        checks = verify_probe({'completed': False}, dict(reply, content='3'), '')
+        self.assertFalse(checks['channels_verified'])
+        self.assertFalse(checks['computation_verified'])
+        self.assertFalse(checks['budget_activated'])

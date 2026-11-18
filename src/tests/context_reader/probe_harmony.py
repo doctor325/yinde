@@ -1,6 +1,7 @@
 """Explicit non-historical compatibility probe; never runs benchmark cases."""
 import argparse
 import json
+import re
 import shutil
 import uuid
 from scripts.setup_evidence_reader import model_spec
@@ -28,6 +29,17 @@ def validate_template(prompt):
         raise ValueError('Invalid native assistant prefill')
     if 'medium' not in prompt:
         raise ValueError('Reasoning effort not present in native rendering')
+
+
+def verify_probe(trace, message, runtime_log):
+    answer = message['content'].strip()
+    return dict(
+        channels_verified=bool(trace['completed'] and message['reasoning_content'].strip()
+                               and answer and '<|' not in answer and '<think>' not in answer),
+        computation_verified=bool(re.fullmatch(r'(?:2|\*\*2\*\*|\\\(2\\\)|\$2\$)[。.]?', answer)),
+        budget_activated='activated, budget=512 tokens' in runtime_log,
+        budget_forced_end='budget exhausted, forcing end sequence' in runtime_log,
+    )
 
 
 def main():
@@ -65,10 +77,11 @@ def main():
             report['compatibility_calls'] = 1
             trace, response = capture(reader, request, folder)
             report.update(trace=trace, response=response, process_memory=R.own_process_memory(reader))
-            message = response['choices'][0]['message']
-            report['channels_verified'] = bool(trace['completed'] and message['reasoning_content']
-                and message['content'].strip() and '<|' not in message['content'])
-            report['state'] = 'completed' if report['channels_verified'] else 'incomplete'
+        message = response['choices'][0]['message']
+        checks = verify_probe(trace, message, log.read_text(encoding='utf8', errors='replace'))
+        report.update(checks)
+        report['state'] = 'completed' if all(checks[key] for key in (
+            'channels_verified', 'computation_verified', 'budget_activated')) else 'incomplete'
     except (OSError, ValueError, RuntimeError, KeyError) as exc:
         report.update(state='failed', error=dict(type=type(exc).__name__, message=str(exc)))
     finally:
