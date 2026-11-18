@@ -51,6 +51,7 @@ async function punctuatedSearchView(params, revision, semantic = false) {
       const result=await api('/api/punctuated/search?'+qs(args),{signal:controller.signal});
       if (!current()) return;
       box.innerHTML=punctuatedSearchResults(result);
+      bindPunctuatedCitations(box);
       for (const button of box.querySelectorAll('[data-search-page]')) button.addEventListener('click',()=>search(Number(button.dataset.searchPage)));
     } catch (error) {
       if (current() && error.name!=='AbortError') box.textContent=error.message;
@@ -129,7 +130,7 @@ function punctuatedSearchResults(result) {
       <div class="blk-text">${readingTextHtml(c.text_orig,{pb:false})}</div>
       ${c.status!=='readable'?`<p class="quiet">${esc(c.reason)}</p>`:''}
       ${pipeline||hit.semantic_score==null?'':`<p class="quiet">语义相似分 ${Number(hit.semantic_score).toFixed(3)}（不是正确概率）</p>`}
-      <div class="controls"><a class="btn read-link" href="${read}">标点原文与上下文</a>${punctuatedSourceLink(c.source_url,'固定版本出处')}</div>
+      <div class="controls"><a class="btn read-link" href="${read}">标点原文与上下文</a>${punctuatedSourceLink(c.source_url,'固定版本出处')}${punctuatedCitation(c,c.text_orig,c.layer)}</div>
       ${punctuatedHitContext(hit,returnTo)}
       <details class="source-detail"><summary>版本信息与底本对照</summary><p>${punctuatedSourceLink(c.history_url,'修订历史')} · ${punctuatedSourceLink(c.license_url,'CC BY-SA 4.0')}</p>
       <p>${esc(c.attribution)}</p><p>修订 ${num(c.revision_id)} · 原文件校验 ${esc(c.source_sha256)} · 片段 ${num(c.chunk_id)}</p>

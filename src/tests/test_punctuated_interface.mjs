@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 const scrolled=[];
 const anchor={querySelector:()=>({scrollIntoView(){scrolled.push('match');}})};
-const nodes=new Map([['#view',{innerHTML:'',querySelector:selector=>selector==='#punctuated-block-0'?anchor:null}],['#punctuatedSearch',{addEventListener(){}}]]);
+const nodes=new Map([['#view',{innerHTML:'',querySelectorAll:()=>[],querySelector:selector=>selector==='#punctuated-block-0'?anchor:null}],['#punctuatedSearch',{addEventListener(){}}]]);
 let readingNodes=[];
 const context=vm.createContext({console,URL,URLSearchParams,AbortController,DOMException,
   location:{hash:'#/punctuated'},history:{},localStorage:{getItem(){return null;}},
@@ -57,6 +57,7 @@ await run('punctuatedView(1,{back:"javascript:alert(1)"},0)');
 assert.ok(!nodes.get('#view').innerHTML.includes('← 返回搜索结果'));
 assert.ok(nodes.get('#view').innerHTML.includes('返回本书目录'));
 const locatedChapter={page_id:1,book_id:'A',title:'篇章',status:'readable',revision_id:8,source_sha256:'hash',
+  source_url:'https://zh.wikisource.org/w/index.php?oldid=8',
   blocks:[{kind:'body',text:'𠀀國¶文'},{kind:'body',text:'漢<字'},{kind:'annotation',text:'注釋'}]};
 run('globalThis.install=fn=>{api=fn}')(async()=>locatedChapter);
 await run('punctuatedView(1,{ranges:"[[0,1,3],[1,0,2]]",rev:"8",sha:"hash"},0)');
@@ -72,6 +73,32 @@ assert.ok(readingNode.innerHTML.includes('𠀀<mark class="punctuated-match">国
 run('window.setReadingMode("orig")');
 assert.ok(readingNode.innerHTML.includes('𠀀<mark class="punctuated-match">國</mark>'));
 readingNodes=[];
+await run('window.setReadingMode("simplified"); punctuatedView(1,{ranges:"[[0,1,4],[1,0,2]]",rev:"8",sha:"hash"},0)');
+const citationHtml=nodes.get('#view').innerHTML;
+assert.ok(citationHtml.includes('复制原文引用'));
+const citationAttribute=citationHtml.match(/data-citation="([^"]+)"/)[1];
+const decoded=citationAttribute.replace(/&(quot|lt|gt|amp|#39);/g,(_,name)=>({quot:'"',lt:'<',gt:'>',amp:'&','#39':"'"}[name]));
+const expected='國¶文漢<\n\n篇章（维基文库标点版 · 正文 · 修订 8）\nhttps://zh.wikisource.org/w/index.php?oldid=8';
+const writes=[];
+let allowed=true, selected=false, click;
+context.navigator={clipboard:{async writeText(text){if(!allowed) throw Error('denied'); writes.push(text);}}};
+const copyButton={dataset:{citation:decoded},isConnected:true,addEventListener(_,fn){click=fn;}};
+const copyStatus={textContent:''};
+const fallback={hidden:true,focus(){},select(){selected=true;}};
+const controls={'[data-citation]':copyButton,'[role="status"]':copyStatus,textarea:fallback};
+run('bindPunctuatedCitations')({querySelectorAll:()=>[{querySelector:selector=>controls[selector]}]});
+await click();
+assert.deepEqual(writes,[expected]);
+assert.equal(copyStatus.textContent,'已复制原文和出处');
+allowed=false;
+await click();
+assert.equal(fallback.value,expected);
+assert.equal(fallback.hidden,false);
+assert.ok(selected);
+assert.equal(copyStatus.textContent,'请手动复制选中的引用');
+await run('punctuatedView(1,{ranges:"[[0,1,3],[1,0,2]]",rev:"8"},0)');
+assert.ok(!nodes.get('#view').innerHTML.includes('复制原文引用'));
+run('window.setReadingMode("orig")');
 await run('punctuatedView(1,{block:"0",start:"1",end:"2"},0)');
 assert.ok(nodes.get('#view').innerHTML.includes('<mark class="punctuated-match">國</mark>'));
 for(const params of ['{block:"0",start:"1",end:"2",rev:"7"}',
@@ -79,6 +106,7 @@ for(const params of ['{block:"0",start:"1",end:"2",rev:"7"}',
   await run(`punctuatedView(1,${params},0)`);
   assert.ok(nodes.get('#view').innerHTML.includes('无法定位链接中的片段'));
   assert.ok(!nodes.get('#view').innerHTML.includes('class="punctuated-match"'));
+  assert.ok(!nodes.get('#view').innerHTML.includes('复制原文引用'));
 }
 let resolve;
 run('globalThis.install=fn=>{api=fn}')(()=>new Promise(r=>{resolve=r}));

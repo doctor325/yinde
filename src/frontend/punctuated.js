@@ -7,6 +7,49 @@ function punctuatedSourceLink(url, label) {
   } catch (_) { return esc(label); }
 }
 
+function punctuatedCitation(source, text, layer) {
+  if (!text?.trim() || !source.title || !Number.isSafeInteger(source.revision_id) || source.revision_id < 1) return '';
+  let url;
+  try { url = new URL(source.source_url); } catch (_) { return ''; }
+  if (url.origin !== 'https://zh.wikisource.org' || url.username || url.password ||
+      url.pathname !== '/w/index.php' || url.searchParams.get('oldid') !== String(source.revision_id)) return '';
+  const title = source.book_title && !source.title.startsWith(source.book_title)
+    ? `《${source.book_title}》${source.title}` : source.title;
+  const kind = layer === 'annotation' ? '来源注释' : '正文';
+  const citation = [text, '', `${title}（维基文库标点版 · ${kind} · 修订 ${source.revision_id}）`, url.href];
+  if (source.attribution) citation.push(source.attribution);
+  if (source.license_url === 'https://creativecommons.org/licenses/by-sa/4.0/') citation.push(source.license_url);
+  return `<div class="punctuated-citation"><button type="button" class="btn" data-citation="${esc(JSON.stringify(citation.join('\n')))}">复制原文引用</button>
+    <span class="quiet" role="status"></span><textarea aria-label="原文引用" rows="5" readonly hidden></textarea></div>`;
+}
+
+function bindPunctuatedCitations(root) {
+  for (const control of root.querySelectorAll('.punctuated-citation')) {
+    const button = $('[data-citation]', control);
+    const status = $('[role="status"]', control);
+    const fallback = $('textarea', control);
+    button.addEventListener('click', async () => {
+      const citation = JSON.parse(button.dataset.citation);
+      button.disabled = true;
+      try {
+        await navigator.clipboard.writeText(citation);
+        fallback.hidden = true;
+        status.textContent = '已复制原文和出处';
+      } catch (_) {
+        fallback.value = citation;
+        fallback.hidden = false;
+        status.textContent = '请手动复制选中的引用';
+        if (button.isConnected) {
+          fallback.focus({preventScroll:true});
+          fallback.select();
+        }
+      } finally {
+        button.disabled = false;
+      }
+    });
+  }
+}
+
 function punctuatedText(blocks, locations = new Map()) {
   return blocks.map((b, index) => {
     if (b.kind === 'provenance') return '';
@@ -62,6 +105,24 @@ function punctuatedLocations(chapter, params) {
   return locations;
 }
 
+function punctuatedLocatedQuote(blocks, locations) {
+  const layerOf = block => block.kind === 'glyph' ? 'body' : block.kind;
+  const slices = [];
+  let previous, layer;
+  for (const [index, range] of locations) {
+    const block = blocks[index];
+    const kind = layerOf(block);
+    if (!range || !['body','annotation'].includes(kind) || (layer && kind !== layer)) return null;
+    if (previous != null && (index <= previous || range[0] !== 0 ||
+        locations.get(previous)[1] !== Array.from(blocks[previous].text).length ||
+        blocks.slice(previous + 1, index).some(gap => layerOf(gap) !== layer || gap.text))) return null;
+    slices.push(Array.from(block.text).slice(...range).join(''));
+    previous = index;
+    layer = kind;
+  }
+  return slices.length ? {text:slices.join(''),layer} : null;
+}
+
 function punctuatedInventory(b) {
   const keys = ['downloaded','readable','viewable_count','source_text_count','source_issue_count','unavailable_count'];
   const known = keys.every(k => Number.isInteger(b[k]) && b[k] >= 0)
@@ -88,10 +149,11 @@ async function punctuatedView(pageId, params, revision) {
     if (revision !== routeRevision) return;
     const rendering = d.blocks.find(b => b.kind === 'provenance');
     const locations = punctuatedLocations(d, params);
+    const quote = punctuatedLocatedQuote(d.blocks, locations);
     const missedLocation = (params.block != null || params.ranges != null) && !locations.size;
     const back=typeof params.back==='string' && /^#\/(?:search|semantic|history-qa)(?:\?|$)/.test(params.back)
       ? `<a class="btn" href="${esc(params.back)}">← 返回搜索结果</a>` : '';
-    view.innerHTML = `<div class="controls">${back}<a class="backlink" href="#/punctuated?${qs({book:d.book_id})}">← 返回本书目录</a></div>
+    view.innerHTML = `<div class="controls">${back}<a class="backlink" href="#/punctuated?${qs({book:d.book_id})}">← 返回本书目录</a>${quote ? punctuatedCitation(d,quote.text,quote.layer) : ''}</div>
       <div class="page-heading"><p class="eyebrow">维基文库录入本 · 独立版本</p><h1>${esc(d.title)}</h1></div>
       <p class="collection-note">按该来源的标点显示，未逐字校勘；与原收录底本可能有异文。顶部可切换原文与简体阅读。</p>
       <p>${punctuatedSourceLink(d.source_url,'来源固定版本')} · ${punctuatedSourceLink(d.history_url,'贡献者与修订历史')} · ${punctuatedSourceLink(d.license_url,'CC BY-SA 4.0')}</p>
@@ -103,6 +165,7 @@ async function punctuatedView(pageId, params, revision) {
         <p>修订 ${num(d.revision_id)} · ${esc(d.revision_timestamp)} · 校验 ${esc(d.source_sha256)}</p>
         ${rendering ? `<p>按维基文库官方渲染快照读取 · ${esc(rendering.rendered_at)}。正文修订固定，模板按当时服务器版本展开；快照校验 ${esc(rendering.html_sha256)}。</p>${rendering.warnings?.length ? `<p>${rendering.warnings.map(w=>esc(typeof w === 'string' ? w : JSON.stringify(w))).join('；')}</p>` : ''}` : ''}
         ${d.reason ? `<p>${esc(d.reason)}</p>` : ''}</details>`;
+    if (quote) bindPunctuatedCitations(view);
     if (locations.size) {
       const first = $(`#punctuated-block-${locations.keys().next().value}`, view);
       (first?.querySelector('.punctuated-match') || first)?.scrollIntoView({block:'center'});
