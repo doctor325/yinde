@@ -1,0 +1,123 @@
+{
+  "version": "gpt-oss-local-comparison-v1",
+  "status": "plan_only_not_executable",
+  "date": "2026-11-18",
+  "selected": {
+    "model": "openai/gpt-oss-20b",
+    "publisher": "ggml-org/gpt-oss-20b-GGUF",
+    "revision": "b97cbb20d1995efd41dce8c4dd1ddf86e8db375b",
+    "file": "gpt-oss-20b-MXFP4.gguf",
+    "bytes": 12109566624,
+    "sha256": "27cd6c432c7672cb812a92f611cf3ba7bbc35928262bb1e1253ff4ee6ae35901",
+    "format": "MXFP4 GGUF",
+    "local_load_verified": false
+  },
+  "input": {
+    "path": "src/data/evidence-reader/strong-reader-pilot-v1-r2/inputs.local.json",
+    "lf_sha256": "7b38eaade0b20c634ce4fed19e34adccf15e9d40a0786f6ca093004f3418b02e",
+    "gold_path": "src/tests/context_reader/cases40.json",
+    "gold_sha256": "b3ba0ccce547b14b5840449083599ee77ea11dcab6e4ccffdef0742410937fe1",
+    "system_digest_json_encoding": "808cd6dfbc1337f9b7834d49bc109f95df8e32bff931a369d4dc49592209b011",
+    "system_edit_only": "remove_terminal_/no_think",
+    "payload_changes_allowed": false,
+    "new_prompt_fields": false,
+    "selection": [
+      {
+        "id": "chenping_positive",
+        "split": "exposed_development"
+      },
+      {
+        "id": "chenping_contrast",
+        "split": "exposed_development"
+      },
+      {
+        "id": "xiangxiu_positive",
+        "split": "held_out_reader"
+      },
+      {
+        "id": "xiangxiu_contrast",
+        "split": "held_out_reader"
+      },
+      {
+        "id": "shenyue_positive",
+        "split": "held_out_reader"
+      },
+      {
+        "id": "shenyue_contrast",
+        "split": "held_out_reader"
+      },
+      {
+        "id": "yanzhenqing_positive",
+        "split": "held_out_reader"
+      },
+      {
+        "id": "yanzhenqing_contrast",
+        "split": "held_out_reader"
+      }
+    ]
+  },
+  "execution": {
+    "runtime": "existing b12283 CPU; no upgrade",
+    "threads": 4,
+    "context_tokens": 8192,
+    "reasoning_effort": "medium",
+    "reasoning_budget": 512,
+    "total_output_tokens": 2048,
+    "request_deadline_seconds": 360,
+    "startup_deadline_seconds": 60,
+    "interactive_target_seconds": 120,
+    "sampling": {
+      "temperature": 1.0,
+      "top_p": 0.95,
+      "top_k": 20,
+      "min_p": 0.0,
+      "presence_penalty": 1.5,
+      "repeat_penalty": 1.0,
+      "seed": 20261111
+    },
+    "concurrency": 1,
+    "retries": 0,
+    "native_format": "Harmony",
+    "template_hash": null
+  },
+  "stages": {
+    "compatibility": "Verify GGUF hash, native Harmony rendering, analysis/final channel parser and budget support before semantic generation",
+    "development": [
+      "chenping_positive",
+      "chenping_contrast"
+    ],
+    "held_out": [
+      "xiangxiu_positive",
+      "xiangxiu_contrast",
+      "shenyue_positive",
+      "shenyue_contrast",
+      "yanzhenqing_positive",
+      "yanzhenqing_contrast"
+    ],
+    "gate": "Both development cases fully correct before held-out; each case once; first failure stops"
+  },
+  "acceptance": {
+    "development_complete_correct_required": 2,
+    "held_out_complete_correct_required": 6,
+    "false_confirmations_allowed": 0,
+    "missing_dimensions_are_failure": true,
+    "unrun_cases_retained_in_planned_denominator": true,
+    "automated_semantic_judge": false,
+    "production_promotion_allowed": false
+  },
+  "stop": [
+    "asset mismatch",
+    "native format or budget unsupported",
+    "load failure",
+    "timeout or incomplete final",
+    "any missing semantic dimension or false confirmation"
+  ],
+  "restrictions": {
+    "downloads_this_round": 0,
+    "model_calls_this_round": 0,
+    "held_out_calls_this_round": 0,
+    "prompt_changes": false,
+    "desktop_update": false,
+    "cloud_upload": false
+  }
+}
