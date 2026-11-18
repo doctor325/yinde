@@ -18,6 +18,8 @@ ROOT = Path(__file__).resolve().parents[3]
 PLAN = ROOT / 'src/docs/local_reasoning_candidate_plan.json'
 PLAN_SHA = '9173ace636d366f5ad0e785c35de60c5b1fb675c028ac9f2bdf7eaff06e7d24b'
 MODEL = 'qwen3.5-9b'
+STREAM_REFERENCE = DEFAULT_HOME / 'native-reasoning-stream-trace/78091f8d8446/report.json'
+STREAM_REFERENCE_SHA = 'a8cc826e53e8bcb5395b1dec12890d001acb3ddab04806294b7dd3c3700eb291'
 TIMEOUT_REFERENCE = DEFAULT_HOME / 'native-reasoning-pilot/0d54d1b73070/report.json'
 TIMEOUT_REFERENCE_SHA = 'c77803e5d978c8325b972e89788b31eef7379a9e38f1209b3ccbff6f8d503679'
 
@@ -51,13 +53,15 @@ def make_request(system, payload, execution):
 
 
 class NativeReader(C.CpuComparisonReader):
-    def __init__(self):
+    def __init__(self, reasoning_budget=None):
         super().__init__()
+        self.reasoning_budget = reasoning_budget
         self.model_key = MODEL
         self.model_spec, self.assets = model_spec(MODEL)
 
     def reasoning_arguments(self):
-        return ['--reasoning', 'on', '--jinja', '--reasoning-format', 'deepseek']
+        base = ['--reasoning', 'on', '--jinja', '--reasoning-format', 'deepseek']
+        return base if self.reasoning_budget is None else base + ['--reasoning-budget', str(self.reasoning_budget)]
 
 
 def prepare():
@@ -154,6 +158,30 @@ def verify_offline_runtime(report, previous):
             raise ValueError('Offline diagnostic runtime drift: ' + key)
 
 
+def verify_budget_runtime(report, previous):
+    """Only this explicitly selected runtime argument may differ."""
+    expected = previous['reasoning_arguments'] + ['--reasoning-budget', '512']
+    if report['reasoning_arguments'] != expected:
+        raise ValueError('Unexpected budget arguments')
+    comparable = dict(report, reasoning_arguments=previous['reasoning_arguments'])
+    verify_offline_runtime(comparable, previous)
+
+
+def budget_diagnostic(report, previous):
+    for key in ('model', 'input_sha256', 'gold_sha256', 'execution'):
+        if report[key] != previous[key]:
+            raise ValueError('Budget reference drift: ' + key)
+    if [(r['id'], r['request_sha256']) for r in report['rows']] != [
+            (r['id'], r['request_sha256']) for r in previous['rows']]:
+        raise ValueError('Budget request drift')
+    if previous['model_calls'] != 1 or previous['held_out_calls'] != 0:
+        raise ValueError('Invalid reference call inventory')
+    report.update(version='native-reasoning-budget-512-v1',
+                  stream_reference_sha256=STREAM_REFERENCE_SHA,
+                  reasoning_budget=512,
+                  changed=['runtime reasoning budget: unrestricted to 512; no prompt changes'])
+
+
 def judge(response, evidence):
     choice = response['choices'][0]
     message = choice['message']
@@ -214,7 +242,10 @@ def main(argv=None):
     parser.add_argument('--offline-capability', action='store_true',
         help='One prior timed-out case, identical request, separate 360-second offline budget')
     parser.add_argument('--trace-stream', action='store_true')
+    parser.add_argument('--budget-512', action='store_true')
     args = parser.parse_args(argv)
+    if args.budget_512 and not args.trace_stream:
+        parser.error('--budget-512 requires --trace-stream')
     if args.trace_stream and not args.offline_capability:
         parser.error('--trace-stream requires --offline-capability')
     report, reference = prepare()
@@ -227,6 +258,10 @@ def main(argv=None):
     if args.trace_stream:
         kind = 'native-reasoning-stream-trace'
         report['transport'] = 'SSE; same 360s total deadline; reasoning/final separated'
+    if args.budget_512:
+        previous = frozen(STREAM_REFERENCE, STREAM_REFERENCE_SHA, normalize_newlines=False)
+        budget_diagnostic(report, previous)
+        kind = 'native-reasoning-budget-512'
     folder = DEFAULT_HOME / kind / uuid.uuid4().hex[:12]
     folder.mkdir(parents=True, exist_ok=False)
 
@@ -241,7 +276,7 @@ def main(argv=None):
     log = DEFAULT_HOME / 'reader-vulkan-runtime.log'
     if log.exists():
         shutil.copyfile(log, folder / 'previous-runtime.log')
-    reader = NativeReader()
+    reader = NativeReader(512 if args.budget_512 else None)
     reader.timeout = report['execution']['request_timeout_seconds']
     try:
         with reader:
@@ -257,7 +292,10 @@ def main(argv=None):
                 raise ValueError('Native thinking prefill not verified; no generation sent')
             report.update(state='running', native_prefill_sha256=digest(prompt))
             if previous is not None:
-                verify_offline_runtime(report, previous)
+                if args.budget_512:
+                    verify_budget_runtime(report, previous)
+                else:
+                    verify_offline_runtime(report, previous)
             save()
             run_rows(reader, report, save, folder if args.trace_stream else None)
             report['state'] = 'attempted'
