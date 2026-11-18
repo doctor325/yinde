@@ -1,4 +1,4 @@
-# Harmony安装与适配进度（2026-11-18，未完成）
+# Harmony 安装、适配与本机验证
 
 本轮新增固定gpt-oss-20b MXFP4模型登记、独立Harmony兼容性入口和两个离线测试。默认模型、搜索、桌面及语料不变。
 
@@ -35,3 +35,13 @@
 探针现在分别记录原生输出通道、算术正确性、512推理预算激活和强制截断。完整停止、推理与最终回答分离、算术正确、日志确认预算激活才标兼容探针完成。若未耗尽预算，记录 `budget_forced_end=false`，只能确认预算被启用，不能声称已实测其截断。
 
 固定版本的 [GPT-OSS 解析器](https://raw.githubusercontent.com/ggml-org/llama.cpp/b12283/common/parsers/gpt-oss.cpp) 提供 Harmony 推理开始与结束标记；[服务端代码](https://github.com/ggml-org/llama.cpp/blob/b12283/tools/server/server-common.cpp) 表明只有存在结束标记才把预算参数传给采样层。实际激活、通道输出、耗时和峰值内存仍以本机报告为准。`python -B -X utf8 -m unittest tests.test_harmony_probe` 三项通过；未运行历史题或留出题。
+
+## 安装与兼容性结果（2026-11-19）
+
+固定权重 `gpt-oss-20b-MXFP4.gguf` 下载完成。安装器验证文件为 **12,109,566,624 字节**，SHA-256 为 `27cd6c432c7672cb812a92f611cf3ba7bbc35928262bb1e1253ff4ee6ae35901`，与冻结清单一致，已生成 `src/data/evidence-reader/receipt-gpt-oss-20b.json`。运行器未升级。
+
+自动等待任务随后执行了一次非历史算术探针，退出码为 0。本机确认 CPU 正常加载、原生 Harmony 渲染、推理与最终回答分离、最终结果 `2` 正确，流以 `stop` 和 `[DONE]` 正常结束。模型服务启动 28.33 秒，生成请求 7.87 秒，共 52 个输出 token，模型进程记录的峰值工作集约 20.19 GiB。上述耗时仅对应短算术输入，不能外推到历史材料。
+
+运行日志确认 512-token 推理预算已经激活；因请求很短，未耗尽预算，**未实测触顶后强制结束推理**。模板 SHA-256 为 `e99f23da545cf625f32ce17812a55f5e02f20fe007d247e165444017edf26fc1`。本机报告位于 `src/data/evidence-reader/harmony-compatibility/33351226f8f3/report.json`，报告 SHA-256 为 `3a59e735a3fb36191678b490e18ac4e88b91ddded240f67227be461b78261072`。
+
+历史开发题及留出题均未运行，语义仍未验收。默认检索、正式库和桌面包未变。下轮按冻结方案执行开发题，任一题未完成或关键维度错误即停；实际触顶与正常停止继续分别记录。
