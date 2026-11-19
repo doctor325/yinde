@@ -7,7 +7,7 @@ import json
 import math
 import re
 import time
-from search import annal_events, punctuated_relevance as R, punctuated_search as S, zh
+from search import annal_events, execution_recall, punctuated_relevance as R, punctuated_search as S, zh
 
 VERSION = 'context-evidence-v2'
 # Each independent channel keeps its own quota before deduplication. A shared
@@ -80,6 +80,19 @@ def place_attached(observation):
 def parse(query):
     from search.office_events import general_departure_frame
     text=zh.to_simplified(query)
+    execution = execution_recall.parse(text)
+    if execution:
+        p = R.plan(execution['person'])
+        preceding = execution['preceding_event']
+        clues = [execution['person']]
+        if preceding:
+            clues.append(preceding['object'])
+        p['clues'] = [dict(text=term, forms=[S.normalize(term)], scope_titles=[]) for term in clues]
+        p.update(subject=p['clues'][:1], constraints=p['clues'][1:],
+                 relation_groups=[dict(kind='execution', terms=list(execution_recall.terms(execution)))],
+                 answer_slots=[execution['answer_slot']], execution_event=execution,
+                 general_departure=None, unsupported=False, pipeline_version=VERSION)
+        return p
     office_question = r'(?:担任|出任)(?:过)?(?:什么|哪些|何种)(?:官职|职务)'
     title_question=r'(?:被)?封为(?:什么|何种)(?:侯|爵位|爵)'
     asks_title=bool(re.search(title_question,text))
@@ -252,6 +265,8 @@ def audit(chunk, p, neighbors, annal=()):
 
 def biography_context_candidates(conn,p,subject,book=None):
     """Recall within source-attested biographies; never promote heading to actor."""
+    if execution := p.get('execution_event'):
+        return execution_recall.candidates(conn,execution,subject,book)
     kinds={g['kind'] for g in p['relation_groups']}
     frame=p.get('office_event')
     imprisonment='imprisonment' in kinds and len(p['clues'])==1

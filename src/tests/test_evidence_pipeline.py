@@ -23,6 +23,24 @@ class Evidence(unittest.TestCase):
             self.assertNotIn('place',E.parse('甲公担任司业的'+noun+'在哪里？')['answer_slots'])
         self.assertIn('place',E.parse('甲公在哪里即位的记载？')['answer_slots'])
 
+    def test_execution_question_preserves_roles_and_preceding_event(self):
+        active = E.parse('司馬某在攻克東城之後，處決了誰？')
+        self.assertEqual([clue['text'] for clue in active['clues']], ['司马某', '东城'])
+        self.assertEqual(active['answer_slots'], ['object'])
+        self.assertEqual(active['execution_event']['role'], 'agent')
+        self.assertEqual(active['execution_event']['preceding_event'], dict(action='攻克', object='东城'))
+        for query, slot in [('欧阳某什么时候被处死？', 'time'),
+                            ('欧阳某被赐死在哪里？', 'place'),
+                            ('欧阳某为何被处决？', 'reason')]:
+            with self.subTest(query=query):
+                plan = E.parse(query)
+                self.assertEqual([clue['text'] for clue in plan['clues']], ['欧阳某'])
+                self.assertEqual(plan['execution_event']['role'], 'patient')
+                self.assertEqual(plan['answer_slots'], [slot])
+                self.assertEqual([group['kind'] for group in plan['relation_groups']], ['execution'])
+        self.assertNotIn('execution_event', E.parse('欧阳某为何在出征时被处死？'))
+        self.assertNotIn('execution_event', E.parse('欧阳某何时去世？'))
+
     def test_each_channel_keeps_its_twentieth_candidate(self):
         channels=[(name,[dict(chunk=chunk('候选',start+i)) for i in range(35)])
                   for name,start in [('semantic',1),('lexical',101),('relation',201),('grounded',301)]]
@@ -144,6 +162,33 @@ class Evidence(unittest.TestCase):
         self.assertEqual(scan['pages'],1)
         self.assertEqual(E.audit(hits[0]['chunk'],plan,[])['status'],'insufficient')
         self.assertEqual(E.biography_context_candidates(db,plan,[dict(chunk=anchor)],book='other')[0],[])
+
+    def test_execution_recall_admits_short_name_only_in_matching_source_and_event(self):
+        db, _ = self.evaluation_database()
+        anchor = {**chunk('某，字公明。', 10), 'heading': '司馬某', 'page_id': 2}
+        bodies = [
+            anchor,
+            dict(anchor, chunk_id=11, text_orig='某悉兵攻東城。'),
+            dict(anchor, chunk_id=12, text_orig='某遂拔之，誅其將。'),
+            dict(anchor, chunk_id=13, text_orig='東城亦誅其民。', revision_id=2),
+            dict(anchor, chunk_id=14, text_orig='東城伏誅。', layer='annotation'),
+            dict(anchor, chunk_id=15, text_orig='某居西城，誅降者。'),
+            dict(anchor, chunk_id=16, text_orig='某坐誅，年六十。'),
+            dict(anchor, chunk_id=17, text_orig='東城伏誅。', heading='他人'),
+            dict(anchor, chunk_id=18, text_orig='東城伏誅。', source_sha256='other'),
+        ]
+        for c in bodies:
+            db.execute('INSERT INTO chunks VALUES(?,?,?,?,?)',
+                       (c['chunk_id'], c['book_id'], c['page_id'], S.normalize(c['text_orig']), json.dumps(c)))
+        rerank = lambda query, texts: dict(scores=[0.0] * len(texts), ms=0)
+        for query, expected in [('司马某攻破东城后诛杀了谁？', 12),
+                                ('司马某何时被处死？', 16)]:
+            with self.subTest(query=query):
+                result = E.evaluate(query, db, [], [], book='a', rerank=rerank)
+                self.assertEqual(result['candidate_ids'], [expected])
+                self.assertEqual(result['pipeline']['admission']['biography_context']['admitted'], 1)
+                self.assertEqual(result['hits'][0]['evidence_audit']['status'], 'insufficient')
+                self.assertEqual(E.evaluate(query, db, [], [], book='b', rerank=rerank)['candidate_ids'], [])
 
     def test_invalid_model_output_is_rejected(self):
         db,_=self.evaluation_database()
