@@ -263,6 +263,26 @@ class Evidence(unittest.TestCase):
         change = dict(proposal, text_orig=proposal['text_orig'].replace('。臣', '。复议留骑兵输粮。臣'))
         self.assertEqual(E.audit(change, farming, [anchor])['status'], 'insufficient')
 
+    def test_speech_reason_only_applies_to_its_request(self):
+        reason = '秦兵善战，且舟师涉水，进难而退易'
+        action = '臣请为前锋以御敌'
+        speech = f'司马甲谏曰：「{reason}，{action}，陛下宜驻北城。」'
+        plan = E.parse('司马甲为何建议为前锋？')
+        evidence = E.audit(chunk(speech), plan, [])['attached_evidence'][0]
+        self.assertEqual(evidence['speaker']['quote'], '司马甲谏曰：')
+        self.assertEqual(evidence['detail']['quote'], reason)
+        self.assertEqual(evidence['action']['quote'], action)
+        for changed in (
+            speech.replace('司马甲谏', '司马乙谏'),
+            f'王丙曰：「据闻{speech}」',
+            speech.replace('，臣请', '。」乙曰：「臣请'),
+            speech.replace('，臣请', '，臣请先议粮道；臣请'),
+            speech.replace('以御敌', '以报私恩'),
+        ):
+            self.assertEqual(E.audit(chunk(changed), plan, [])['status'], 'insufficient', changed)
+        for query in ('司马甲为何建议驻北城？', '司马乙为何建议为前锋？'):
+            self.assertEqual(E.audit(chunk(speech), E.parse(query), [])['status'], 'insufficient', query)
+
     def test_event_detail_must_belong_to_the_asked_event(self):
         cases = [
             ('司马甲攻破东城后诛杀了谁？', '传', '司马甲克东城，斩王壬。', '王壬',

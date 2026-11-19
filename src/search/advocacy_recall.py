@@ -33,6 +33,28 @@ _EXPLANATION = rf'{_CLAUSE}{{3,32}}(?:[，,]{_CONTINUATION}){{0,5}}'
 _PARAGRAPH = re.compile(r'[^\n]+(?:\n(?!\s*\n)[^\n]+)*')
 TERMS = ('坚请', '固请', '建请', '上疏', '奏曰', '以为')
 
+# Each form pairs a specific reason with the first request in the speaker's
+# own words. The request must address the stated risk or name its beneficiary.
+_HAN = r'[\u3400-\u9fff]'
+_PAUSE = r'[，,。；]\s*'
+_REQUEST_END = r'(?=[，,。；！？」』”’]|$)'
+# LCMapStringEx leaves both forms of this character unchanged.
+_ACTION_VARIANTS = str.maketrans('闍', '阇')
+_SPEECH_REASON = tuple(map(re.compile, (
+    rf'(?P<reason>{_HAN}{{1,6}}(?:悍战|善战|势盛)[，,](?:又|且)?'
+    r'(?:水军|舟师|军|兵)(?:顺流|乘流|溯流|渡江|涉水|入险)[，,]'
+    rf'进(?:易而?退难|难而?退易)){_PAUSE}'
+    rf'(?P<action>臣请(?P<topic>为{_HAN}{{2,8}}?)以(?:当|拒|御|迎|击){_HAN}{{1,8}}){_REQUEST_END}',
+    rf'(?P<reason>{_HAN}{{2,10}}[，,](?:四面受敌|地无险阻)[，,]'
+    rf'(?:纵|虽)(?:得|克|取|下)之[，,]不(?:可|能)(?:以)?守){_PAUSE}'
+    rf'(?P<action>(?:臣)?请(?P<topic>(?:从|自|由){_HAN}{{2,9}})[，,]'
+    rf'(?:直|径)?(?:指|趋|取|攻|袭){_HAN}{{2,9}}){_REQUEST_END}',
+    rf'(?P<reason>(?P<appointee>{_HAN}{{1,8}})(?:于臣)?为(?:臣之?)?'
+    rf'(?:叔父|伯父|兄|父|舅父|从父)){_PAUSE}'
+    rf'(?P<action>(?:臣)?请(?P<topic>以(?P=appointee)为{_HAN}{{2,8}}))'
+    rf'(?=[，,]臣(?:自)?(?:监|督|掌|领){_HAN}{{1,10}}{_REQUEST_END})',
+)))
+
 
 def parse(text):
     match = _QUESTION.fullmatch(text.strip().rstrip('？?').rstrip())
@@ -137,6 +159,31 @@ def _campaign_anchor(prefix, topic):
     return first.span('topic')
 
 
+def _speech_reason(chunk, text, narrative, frame, names):
+    requested = frame['topic'].translate(_ACTION_VARIANTS)
+    for voice in _SPEECH.finditer(text):
+        if voice[1] not in names or voice[0] != narrative[voice.start():voice.end()]:
+            continue
+        opening = re.match(r'\s*[「『“‘]\s*', text[voice.end():])
+        if not opening:
+            continue
+        start = voice.end() + opening.end()
+        for pattern in _SPEECH_REASON:
+            match = pattern.match(text, start)
+            if not match:
+                continue
+            full_action = re.sub(r'[，,]', '', match['action'].removeprefix('臣').removeprefix('请'))
+            if requested not in (match['topic'].translate(_ACTION_VARIANTS),
+                                 full_action.translate(_ACTION_VARIANTS)):
+                continue
+            return dict(slot='reason', kind='advocacy', attribution='own_statement',
+                        speaker=A.excerpt(chunk, voice.start(1), voice.end()),
+                        event=A.excerpt(chunk, start, match.end()),
+                        action=A.excerpt(chunk, *match.span('action')),
+                        detail=A.excerpt(chunk, *match.span('reason')))
+    return None
+
+
 def evidence(chunk, frame, neighbors):
     if chunk['layer'] != 'body' or not (chunk.get('revision_id') and chunk.get('source_sha256')):
         return None
@@ -203,4 +250,4 @@ def evidence(chunk, frame, neighbors):
                         event=A.excerpt(chunk, action_start, reason.end()),
                         action=A.excerpt(chunk, action_start, action_end),
                         detail=A.excerpt(chunk, *reason.span('reason')))
-    return None
+    return _speech_reason(chunk, text, narrative, frame, names)

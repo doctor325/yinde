@@ -16,7 +16,9 @@ def main():
  names=['search.evidence_pipeline','search.punctuated_roles','search.punctuated_relevance',
         'search.person_references','search.patient_references','search.biography_office',
         'search.event_links','search.relative_time','search.block_page_cache','search.result_block',
-        'search.office_events','search.departure_speech','search.causal_evidence','desktop.main']
+        'search.office_events','search.departure_speech','search.causal_evidence',
+        'search.advocacy_recall','search.event_attachment','search.event_recall',
+        'search.execution_recall','desktop.main']
  rows=[]
  for name in names:
   source=root/'src'/Path(*name.split('.')).with_suffix('.py')

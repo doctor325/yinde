@@ -1,0 +1,74 @@
+[
+  {
+    "id": "zhao-jing-route",
+    "era": "北周",
+    "axis": "原因",
+    "query": "赵煚为何建议从河北？",
+    "policy": "answerable",
+    "expected": "赵煚向武帝陈说洛阳四面受敌，即使攻下也难以防守，因此建议改由河北直趋太原。武帝未采纳。",
+    "sources": [
+      {
+        "chunk_id": 168296,
+        "book_id": "KR2a0023",
+        "page_id": 58458,
+        "title": "隋書/卷46",
+        "revision_id": 11122960,
+        "source_sha256": "b6b1b16930a7a77fc4af605377d2387277380577f45f5af33d94b82981afd066",
+        "source_url": "https://zh.wikisource.org/w/index.php?oldid=11122960",
+        "quote": "河南洛陽，四面受敵，縱得之，不可以守。請從河北，直指太原",
+        "offset": [
+          89,
+          117
+        ]
+      }
+    ]
+  },
+  {
+    "id": "zong-wang-command",
+    "era": "金",
+    "axis": "原因",
+    "query": "宗望为何建议以阇母为都统？",
+    "policy": "answerable",
+    "expected": "宗望自述阇母是自己的叔父，请以阇母为都统，并由宗望本人监战。叔侄关系是请求让阇母任都统的理由。",
+    "sources": [
+      {
+        "chunk_id": 88592,
+        "book_id": "KR2a0035",
+        "page_id": 23138,
+        "title": "金史/卷74",
+        "revision_id": 2268855,
+        "source_sha256": "cc8ee11c2eeaa63504c30f583a31d55b008f2ff3098c76673c0829cb66970037",
+        "source_url": "https://zh.wikisource.org/w/index.php?oldid=2268855",
+        "quote": "闍母于臣為叔父，請以闍母為都統，臣監戰事",
+        "offset": [
+          217,
+          237
+        ]
+      }
+    ]
+  },
+  {
+    "id": "zong-wang-supervision",
+    "era": "金",
+    "axis": "原因",
+    "query": "宗望为何建议监战事？",
+    "policy": "different_event",
+    "expected": "奏议明确宗望本人监战；叔侄关系解释将都统交给阇母，原文未单独说明由宗望本人监战的理由。",
+    "sources": [
+      {
+        "chunk_id": 88592,
+        "book_id": "KR2a0035",
+        "page_id": 23138,
+        "title": "金史/卷74",
+        "revision_id": 2268855,
+        "source_sha256": "cc8ee11c2eeaa63504c30f583a31d55b008f2ff3098c76673c0829cb66970037",
+        "source_url": "https://zh.wikisource.org/w/index.php?oldid=2268855",
+        "quote": "闍母于臣為叔父，請以闍母為都統，臣監戰事",
+        "offset": [
+          217,
+          237
+        ]
+      }
+    ]
+  }
+]

@@ -42,6 +42,7 @@ HOLDOUT_FIXTURE = Path(__file__).with_name("search_holdout8.json")
 ATTACHMENT_FIXTURE = Path(__file__).with_name("event_attachment_holdout.json")
 RECALL_FIXTURE = Path(__file__).with_name("event_recall_control.json")
 ADVOCACY_FIXTURE = Path(__file__).with_name("advocacy_holdout.json")
+SPEECH_FIXTURE = Path(__file__).with_name("speech_advocacy_control.json")
 SOURCE_KEYS = ("page_id", "revision_id", "source_sha256", "source_url", "parts", "text_orig")
 
 
@@ -118,10 +119,12 @@ def main():
     parser.add_argument("--recall-control", action="store_true",
                         help="Include the independent execution-date control with --holdout")
     parser.add_argument("--stage", action="store_true", help="Run the full current phase fixtures")
+    parser.add_argument("--speech-control", action="store_true",
+                        help="Include the advocacy cases and independent speech controls with --holdout")
     args = parser.parse_args()
     if args.stage:
         args.holdout = args.attachment = args.recall_control = True
-    if (args.attachment or args.recall_control) and not args.holdout:
+    if (args.attachment or args.recall_control or args.speech_control) and not args.holdout:
         parser.error("Additional fixtures require --holdout")
     out = args.out.resolve()
     data = (Path(__file__).resolve().parents[2] / "data").resolve()
@@ -138,9 +141,13 @@ def main():
                 control, hashes = read_holdout(index, RECALL_FIXTURE)
                 cases.extend(control)
                 fixture_hashes.update(hashes)
-            if args.stage:
+            if args.stage or args.speech_control:
                 advocacy, hashes = read_holdout(index, ADVOCACY_FIXTURE)
                 cases.extend(advocacy)
+                fixture_hashes.update(hashes)
+            if args.speech_control:
+                speech, hashes = read_holdout(index, SPEECH_FIXTURE)
+                cases.extend(speech)
                 fixture_hashes.update(hashes)
         else:
             cases, fixture_hashes = read_cases()
