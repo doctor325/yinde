@@ -5,7 +5,7 @@ from functools import lru_cache
 from pathlib import Path
 import re
 
-from search import event_attachment, evidence_context, punctuated, zh
+from search import colloquial_advocacy, event_attachment, evidence_context, punctuated, zh
 from search.speech_turns import extract, match, quotes
 
 
@@ -35,14 +35,20 @@ _RAID = re.compile(
     r'(?:索?虏(?:主)?|敌(?:主)?|魏主)?(?P<opponent>[\u3400-\u9fff]{2,6}?)'
     r'(?:亲率众)?(?:[东西南北][侵进征伐]|来攻)[，,。]'
 )
-_WITHDRAWAL_REASON = re.compile(r'若[^。！？；\n]{2,24}[，,]则[^。！？；\n]{0,12}(?:散走|溃散)')
-_OPPOSITION = re.compile(r'岂有[舍弃捨][^。！？；]{2,36}而就|(?:不可|未可)(?:弃城|退兵|遁走)')
+_WITHDRAWAL_REASON = re.compile(r'若[^。！？；\n]{2,24}[，,]则[^。！？；\n]{0,12}(?:散走|溃散|奔散)')
+_OPPOSITION = re.compile(r'岂(?:有|可)[舍弃捨][^。！？；]{2,36}而(?:就|即)|(?:不可|未可)(?:弃城|退兵|遁走)')
 _ADVANCE = re.compile(
     r'(?:^|(?<=[。，；\n]))\s*(?P<recipient>[\u3400-\u9fff]{2,5}?)(?:遂|欲|将|乃)?'
     r'(?:进逼|进攻|攻|伐|讨)[\u3400-\u9fff]{2,8}(?:[，,]求决胜负)?[。，；]\s*'
     r'(?P<intro>(?P<speaker>[\u3400-\u9fff]{2,5}?)(?:固|苦|进)?谏曰)[：:]\s*$'
 )
 _DELAY_REASON = re.compile(r'(?P<reason>[^。！？；\n]{4,70}?(?:非利|未可轻进|不可轻进))[。；]\s*不如[^。！？；\n]+')
+_CAO_WEI_OPENING = re.compile(r'^\s*(?:太祖)?(?P<title>[\u3400-\u9fff])皇帝[^。]{0,20}?'
+                             r'(?:姓(?P<surname>[\u3400-\u9fff])，)?讳(?P<name>[\u3400-\u9fff]{1,3})[，,]')
+_CEREMONY_PROPOSAL = re.compile(r'(?:群臣|百官|公卿大臣)(?:上言|上表|并)?请(?:封禅|封[泰太]山)')
+_CEREMONY_REASON = re.compile(
+    r'[^。！？；\n]{2,32}则未可。(?:[^。！？；\n]{3,60}。)?[^。！？；\n]{4,36}何以能给[？?]'
+)
 _MESSAGES = {
     'supported': '发言、所议行动与对手身份均有原文依据。',
     'missing_event_opponent': '当前片段缺少能与这次劝谏相连的对手证据。',
@@ -280,15 +286,21 @@ def defence(sources, frame, chunk):
     speaker = re.escape(frame['person'])
     spoken_by = re.compile(rf'(?:^|(?<=[。，；\n]))\s*'
                            rf'(?P<intro>(?:{speaker}|{re.escape(frame["person"][-1])})(?:固谏|谏)?曰)[：:]\s*$')
-    # The full biography heading grounds the shortened speaker's name.
     _, blocks = sources.page(chunk['page_id'])
     start = chunk['parts'][0]['block_index']
     heading = next((i for i in range(start, -1, -1) if blocks[i]['kind'] == 'heading'), None)
-    if heading is None or zh.to_simplified(blocks[heading]['text']).strip() != frame['person']:
+    speaker_basis = []
+    if heading is not None and zh.to_simplified(blocks[heading]['text']).strip() == frame['person']:
+        heading_text = blocks[heading]['text']
+        heading_window = dict(window, text_orig=heading_text, parts=[
+            dict(block_index=heading, start=0, end=len(heading_text))])
+        speaker_basis = [('劝谏人称谓依据', source_ref(heading_window, 0, len(heading_text)))]
+    # A parallel account can introduce a short name by office and identify
+    # the very same speaker by surname and office immediately after the turn.
+    indirect = (not speaker_basis and not frame['target'] and not frame.get('comparison')
+                and len(frame['person']) == 2)
+    if not speaker_basis and not indirect:
         return None
-    heading_text = blocks[heading]['text']
-    heading_window = dict(window, text_orig=heading_text, parts=[
-        dict(block_index=heading, start=0, end=len(heading_text))])
     for proposal in retreat.finditer(prose):
         action = source_ref(window, proposal.start('actor'), proposal.end())
         before = prose[:proposal.start()]
@@ -319,9 +331,23 @@ def defence(sources, frame, chunk):
             reason = _WITHDRAWAL_REASON.search(body)
             if not reason or not _OPPOSITION.search(body):
                 continue
+            bases = speaker_basis
+            if indirect:
+                surname, short = map(re.escape, frame['person'])
+                offices = list(re.finditer(rf'(?<=[。，；\n]){short}为(?:[\u3400-\u9fff]{{0,4}})长史', before[-180:]))
+                reply = re.match(rf'\s*[\u3400-\u9fff]{{2,4}}闻{short}议，谓{proposal["actor"]}曰[：:]'
+                                 rf'\s*「{surname}长史言', text[end + 1:])
+                if len(offices) != 1 or not reply:
+                    continue
+                office, = offices
+                at = max(0, len(before) - 180)
+                bases = [
+                    ('劝谏人任职依据', source_ref(window, at + office.start(), at + office.end())),
+                    ('劝谏人称谓依据', source_ref(window, end + 1 + reply.start(), end + 1 + reply.end())),
+                ]
             citations = [
                 ('劝谏人', source_ref(window, *introduction.span('intro'))),
-                ('劝谏人称谓依据', source_ref(heading_window, 0, len(heading_text))),
+                *bases,
                 ('所劝对象', source_ref(window, recipient_at, recipient_at + len(recipient_name))),
                 ('所议行动', action),
                 ('劝谏理由', source_ref(window, begin + 1 + reason.start(), begin + 1 + reason.end())),
@@ -405,7 +431,7 @@ def delayed_attack(sources, frame, chunk):
         response = re.match(rf'\s*{re.escape(short)}(?:不从|不纳|弗从)(?=[。，；])', prose[end + 1:])
         body = event_attachment.narrative(text[begin + 1:end])
         reason = _DELAY_REASON.match(body.lstrip())
-        if not response or not reason or not reason['reason'].startswith(target):
+        if not response or not reason or (target and not reason['reason'].startswith(target)):
             continue
         reason_start = begin + 1 + len(body) - len(body.lstrip())
         turn = source_ref(window, debate.start('recipient'), end + 1)
@@ -426,6 +452,163 @@ def delayed_attack(sources, frame, chunk):
     return None
 
 
+def checked_window(sources, chunk):
+    try:
+        context = evidence_context.assemble(sources.library, chunk, max_chars=1200)
+    except ValueError:
+        return None
+    if context['boundary_cut'] or context['unbalanced_quote']:
+        return None
+    window = evidence_context.rule_view(chunk, context)
+    text = zh.to_simplified(window['text_orig'])
+    if len(text) == len(window['text_orig']):
+        return window, text, event_attachment.narrative(text)
+    return None
+
+
+def wei_ruler_name(sources, book_id, title):
+    """Resolve the short imperial title against the founder and the same book's annals."""
+    if book_id != 'KR2a0012':
+        return None
+    annals = {}
+    surname = None
+    for row in sources.library.execute(
+        "SELECT page_id, sort_number FROM chapters WHERE book_id=? AND sort_number BETWEEN 1 AND 3",
+        (book_id,),
+    ):
+        page, blocks = sources.page(row['page_id'])
+        if not blocks or blocks[0]['kind'] != 'body':
+            continue
+        original = blocks[0]['text']
+        text = zh.to_simplified(original)
+        opening = _CAO_WEI_OPENING.match(text)
+        if not opening or len(text) != len(original):
+            continue
+        window = dict(page, text_orig=original, heading='', parts=[
+            dict(block_index=0, start=0, end=len(original))])
+        sentence_end = text.find('。', opening.end())
+        reference = source_ref(window, len(text) - len(text.lstrip()),
+                               sentence_end + 1 if sentence_end >= 0 else opening.end())
+        if row['sort_number'] == 1:
+            surname = opening['surname'], reference
+        key = opening['title'] + '帝'
+        if key == title:
+            annals[row['page_id']] = opening['name'], reference
+    if not surname or not surname[0] or len(annals) != 1:
+        return None
+    name, reference = next(iter(annals.values()))
+    return surname[0] + name, [('君主姓氏依据', surname[1]), ('所劝对象称谓依据', reference)]
+
+
+def population_move(sources, frame, chunk):
+    checked = checked_window(sources, chunk)
+    if not checked:
+        return None
+    window, text, prose = checked
+    heading = zh.to_simplified(chunk['heading']).strip()
+    if heading not in (frame['person'], frame['recipient']):
+        return None
+    other = frame['recipient'] if heading == frame['person'] else frame['person']
+    speaker = rf'(?:{re.escape(heading)}|{re.escape(heading[-1])})'
+    proposal_pattern = re.compile(
+        rf'(?:^|(?<=[。！？；\n]))\s*(?P<action>(?P<proposer>帝|{re.escape(other)})(?:欲|将)'
+        + colloquial_advocacy._topic(frame) + r'[。，；])')
+    introduction = re.compile(rf'(?:^|(?<=[。；」]))\s*(?P<speaker>{speaker}(?:谏|对)?曰)[：:]\s*$')
+    reason_pattern = re.compile(r'(?:今|若)(?:徙|迁)[，,](?=[^。！？]{4,45}(?:民心|无以食))[^。！？]+[。！？]')
+    reign = re.compile(r'(?P<title>[\u3400-\u9fff]帝)(?:践阼|即位|登极)')
+    turns = list(complete_speeches(text))
+    for proposal in proposal_pattern.finditer(prose):
+        titles = list(reign.finditer(prose, max(0, proposal.start() - 240), proposal.start()))
+        recipient_span = proposal.span('proposer')
+        title_sources = []
+        if proposal['proposer'] == '帝':
+            if not titles:
+                continue
+            last_title = titles[-1]
+            match = wei_ruler_name(sources, chunk['book_id'], last_title['title'])
+            if not match or match[0] != other:
+                continue
+            recipient_span = last_title.span('title')
+            title_sources = match[1]
+        after = min(len(text), proposal.end() + 330)
+        opening = None
+        for begin, end in turns:
+            if not proposal.end() < begin < after:
+                continue
+            intro = introduction.search(text, proposal.end(), begin)
+            if not intro or intro['speaker'] != prose[slice(*intro.span('speaker'))]:
+                continue
+            body = event_attachment.narrative(text[begin + 1:end])
+            if opening is None and re.match(r'陛下欲(?:徙|迁)', body):
+                opening = intro, begin, end
+            reason = reason_pattern.fullmatch(body)
+            if not opening or not reason or not re.match(
+                rf'\s*{re.escape(proposal["proposer"])}遂(?:徙|迁)', prose[end + 1:]):
+                continue
+            if re.search(r'(?:欲|将)(?:徙|迁)|(?:即位|践阼|薨|崩)|\n\s*\n',
+                         prose[proposal.end():begin]):
+                continue
+            turn = source_ref(window, proposal.start(), end + 1)
+            if not overlaps(ranges(chunk), turn['ranges']):
+                continue
+            first, _, first_end = opening
+            citations = [
+                ('劝谏人', source_ref(window, first.start('speaker'), first_end + 1)),
+                ('所议行动', source_ref(window, *proposal.span('action'))),
+                ('所劝对象', source_ref(window, *recipient_span)),
+                ('劝谏理由', source_ref(window, intro.start('speaker'), end + 1)),
+                *title_sources,
+            ]
+            message = f'原文记载{other}提出迁户，{heading}向其劝阻。'
+            if heading != frame['person']:
+                return result('different_roles', citations, message=message + '问句中的人物角色对调了。')
+            return result('supported', citations, message=message)
+    return None
+
+
+def ceremony(sources, frame, chunk):
+    checked = checked_window(sources, chunk)
+    if not checked:
+        return None
+    window, text, prose = checked
+    name = frame['person']
+    # Historical editions sometimes use the interchangeable final name graph.
+    short = '[征徵]' if name[-1] in '征徵' else re.escape(name[-1])
+    speaker = re.escape(name[:-1]) + short
+    intro_pattern = re.compile(rf'(?P<speaker>{speaker})(?:对|谏)?曰[：:]\s*$')
+    for begin, end in complete_speeches(text):
+        intro = intro_pattern.search(prose, max(0, begin - 14), begin)
+        if not intro:
+            continue
+        body = event_attachment.narrative(text[begin + 1:end])
+        reason = _CEREMONY_REASON.search(body)
+        reply = re.match(rf'\s*(?P<ruler>[\u3400-\u9fff]{{2,4}}?)(?:深)?(?:嘉|善|纳)'
+                         rf'(?:{speaker}|{short})言', prose[end + 1:])
+        previous = prose[max(0, intro.start() - 460):intro.start()]
+        proposals = list(_CEREMONY_PROPOSAL.finditer(previous))
+        if not reason or not reply or len(proposals) != 1:
+            continue
+        proposal, = proposals
+        proposal_start = max(0, intro.start() - 460) + proposal.start()
+        proposal_end = proposal_start + len(proposal[0])
+        if not re.match(rf'[。，；]\s*{re.escape(reply["ruler"])}曰[：:]', prose[proposal_end:]):
+            continue
+        if frame['place'] not in ('泰山', '太山') or not re.search(r'封[泰太]山', proposal[0]):
+            continue
+        if frame['recipient'] and reply['ruler'] not in colloquial_advocacy._recipient_forms(chunk, frame['recipient']):
+            continue
+        turn = source_ref(window, proposal_start, end + 1)
+        if not overlaps(ranges(chunk), turn['ranges']):
+            continue
+        return result('supported', [
+            ('劝谏人', source_ref(window, *intro.span('speaker'))),
+            ('所议行动', source_ref(window, proposal_start, proposal_end)),
+            ('所劝对象', source_ref(window, end + 1 + reply.start('ruler'), end + 1 + reply.end('ruler'))),
+            ('劝谏理由', source_ref(window, begin + 1 + reason.start(), begin + 1 + reason.end())),
+        ], message=f'群臣请封泰山，{name}向{reply["ruler"]}说明不宜此时举行。')
+    return None
+
+
 def review_natural_hits(index, frame, hits):
     if not frame:
         return
@@ -433,22 +616,34 @@ def review_natural_hits(index, frame, hits):
     if kind == 'oppose_withdrawal' and not frame['target']:
         candidates = [
             hit for hit in hits if hit['chunk']['layer'] == 'body'
-            and zh.to_simplified(hit['chunk']['heading']).strip() == frame['person']
+            and (zh.to_simplified(hit['chunk']['heading']).strip() == frame['person']
+                 or (frame['place'] and any(frame['place'] in zh.to_simplified(part['text_orig'])
+                     and '欲弃' in zh.to_simplified(part['text_orig'])
+                     for part in [hit['chunk'], *hit['context_chunks']])))
         ]
         reader = defence
     elif kind == 'delay_attack':
         candidates = [
             hit for hit in hits if hit['chunk']['layer'] == 'body'
-            and any(frame['target'] in zh.to_simplified(part['text_orig'])
+            and any((not frame['target'] or frame['target'] in zh.to_simplified(part['text_orig']))
                     and '谏曰' in zh.to_simplified(part['text_orig'])
                     for part in [hit['chunk'], *hit['context_chunks']])
         ]
         reader = delayed_attack
+    elif kind == 'oppose_population_move':
+        candidates = [hit for hit in hits if hit['chunk']['layer'] == 'body'
+                      and zh.to_simplified(hit['chunk']['heading']).strip() in (frame['person'], frame['recipient'])]
+        reader = population_move
+    elif kind == 'oppose_ceremony':
+        candidates = [hit for hit in hits if hit['chunk']['layer'] == 'body'
+                      and any(_CEREMONY_PROPOSAL.search(zh.to_simplified(part['text_orig']))
+                              for part in [hit['chunk'], *hit['context_chunks']])]
+        reader = ceremony
     else:
         return
     if candidates:
         with punctuated.connect() as library:
-            sources = Sources(index, library, catalog())
+            sources = Sources(index, library, catalog() if reader is defence else [])
             for hit in candidates:
                 if evidence := reader(sources, frame, hit['chunk']):
                     hit['advice_evidence'] = evidence

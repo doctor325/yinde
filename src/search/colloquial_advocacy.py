@@ -24,6 +24,24 @@ _DELAY_ATTACK = re.compile(
     rf'劝(?P<recipient>{_HAN}{{2,8}}?)(?:别急着|别急于|不要急于|不要贸然|先别)'
     rf'{_ATTACK}(?P<target>{_HAN}{{2,10}})'
 )
+_WITHDRAWAL_QUESTION = re.compile(
+    rf'(?P<place>{_HAN}{{2,8}}?)(?:当时|那时)?(?:为什么|为何)(?:不能|不宜|不该)'
+    rf'(?:撤离|撤退|撤走|撤)[？?，,。]\s*(?P<person>{_HAN}{{2,5}}?)(?:当时)?(?:是)?怎么说(?:的)?'
+)
+_RUSH_QUESTION = re.compile(
+    rf'(?P<person>{_HAN}{{2,5}}?)(?:觉得|认为)(?P<recipient>{_HAN}{{2,5}}?)'
+    r'(?:急着|急于|仓促)(?:动手|出兵|进兵|进攻)(?:有)?什么(?:问题|不妥|坏处)'
+)
+_MOVE_PEOPLE = re.compile(
+    rf'(?P<recipient>{_HAN}{{2,6}}?)(?:想|要|打算)(?:把|将)(?P<origin>{_HAN}{{2,8}}?)'
+    rf'(?:的)?(?:百姓|居民|民户|士家|人|民)(?:迁到|迁往|搬到)(?P<target>{_HAN}{{2,8}})'
+    rf'[，,]\s*(?P<person>{_HAN}{{2,6}}?)(?:为什么|为何)(?:要)?(?:拦着|拦阻|反对|劝阻)'
+)
+_CEREMONY = re.compile(
+    rf'(?:大家|群臣|百官)(?:都)?(?:建议|请)(?P<recipient>{_HAN}{{2,6}}?)'
+    rf'(?:去|到)(?P<place>{_HAN}{{2,8}}?)封禅[，,]\s*(?P<person>{_HAN}{{2,6}}?)'
+    r'(?:为什么|为何)(?:觉得|认为)?(?:还不是时候|时机未到|不该封禅|反对)'
+)
 _EXPEDITE = re.compile(
     rf'(?:觉得应该|想|建议|主张)(?:趁早|尽早|尽快){_ATTACK}(?P<target>{_HAN}{{2,10}})'
     rf'(?:[，,](?:不能|别|不该)(?:再)?(?:拖到|等到)(?P<deadline>{_HAN}{{2,8}}))?'
@@ -52,6 +70,8 @@ _SOURCE_ACTIONS = {
     'oppose_withdrawal': (r'欲[弃舍]|去留|(?:曰|谏曰)[：:]',
                           r'各自散走|士卒必散|去留|危亡|守城'),
     'delay_attack': (r'谏曰|不从', r'非利|不如|未可|不可轻'),
+    'oppose_population_move': (r'(?:欲|将)(?:徙|迁)|曰[：:]', r'失民心|无以食|不宜徙|不可徙'),
+    'oppose_ceremony': (r'封禅|曰[：:]', r'劳之|未可|无以供|未足以供|何以能给'),
     'expedite_attack': (r'请|可.{0,5}(?:伐|讨)|若今中止|纵敌|待明年|须[后後]年',
                         r'明年|[后後]年|大计|若今|恐|纵敌|形颇露'),
     'oppose_relocation': (r'反对|不从|所斥|不可|可斩|守议', r'根本|一动则|不可|守议'),
@@ -77,6 +97,21 @@ def parse(text):
         return dict(person=pair['person'], action=text, kind='oppose_withdrawal',
                     stance='比较', predicate='弃城', target=None, recipient=None, place=None,
                     comparison=True, background=context, deadline=None, reason_hypothesis=None)
+    common = dict(background=context, deadline=None, reason_hypothesis=None, stance='劝止')
+    if question := _WITHDRAWAL_QUESTION.fullmatch(text):
+        return dict(common, **question.groupdict(), action='撤城', kind='oppose_withdrawal',
+                    predicate='弃城', target=None, recipient=None)
+    if question := _RUSH_QUESTION.fullmatch(text):
+        return dict(common, **question.groupdict(), action='仓促进兵', kind='delay_attack',
+                    predicate='出兵', target=None)
+    if question := _MOVE_PEOPLE.fullmatch(text):
+        return dict(common, **question.groupdict(), action='迁徙人口', kind='oppose_population_move',
+                    predicate='徙民')
+    if question := _CEREMONY.fullmatch(text):
+        roles = question.groupdict()
+        if roles['recipient'] in ('皇帝', '天子'):
+            roles['recipient'] = None
+        return dict(common, **roles, action='封禅', kind='oppose_ceremony', predicate='封禅', target=None)
     if not (question := _QUESTION.fullmatch(text)):
         return None
     person, action = question.groups()
@@ -110,6 +145,11 @@ def _topic(frame):
         return re.escape(frame['place']) if frame['place'] else r'欲[弃舍]\S{2,8}(?:归|走|退)'
     if kind in ('dissuade_attack', 'expedite_attack', 'delay_attack'):
         return (r'东吴|吴' if target == '东吴' else re.escape(target)) if target else _MILITARY_SOURCE
+    if kind == 'oppose_population_move':
+        return (rf'(?:徙|迁){re.escape(frame["origin"])}[^。！？；\n]{{0,24}}'
+                rf'(?:实|于|於|至|入){re.escape(target)}')
+    if kind == 'oppose_ceremony':
+        return r'封禅|封(?:泰|太)山|东封'
     if kind == 'oppose_relocation':
         direction = target[0]
         return rf'{direction}迁|迁都.{0,4}{direction}|迁[于於]?.{{0,5}}{direction}'
@@ -124,6 +164,8 @@ def terms(frame):
         'dissuade_attack': ('谏', '兴兵', '动兵', '出兵'),
         'oppose_withdrawal': ('弃城', '南归', '去留', '散走'),
         'delay_attack': ('谏', '进逼', '不如', '非利'),
+        'oppose_population_move': ('徙', '迁', '士家', '民心'),
+        'oppose_ceremony': ('封禅', '升中', '东封'),
         'expedite_attack': ('伐', '讨', '出兵', '兴兵'),
         'oppose_relocation': ('迁', '不可', '守议'),
         'reform_tax': ('赋敛', '科敛', '税法'),
@@ -142,7 +184,9 @@ def candidates(conn, frame, subject, book=None, *, semantic=()):
     # If the semantic results already locate the other participant's biography,
     # let its remonstrance enter as context even for a question reversing the roles.
     recipient = frame.get('recipient')
-    if direction_recall and recipient != frame['person'] and any(
+    if frame['kind'] == 'oppose_population_move' and recipient != frame['person']:
+        sources.append((recipient, semantic, False))
+    elif direction_recall and recipient != frame['person'] and any(
         zh.to_simplified(hit['chunk']['heading']).strip() == recipient for hit in semantic
     ):
         sources.append((recipient, semantic, True))
