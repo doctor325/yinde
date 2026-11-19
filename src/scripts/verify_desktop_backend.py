@@ -18,7 +18,8 @@ def main():
         'search.event_links','search.relative_time','search.block_page_cache','search.result_block',
         'search.office_events','search.departure_speech','search.causal_evidence',
         'search.advocacy_recall','search.event_attachment','search.event_recall',
-        'search.execution_recall','search.colloquial_advocacy','desktop.main']
+        'search.execution_recall','search.colloquial_advocacy','search.speech_turns',
+        'search.polity_evidence','desktop.main']
  rows=[]
  for name in names:
   source=root/'src'/Path(*name.split('.')).with_suffix('.py')
@@ -26,8 +27,11 @@ def main():
   match=code is not None and normalized(code)==normalized(compile(source.read_bytes(),str(source),'exec'))
   rows.append(dict(module=name,source_sha256=hashlib.sha256(source.read_bytes()).hexdigest(),embedded_code_matches=match))
  with exe.open('rb') as stream:digest=hashlib.file_digest(stream,'sha256').hexdigest()
- result=dict(executable_sha256=digest,modules=rows)
+ catalog=Path('search/polity_sources.json')
+ packaged=exe.parent/'_internal'/catalog
+ catalog_match=packaged.is_file() and packaged.read_bytes()==(root/'src'/catalog).read_bytes()
+ result=dict(executable_sha256=digest,modules=rows,polity_sources_match=catalog_match)
  receipt.write_text(json.dumps(result,indent=2),encoding='utf8')
- if not all(r['embedded_code_matches'] for r in rows):raise RuntimeError('Packaged backend differs from source')
- print('Verified',len(rows),'embedded modules')
+ if not catalog_match or not all(r['embedded_code_matches'] for r in rows):raise RuntimeError('Packaged backend differs from source')
+ print('Verified',len(rows),'embedded modules and the polity sources catalog')
 if __name__=='__main__':main()

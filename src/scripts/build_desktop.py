@@ -32,6 +32,7 @@ def main():
            "--collect-submodules", "search", "--collect-submodules", "scripts.pipeline",
            "--add-data", f"{root / 'src/scripts/pipeline/corpus_catalog.json'};scripts/pipeline",
            "--add-data", f"{root / 'src/search/history_qa.py'};search",
+           "--add-data", f"{root / 'src/search/polity_sources.json'};search",
            "--exclude-module", "pytest", "--exclude-module", "torch",
            "--exclude-module", "transformers", "--exclude-module", "numpy",
            "--exclude-module", "onnxruntime", "--exclude-module", "onnx", "--exclude-module", "tokenizers",

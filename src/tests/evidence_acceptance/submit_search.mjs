@@ -79,4 +79,10 @@ assert.deepEqual(rendered, searchResult.hits.map(hit => hit.chunk.chunk_id));
 const evidenceLinks = [...resultNode.innerHTML.matchAll(/<dl class="dissuasion-evidence">([^]*?)<\/dl>/g)]
   .map(group => [...group[1].matchAll(/<dt>([^<]+)<\/dt><dd>([^]*?) · <a href="([^"]+)">定位原文<\/a>/g)]
     .map(([, label, quote, href]) => ({ label, quote, href })));
-console.log(JSON.stringify({ requestPath, form_ms, rendered, evidenceLinks, result: searchResult }));
+const polityCards = [...resultNode.innerHTML.matchAll(/<section class="polity-evidence" data-status="([^"]+)">([^]*?)<\/section>/g)]
+  .map(([, status, content]) => ({
+    status,
+    links: [...content.matchAll(/<dt>([^<]+)<\/dt><dd>[^]*? · <a href="([^"]+)">定位原文<\/a>/g)]
+      .map(([, label, href]) => ({ label, href })),
+  }));
+console.log(JSON.stringify({ requestPath, form_ms, rendered, evidenceLinks, polityCards, result: searchResult }));

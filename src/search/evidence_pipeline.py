@@ -483,6 +483,8 @@ def evaluate(query,conn,dense,batches,book=None,rerank=None):
                       model_rank=model_ranks[h['chunk']['chunk_id']],final_rank=i,
                       score=h['context_relevance_score'], audit_status=h['evidence_audit']['status'],
                       displayed=i<=20) for i,h in enumerate(hits,1)]
+    from search.polity_evidence import review_hits
+    review_hits(conn, frame, hits[:20])
     return dict(hits=hits[:20],query_plan=p,pipeline=dict(version=VERSION,
         candidate_counts=dict(semantic=len(dense),lexical=len(literal),subject=len(subject),context_scored=len(hits)),
         biography_sources=identity,biography_context_scan=biography_scan,
