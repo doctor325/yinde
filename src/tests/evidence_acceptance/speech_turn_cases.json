@@ -1,0 +1,146 @@
+[
+  {
+    "anchor": 44067,
+    "scope": [
+      175,
+      378
+    ],
+    "window_sha256": "9d7a12c9cc93eccd0217161e94ad21c52e12b96f0f9e9938ca4109f4360a6536",
+    "names": {
+      "太祖": "宋文帝",
+      "庆之": "沈庆之",
+      "上": "宋文帝"
+    },
+    "targets": {
+      "北讨": "北魏"
+    },
+    "revision_id": 1997730,
+    "source_sha256": "074e77c5ae33c63e933a9149263125ee2598c457c4c3be10182cc7c9a23427cd",
+    "page_id": 18510,
+    "reason_sources": [
+      {
+        "chunk_id": 44068,
+        "offset": [
+          2,
+          12
+        ],
+        "text_sha256": "60de2d2c50c18ff275cff199f8777ea93954db221f43e939e8ca99ad003d363a"
+      },
+      {
+        "chunk_id": 44068,
+        "offset": [
+          40,
+          72
+        ],
+        "text_sha256": "1348dc41a10b750e6b45604191698e40639c935eafc47fd95d1be49e77240fac"
+      }
+    ],
+    "cases": [
+      {
+        "id": "shen-qingzhi-northern-campaign",
+        "query": "沈庆之为什么劝宋文帝别派兵打北魏？",
+        "policy": "answerable",
+        "expected": "沈庆之以骑步不敌、前两次征讨无功以及这次将领和军力未胜往日为由劝止北讨。宋文帝是受谏者，随后另作答辩。"
+      },
+      {
+        "id": "song-wendi-reversed",
+        "query": "宋文帝为什么劝沈庆之别派兵打北魏？",
+        "policy": "reversed_roles",
+        "expected": "同段宋文帝在反驳沈庆之的劝谏，不能把沈庆之陈述的理由归给宋文帝。"
+      }
+    ]
+  },
+  {
+    "anchor": 87240,
+    "scope": [
+      1420,
+      1647
+    ],
+    "window_sha256": "4467cfb9dcbd3395d918f74242060b1e29a5cb72cf4f158ad0e588e731e4e5c6",
+    "names": {
+      "纂": "吕纂",
+      "杨颖": "杨颖",
+      "姜纪": "姜纪"
+    },
+    "targets": {},
+    "revision_id": 1554250,
+    "source_sha256": "719484f894b951f542be0925bd68de0dcc907e869b2ad7cc163ee5bab7566d5d",
+    "page_id": 22653,
+    "reason_sources": [
+      {
+        "chunk_id": 87240,
+        "offset": [
+          165,
+          184
+        ],
+        "text_sha256": "bae4e60009488047c97cefbe468ab9d957de6efe2ef9d1939fb00a75a073705a"
+      }
+    ],
+    "cases": [
+      {
+        "id": "yang-ying",
+        "query": "杨颖为什么劝吕纂别派兵打秃发利鹿孤？",
+        "policy": "answerable",
+        "expected": "利鹿孤部众听令，国内无可以乘虚的机会。"
+      },
+      {
+        "id": "lu-zuan-reversed",
+        "query": "吕纂为什么劝杨颖别派兵打秃发利鹿孤？",
+        "policy": "reversed_roles",
+        "expected": "吕纂是受议者且不从。"
+      },
+      {
+        "id": "jiang-ji-other-expedition",
+        "query": "姜纪为什么劝吕纂别派兵打秃发利鹿孤？",
+        "policy": "wrong_event",
+        "expected": "姜纪发言时已经转为袭张掖，是后一次出兵。"
+      }
+    ]
+  },
+  {
+    "anchor": 243401,
+    "scope": [
+      165,
+      213
+    ],
+    "window_sha256": "b8d824cd9452e4a549c2420e20b2cc61df25a9930be2695beab900c85a1f0163",
+    "names": {
+      "铎臻": "耶律铎臻",
+      "太祖": "辽太祖"
+    },
+    "targets": {},
+    "revision_id": 2121789,
+    "source_sha256": "f5d19dd55063c9ee157935b56103c603f53169eb91cc5d04f2cd7c9daa03be45",
+    "page_id": 100667,
+    "reason_sources": [
+      {
+        "chunk_id": 243401,
+        "offset": [
+          181,
+          195
+        ],
+        "text_sha256": "e37ef5c53540e491c81f32cb9b02270c4ef98508677b0952f55818174b2c02f7"
+      }
+    ],
+    "cases": [
+      {
+        "id": "yelue-duozhen",
+        "query": "耶律铎臻为什么劝辽太祖别派兵打渤海？",
+        "policy": "answerable",
+        "expected": "先攻渤海会让西夏从后方进攻，主张调整用兵次序。"
+      },
+      {
+        "id": "liao-taizu-reversed",
+        "query": "辽太祖为什么劝耶律铎臻别派兵打渤海？",
+        "policy": "reversed_roles",
+        "expected": "太祖是受议者。"
+      },
+      {
+        "id": "yelue-duozhen-wrong-target",
+        "query": "耶律铎臻为什么劝辽太祖别派兵打西夏？",
+        "policy": "wrong_event",
+        "expected": "他说先攻渤海会受西夏攻击，主张先向西用兵。"
+      }
+    ]
+  }
+]
