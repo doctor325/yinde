@@ -91,15 +91,15 @@ def read_holdout(index, fixture=HOLDOUT_FIXTURE):
     return cases, {fixture.name: hashlib.sha256(raw).hexdigest()}
 
 
-def submit_form(entry, query):
+def submit_form(entry, query, *, replay=None):
     process = subprocess.run(
         ["node", str(Path(__file__).with_name("submit_search.mjs"))],
-        input=json.dumps(dict(entry=entry, query=query)),
+        input=json.dumps(dict(entry=entry, query=query, replay=replay)),
         capture_output=True, encoding="utf-8", timeout=240, check=False,
     )
     if process.returncode:
         # Do not persist the desktop session token if the driver reports a URL.
-        raise RuntimeError(process.stderr.replace(entry, "<desktop entry>"))
+        raise RuntimeError(process.stderr.replace(entry, "<desktop entry>") if entry else process.stderr)
     submission = json.loads(process.stdout)
     return submission.pop("result"), submission
 

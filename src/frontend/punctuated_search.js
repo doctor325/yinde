@@ -100,6 +100,7 @@ function punctuatedPolityEvidence(evidence, returnTo) {
   const label = supported ? '有原文依据' : '尚未确认';
   const entries = Object.entries(evidence.citations);
   const primary = ['劝谏理由', '出兵对手', '事发时在位', '政权名称依据'];
+  if (!evidence.citations['事发时在位']) primary.push('战事纪年', '即位记载', '在位终点');
   const item = (role, ref) => {
     const parts = ref.ranges.map(([block_index, start, end]) => ({block_index, start, end}));
     const href = punctuatedHitLink({...ref, parts}, returnTo);

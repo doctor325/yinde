@@ -11,6 +11,10 @@ _QUESTION = re.compile(rf'(?P<person>{_HAN}{{2,5}}?)(?:为什么|为何)(?P<acti
 _ATTACK = r'(?:出兵|派兵)?(?:攻打|征讨|征伐|讨伐|进攻|打)'
 _DISSUADE = re.compile(rf'劝(?P<recipient>{_HAN}{{2,5}}?)(?:别|不要|不必|暂缓)(?:再)?'
                        rf'(?:{_ATTACK}(?P<target>{_HAN}{{2,10}})|出兵|派兵)')
+_HOLD_CITY = re.compile(
+    rf'劝(?P<recipient>{_HAN}{{2,10}}?)(?:别|不要)在(?P<target>{_HAN}{{2,10}}?)'
+    rf'(?:来攻|进攻)时(?:撤出|撤离|放弃)(?P<place>{_HAN}{{2,10}})'
+)
 _EXPEDITE = re.compile(
     rf'(?:觉得应该|想|建议|主张)(?:趁早|尽早|尽快){_ATTACK}(?P<target>{_HAN}{{2,10}})'
     rf'(?:[，,](?:不能|别|不该)(?:再)?(?:拖到|等到)(?P<deadline>{_HAN}{{2,8}}))?'
@@ -36,6 +40,8 @@ _TAX_TOPIC = r'赋税|课税|租庸|新旧税|税法|赋敛|科敛|赋役'
 _SOURCE_ACTIONS = {
     'dissuade_attack': (r'谏|难[于於]动兵|从其言而止|不可.{0,6}(?:出兵|兴师)',
                         r'边郡困乏|难[于於]动兵|无名|侵边|犯[于於]边境|不宜|不可'),
+    'oppose_withdrawal': (r'欲[弃舍]|去留|(?:曰|谏曰)[：:]',
+                          r'各自散走|士卒必散|去留|危亡|守城'),
     'expedite_attack': (r'请|可.{0,5}(?:伐|讨)|若今中止|纵敌|待明年|须[后後]年',
                         r'明年|[后後]年|大计|若今|恐|纵敌|形颇露'),
     'oppose_relocation': (r'反对|不从|所斥|不可|可斩|守议', r'根本|一动则|不可|守议'),
@@ -65,6 +71,9 @@ def parse(text):
     if match := _DISSUADE.fullmatch(action):
         return dict(frame, kind='dissuade_attack', stance='劝止', predicate='出兵',
                     recipient=match['recipient'], target=match['target'])
+    if match := _HOLD_CITY.fullmatch(action):
+        return dict(frame, kind='oppose_withdrawal', stance='劝止', predicate='弃城',
+                    recipient=match['recipient'], target=match['target'], place=match['place'])
     if match := _EXPEDITE.fullmatch(action):
         return dict(frame, kind='expedite_attack', stance='主张及早', predicate='出兵',
                     target=match['target'], deadline=match['deadline'])
@@ -77,6 +86,8 @@ def parse(text):
 
 def _topic(frame):
     kind, target = frame['kind'], frame['target']
+    if kind == 'oppose_withdrawal':
+        return re.escape(frame['place'])
     if kind in ('dissuade_attack', 'expedite_attack'):
         return (r'东吴|吴' if target == '东吴' else re.escape(target)) if target else _MILITARY_SOURCE
     if kind == 'oppose_relocation':
@@ -91,6 +102,7 @@ def terms(frame):
     """Literal terms for ordinary lexical features, independent of evidence."""
     return {
         'dissuade_attack': ('谏', '兴兵', '动兵', '出兵'),
+        'oppose_withdrawal': ('弃城', '南归', '去留', '散走'),
         'expedite_attack': ('伐', '讨', '出兵', '兴兵'),
         'oppose_relocation': ('迁', '不可', '守议'),
         'reform_tax': ('赋敛', '科敛', '税法'),

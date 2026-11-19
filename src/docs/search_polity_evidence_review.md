@@ -35,3 +35,20 @@
 实测保存在本机 `src/data/polity-search-baseline` 和 `src/data/polity-search-validation`。运行入口为 `python -B -u -X utf8 -m tests.evidence_acceptance.review_polity_search validation`，排名对照使用此前保存的基线。
 
 已核对桌面包中的 21 个后端模块与出处索引，并安装到本机正式桌面目录。旧包位于 `desktop-dist/Yinde-backup-before-polity-citations-20261119`。包体检查记录见本机 `src/data/polity-search-validation/desktop-receipt.json`，可执行文件 SHA-256 为 `02aa4d85424ad6f3d9a28643962f5d8b1ed31471b58f2691f4d4846e1f8402fa`。
+
+## 彭城防守的君主出处复用
+
+新样本在开发前冻结。问张畅为何劝江夏王义恭在敌军来攻时留守彭城，正题写北魏，反题写柔然。《宋书》卷五十九将敌将与元嘉二十七年写在一起，继而叙述义恭欲弃城、集议与张畅的理由“若一旦動脚，則各自散走”。《南史》卷三十二记同一防守事件，写明“魏太武南征”。彭城守撤之议与沈庆之的北伐之议同年，发生于同一场战争的不同战事。[《宋书》卷五十九](https://zh.wikisource.org/w/index.php?oldid=1996693) · [《南史》卷三十二](https://zh.wikisource.org/w/index.php?oldid=1775305)
+
+| 问题所指政权 | 载有撤城提议的结果 | 载有理由的《宋书》正文片段单独排名 | 前五能读到理由 | 政权核验 |
+| --- | --- | --- | --- | --- |
+| 北魏 | 第 1 | 第 23 | 第 1 条的相邻正文 | 有原文依据 |
+| 柔然 | 第 1 | 第 18 | 第 1、5 条的相邻正文 | 尚未确认，实际对手所属政权为北魏 |
+
+两题各实际搜索一次，表单耗时分别为 14.67 秒和 5.93 秒。实测发现首卡命中撤退提议，理由落在相邻正文。将同版上下文中与提议相连的完整发言附到首卡后，复用原搜索响应和前端重绘进行验证。正反题首卡均能点开同一理由、敌将、事件纪年及《魏书》即位和在位终点原文。排名沿用实际搜索。旧卡回放验证了沈庆之二十七年、人物互换、二十九年和郭黁正题。
+
+生产出处索引只增加已有君主的史料称谓形式。新增核验从实际命中原文的传目、撤城提议、完整引语、敌将与纪年取得坐标，再复用现有身份和任期出处。纪年折算限于已有出处锚定的史书和年号，且要求落在起止年之间。当前识别明确的撤城提议、集议和劝阻引文，其他类型的叙事和跨年检索仍需样本验证。
+
+冻结样本在 `src/tests/evidence_acceptance/reused_ruler_holdout.json`，哈希为 `692aa63e6040deaff9b7b07a8a937d7af88281c7200359fc5305c3b6f1c84c00`。本机实搜响应和回放记录分别在 `src/data/polity-ruler-reuse` 与 `src/data/polity-ruler-reuse-verified`。
+
+桌面包已核对 21 个内嵌模块与出处索引并完成本机更新，旧包保存在 `desktop-dist/Yinde-backup-before-ruler-reuse-20261119`。新执行文件的 SHA-256 为 `d0692278221e90ece3101940838a33c27b20ac8cf6ef899b8e50463e91ec2150`。

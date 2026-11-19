@@ -1,0 +1,92 @@
+{
+  "cases": [
+    {
+      "id": "zhang-chang-northern-wei",
+      "query": "张畅为什么劝江夏王义恭别在北魏来攻时撤出彭城？",
+      "expected": "supported"
+    },
+    {
+      "id": "zhang-chang-other-polity",
+      "query": "张畅为什么劝江夏王义恭别在柔然来攻时撤出彭城？",
+      "expected": "different_polity"
+    }
+  ],
+  "pins": {
+    "speaker": {
+      "chunk_id": 42372,
+      "page_id": 18439,
+      "revision_id": 1996693,
+      "source_sha256": "94c38972de8b9fe21ec29bd1443b8fc7f73989af1aafd109a0b51972a2c1adeb",
+      "start": 2,
+      "end": 7,
+      "text_sha256": "9700597fcbd3b27bd306a14305e48ea72e601dafc787794cdec222abef704ca7"
+    },
+    "recipient": {
+      "chunk_id": 42375,
+      "page_id": 18439,
+      "revision_id": 1996693,
+      "source_sha256": "94c38972de8b9fe21ec29bd1443b8fc7f73989af1aafd109a0b51972a2c1adeb",
+      "start": 55,
+      "end": 66,
+      "text_sha256": "b68c6af9e79d75a19f1b69fabe050ad590e98781550985867361ef4403653e63"
+    },
+    "proposal": {
+      "chunk_id": 42375,
+      "page_id": 18439,
+      "revision_id": 1996693,
+      "source_sha256": "94c38972de8b9fe21ec29bd1443b8fc7f73989af1aafd109a0b51972a2c1adeb",
+      "start": 105,
+      "end": 113,
+      "text_sha256": "0bf4dd476aa5958b1ba30253d23bc7698b51f7e89f98114539fea5189966c1ae"
+    },
+    "opponent": {
+      "chunk_id": 42375,
+      "page_id": 18439,
+      "revision_id": 1996693,
+      "source_sha256": "94c38972de8b9fe21ec29bd1443b8fc7f73989af1aafd109a0b51972a2c1adeb",
+      "start": 47,
+      "end": 54,
+      "text_sha256": "bedd22457ea697281123fc7786be72a8a3e6b3f4255c981845f4efd550d1650c"
+    },
+    "date": {
+      "chunk_id": 42375,
+      "page_id": 18439,
+      "revision_id": 1996693,
+      "source_sha256": "94c38972de8b9fe21ec29bd1443b8fc7f73989af1aafd109a0b51972a2c1adeb",
+      "start": 40,
+      "end": 46,
+      "text_sha256": "98e79c33e8ed99753e6b1bdf8a893a1a8626c612ec8b5d2dd3875cdce079cabc"
+    },
+    "reason": {
+      "chunk_id": 42376,
+      "page_id": 18439,
+      "revision_id": 1996693,
+      "source_sha256": "94c38972de8b9fe21ec29bd1443b8fc7f73989af1aafd109a0b51972a2c1adeb",
+      "start": 89,
+      "end": 100,
+      "text_sha256": "4431f20b5d062c4664ba46813892233c329fa04e9cd66d17f3cf1b4ed22bb93c"
+    },
+    "parallel_opponent": {
+      "chunk_id": 171760,
+      "page_id": 58536,
+      "revision_id": 1494939,
+      "source_sha256": "15c2de7372e19c4330803394c90b8fb62ace4280a0a8b70cd6afc5ecd8c863e5",
+      "start": 5,
+      "end": 10,
+      "text_sha256": "f94713ea160b1d9af0ffef7b2b34c13587850ff9d853e2d91a5c265c6ef0fc1f"
+    },
+    "parallel_reason": {
+      "chunk_id": 171761,
+      "page_id": 58536,
+      "revision_id": 1494939,
+      "source_sha256": "15c2de7372e19c4330803394c90b8fb62ace4280a0a8b70cd6afc5ecd8c863e5",
+      "start": 18,
+      "end": 29,
+      "text_sha256": "ed922fbb22aa65fc109b1623b90ccfe00dff368921e3d085fe02f8a2b0cee94a"
+    }
+  },
+  "reason_chunks": [
+    42376,
+    171761
+  ]
+}

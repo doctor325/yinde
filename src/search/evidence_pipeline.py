@@ -84,8 +84,9 @@ def parse(query):
     colloquial = colloquial_advocacy.parse(text)
     if colloquial:
         p = R.plan(colloquial['person'])
-        if target := colloquial['target']:
-            p['clues'].append(dict(text=target, forms=[S.normalize(target)], scope_titles=[]))
+        for clue in (colloquial['target'], colloquial.get('place')):
+            if clue:
+                p['clues'].append(dict(text=clue, forms=[S.normalize(clue)], scope_titles=[]))
         p.update(subject=p['clues'][:1], constraints=p['clues'][1:],
                  relation_groups=[dict(kind='advocacy', terms=list(colloquial_advocacy.terms(colloquial)))],
                  answer_slots=['reason'], colloquial_advocacy=colloquial,
