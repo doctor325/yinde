@@ -66,4 +66,7 @@ assert.equal(searchResult.query, query);
 const rendered = [...resultNode.innerHTML.matchAll(/· 片段 ([\d,]+)<\/p>/g)]
   .map(match => Number(match[1].replaceAll(',', '')));
 assert.deepEqual(rendered, searchResult.hits.map(hit => hit.chunk.chunk_id));
-console.log(JSON.stringify({ requestPath, form_ms, rendered, result: searchResult }));
+const evidenceLinks = [...resultNode.innerHTML.matchAll(/<dl class="dissuasion-evidence">([^]*?)<\/dl>/g)]
+  .map(group => [...group[1].matchAll(/<dt>([^<]+)<\/dt><dd>([^]*?) · <a href="([^"]+)">定位原文<\/a>/g)]
+    .map(([, label, quote, href]) => ({ label, quote, href })));
+console.log(JSON.stringify({ requestPath, form_ms, rendered, evidenceLinks, result: searchResult }));

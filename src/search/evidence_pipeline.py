@@ -84,8 +84,8 @@ def parse(query):
     colloquial = colloquial_advocacy.parse(text)
     if colloquial:
         p = R.plan(colloquial['person'])
-        p['clues'].append(dict(text=colloquial['target'], forms=[S.normalize(colloquial['target'])],
-                               scope_titles=[]))
+        if target := colloquial['target']:
+            p['clues'].append(dict(text=target, forms=[S.normalize(target)], scope_titles=[]))
         p.update(subject=p['clues'][:1], constraints=p['clues'][1:],
                  relation_groups=[dict(kind='advocacy', terms=list(colloquial_advocacy.terms(colloquial)))],
                  answer_slots=['reason'], colloquial_advocacy=colloquial,
@@ -228,7 +228,7 @@ def audit(chunk, p, neighbors, annal=(), *, attachment=None):
     if attachment is None:
         advocacy=p.get('advocacy_event')
         if colloquial := p.get('colloquial_advocacy'):
-            attachment = colloquial_advocacy.evidence(chunk, colloquial)
+            attachment = colloquial_advocacy.evidence(chunk, colloquial, neighbors)
         elif advocacy:
             attachment = advocacy_recall.evidence(chunk,advocacy,neighbors)
         else:

@@ -9,7 +9,8 @@ _HAN = r'[\u3400-\u9fff]'
 _BACKGROUND = re.compile(rf'(?P<background>{_HAN}{{2,24}}?(?:[后後]|之际|时))[，,]\s*')
 _QUESTION = re.compile(rf'(?P<person>{_HAN}{{2,5}}?)(?:为什么|为何)(?P<action>.+)')
 _ATTACK = r'(?:出兵|派兵)?(?:攻打|征讨|征伐|讨伐|进攻|打)'
-_DISSUADE = re.compile(rf'劝(?P<recipient>{_HAN}{{2,5}}?)(?:别|不要|不必|暂缓){_ATTACK}(?P<target>{_HAN}{{2,10}})')
+_DISSUADE = re.compile(rf'劝(?P<recipient>{_HAN}{{2,5}}?)(?:别|不要|不必|暂缓)(?:再)?'
+                       rf'(?:{_ATTACK}(?P<target>{_HAN}{{2,10}})|出兵|派兵)')
 _EXPEDITE = re.compile(
     rf'(?:觉得应该|想|建议|主张)(?:趁早|尽早|尽快){_ATTACK}(?P<target>{_HAN}{{2,10}})'
     rf'(?:[，,](?:不能|别|不该)(?:再)?(?:拖到|等到)(?P<deadline>{_HAN}{{2,8}}))?'
@@ -72,7 +73,7 @@ def parse(text):
 def _topic(frame):
     kind, target = frame['kind'], frame['target']
     if kind in ('dissuade_attack', 'expedite_attack'):
-        return r'东吴|吴' if target == '东吴' else re.escape(target)
+        return (r'东吴|吴' if target == '东吴' else re.escape(target)) if target else _MILITARY_SOURCE
     if kind == 'oppose_relocation':
         direction = target[0]
         return rf'{direction}迁|迁都.{0,4}{direction}|迁[于於]?.{{0,5}}{direction}'
@@ -113,9 +114,85 @@ def candidates(conn, frame, subject, book=None):
     return [hit for _, hit in ranked], dict(pages=pages, scanned=scanned)
 
 
-def evidence(chunk, frame):
-    """Attach an explicit narrator-stated defect and its corresponding reform."""
-    if (frame['kind'] != 'reform_tax' or chunk['layer'] != 'body'
+_CLAUSE = r'[^，,。！？；：「」『』“”‘’\n]'
+_SPEECH_END = re.compile(r'[「」『』“”‘’]|(?:曰|云)[：:]|\n\s*\n')
+_REIGN_CHANGE = re.compile(r'崩|薨|嗣位|即位|践阼|登极|监国|尊为|立为')
+_DISCOURAGE = re.compile(
+    rf'(?:^|(?<=[。；，,]))\s*(?P<reason>{_CLAUSE}{{0,16}}(?:困乏|困敝|疲敝|疲弊|粮乏|乏食)'
+    rf'{_CLAUSE}{{0,18}}(?:[，,]{_CLAUSE}{{2,20}}){{0,4}}[，,]'
+    r'(?:难[于於]|不宜|不可|未可)(?:动兵|出兵|兴师|发兵|进兵))(?=[，,。；！？]|$)'
+)
+
+
+def _recipient_forms(chunk, name):
+    book = zh.to_simplified(chunk.get('book_title', ''))
+    if re.fullmatch(r'[汉唐宋晋明][\u3400-\u9fff]{1,3}(?:帝|祖|宗)', name):
+        qualifier = '前?' if name.startswith('汉') else r'(?:新|旧)?'
+        if re.fullmatch(qualifier + name[0] + r'(?:书|史)', book):
+            return (name, name[1:])
+    return (name,)
+
+
+def _dissuasion(chunk, frame, neighbors, actor):
+    if not frame['target']:
+        return None
+    previous = next(A.previous_overlap(chunk, neighbors), None)
+    prefix = previous[1][:-previous[3]] if previous else ''
+    source = prefix + chunk['text_orig']
+    text = zh.to_simplified(source)
+    if len(text) != len(source):
+        return None
+    target = '(?:' + _topic(frame) + ')'
+    names = '|'.join(map(re.escape, _recipient_forms(chunk, frame['recipient'])))
+    action = (
+        rf'(?:欲|将)(?:(?:出兵|发兵|兴师)?(?:击|攻|讨|伐){target}'
+        rf'|因{target}{_CLAUSE}{{1,10}}[，,](?:出兵|发兵|兴兵)(?:击|攻|讨|伐)其{_HAN}{{1,10}})'
+    )
+    proposal = re.compile(
+        rf'(?:^|(?<=[。！？；\n，,]))\s*(?P<recipient>{names}|上|帝)'
+        rf'(?:与{_CLAUSE}{{2,32}}?议[，,])?(?P<action>{action})'
+        rf'(?:(?:[，,](?:使|以)){_CLAUSE}{{2,24}})?[。；]\s*'
+        rf'(?P<speaker>(?:{actor})(?:上书谏|上疏谏|进谏|谏|奏谏)曰)[：:]\s*[「『“‘]'
+    )
+    narrative = A.narrative(text)
+
+    def locate(span):
+        start, end = span
+        if start >= len(prefix):
+            return A.excerpt(chunk, start - len(prefix), end - len(prefix))
+        if previous and end <= len(previous[1]):
+            return A.excerpt(previous[0], start, end)
+        return None
+
+    for match in proposal.finditer(text):
+        if text[match.start('recipient'):match.end('speaker')] != narrative[match.start('recipient'):match.end('speaker')]:
+            continue
+        recipient_span = match.span('recipient')
+        if match['recipient'] in ('上', '帝'):
+            start = match.start('recipient')
+            title = list(re.finditer(rf'(?:^|(?<=[。；\n]))\s*(?P<title>{names})(?=[\u3400-\u9fff])',
+                                     narrative[:start]))
+            if not title or start - title[-1].end() > 130 or _REIGN_CHANGE.search(narrative[title[-1].end():start]):
+                continue
+            recipient_span = title[-1].span('title')
+        end = _SPEECH_END.search(text, match.end())
+        reason = _DISCOURAGE.search(text, match.end(), end.start() if end else len(text))
+        if not reason or reason.start('reason') < len(prefix):
+            continue
+        recipient = locate(recipient_span)
+        speaker = locate(match.span('speaker'))
+        action_ref = locate(match.span('action'))
+        if recipient and speaker and action_ref:
+            detail = locate(reason.span('reason'))
+            return dict(slot='reason', kind='advocacy', attribution='speaker_explanation',
+                        support='dissuasion', event=detail, detail=detail, action=action_ref,
+                        speaker=speaker, recipient=recipient)
+    return None
+
+
+def evidence(chunk, frame, neighbors=()):
+    """Bind quoted advice or an explicit narrator-stated reform rationale."""
+    if (frame['kind'] not in ('reform_tax', 'dissuade_attack') or chunk['layer'] != 'body'
             or not (chunk.get('revision_id') and chunk.get('source_sha256'))):
         return None
     text = zh.to_simplified(chunk['text_orig'])
@@ -126,6 +203,8 @@ def evidence(chunk, frame):
     if zh.to_simplified(chunk['heading']).strip() == name:
         names += [re.escape(name[-2:]), re.escape(name[-1:])]
     actor = '|'.join(dict.fromkeys(names))
+    if frame['kind'] == 'dissuade_attack':
+        return _dissuasion(chunk, frame, neighbors, actor)
     pattern = re.compile(
         rf'(?P<detail>[^。！？；\n「」]{{3,55}}(?:困乏|凋敝|残瘁|仍积)[^。！？；\n「」]{{0,36}})。'
         rf'\s*(?:{actor})(?:疾|患|忧)其(?:敝|弊)[，,](?:乃|遂)'

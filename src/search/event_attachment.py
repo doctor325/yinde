@@ -54,6 +54,29 @@ def excerpt(chunk, start, end):
                 quote=chunk['text_orig'][start:end])
 
 
+def previous_overlap(chunk, neighbors):
+    """Find a source-verified overlap with the immediately preceding chunk."""
+    parts = chunk.get('parts', ())
+    if not parts:
+        return
+    first = parts[0]
+    for neighbor in neighbors:
+        if (neighbor['chunk_id'] != chunk['chunk_id'] - 1 or
+                any(neighbor.get(key) != chunk.get(key) for key in SOURCE_SCOPE)):
+            continue
+        previous = neighbor.get('parts', ())
+        if not previous:
+            continue
+        last = previous[-1]
+        if not (last['block_index'] == first['block_index']
+                and last['start'] < first['start'] < last['end'] <= first['end']):
+            continue
+        source = neighbor['text_orig']
+        overlap = last['end'] - first['start']
+        if source[-overlap:] == chunk['text_orig'][:overlap]:
+            yield neighbor, source, len(source) - (last['end'] - last['start']), overlap
+
+
 def _execution_object(text, actor, place):
     place = re.escape(place)
     return re.search(

@@ -1,6 +1,7 @@
 """Bound office refusal/departure frames, with source-local event evidence."""
 import re
 from search import zh
+from search.event_attachment import previous_overlap
 
 SCOPE = ('page_id','book_id','revision_id','source_sha256','heading','layer')
 BOUNDARY = r'(?:^|[。；！？\n])'
@@ -171,28 +172,6 @@ def observations(chunk,plan,neighbors=()):
     return result
 
 
-def _previous_overlap(chunk,neighbors):
-    parts=chunk.get('parts',())
-    if not parts:
-        return
-    first=parts[0]
-    for neighbor in neighbors:
-        if neighbor['chunk_id']!=chunk['chunk_id']-1 or any(neighbor.get(k)!=chunk.get(k) for k in SCOPE):
-            continue
-        previous=neighbor.get('parts',())
-        if not previous:
-            continue
-        last=previous[-1]
-        if not (last['block_index']==first['block_index'] and last['start']<first['start']<last['end']<=first['end']):
-            continue
-        source=neighbor['text_orig']
-        overlap=last['end']-first['start']
-        if source[-overlap:]!=chunk['text_orig'][:overlap]:
-            continue
-        prefix_start=len(source)-(last['end']-last['start'])
-        yield neighbor,source,prefix_start,overlap
-
-
 def _county_departure(chunk,text,frame,neighbors):
     """Bind a quoted objection and actual departure to the attested county office."""
     office=frame['office']
@@ -201,7 +180,7 @@ def _county_departure(chunk,text,frame,neighbors):
     actor=r'(?:'+re.escape(frame['person'])+'|'+re.escape(frame['person'][-1])+r')'
     speech=re.compile(r'(?:^|[，。；])(?P<speaker>'+actor+r')(?:叹|歎|慨然)?曰：「(?P<reason>[^「」\n]{4,80})」'
                       r'(?:[\u3400-\u9fff]{0,4}[元一二三四五六七八九十]+年，)?(?P<event>解印去县|弃官去县)(?=[，。；]|$)')
-    for neighbor,source,prefix_start,overlap in _previous_overlap(chunk,neighbors):
+    for neighbor,source,prefix_start,overlap in previous_overlap(chunk,neighbors):
         prefix=zh.to_simplified(source[prefix_start:len(source)-overlap])
         if len(prefix)!=len(source)-overlap-prefix_start:
             continue

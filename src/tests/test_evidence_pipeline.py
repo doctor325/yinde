@@ -286,6 +286,37 @@ class Evidence(unittest.TestCase):
         ):
             self.assertEqual(E.audit(dict(body, text_orig=text), plan, [])['status'], 'insufficient', text)
 
+    def test_military_dissuasion_requires_a_continuous_named_speaker_and_recipient(self):
+        plan = E.parse('司马甲为什么劝晋王别派兵打西秦？')
+        opening = '晋王与群臣议，欲出兵击西秦。甲上书谏曰：「臣闻兵不可轻举。'
+        detail = '今边民困乏，屯粮无继，难于动兵'
+        continuation = '兵不可轻举。' + detail + '。」王从之。'
+        offset = len(opening) - len('兵不可轻举。')
+        previous = dict(chunk(opening, 10), heading='司马甲',
+                        parts=[dict(block_index=1, start=0, end=len(opening))])
+
+        def body(text):
+            return dict(previous, chunk_id=11, text_orig=text,
+                        parts=[dict(block_index=1, start=offset, end=offset + len(text))])
+
+        current = body(continuation)
+        record = E.audit(current, plan, [previous])['attached_evidence'][0]
+        self.assertEqual(record['speaker']['quote'], '甲上书谏曰')
+        self.assertEqual(record['recipient']['quote'], '晋王')
+        self.assertEqual(record['action']['quote'], '欲出兵击西秦')
+        self.assertEqual(record['detail']['quote'], detail)
+        self.assertEqual([record[key]['chunk_id'] for key in ('speaker','action','detail')], [10, 10, 11])
+        for altered in (
+            body('兵不可轻举。」李乙曰：「' + detail + '。」'),
+            body('兵不可轻举。李乙曰：' + detail + '。」'),
+            body('兵可暂且不议。' + detail + '。」'),
+            dict(current, source_sha256='different'),
+        ):
+            self.assertEqual(E.audit(altered, plan, [previous])['status'], 'insufficient')
+        for query in ('晋王为什么劝司马甲别出兵？', '晋王为什么劝司马甲别派兵打西秦？',
+                      '司马甲为什么劝梁王别派兵打西秦？', '司马甲为什么劝晋王别派兵打东齐？'):
+            self.assertEqual(E.audit(current, E.parse(query), [previous])['status'], 'insufficient', query)
+
     def test_advocacy_reason_must_belong_to_the_asked_action_and_speaker(self):
         campaign = E.parse('司马甲为何坚持讨伐南城？')
         body = dict(chunk('自讨南城，官军屡败。众以转输不逮，请罢兵。甲以贼患日深，终为大患。遂坚请讨伐。'),

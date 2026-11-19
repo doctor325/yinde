@@ -69,6 +69,31 @@ function punctuatedHitLink(chunk, returnTo) {
     ranges,rev:chunk.revision_id,sha:chunk.source_sha256})}`;
 }
 
+function punctuatedDissuasionEvidence(hit, returnTo) {
+  const evidence = hit.evidence_audit?.attached_evidence?.find(item => item.support === 'dissuasion');
+  if (!evidence) return '';
+  const chunks = [hit.chunk, ...(hit.context_chunks || [])];
+  const labels = { speaker: '发言人', recipient: '受议者', action: '所议行动', detail: '理由' };
+  const items = Object.entries(labels).map(([key, label]) => {
+    const ref = evidence[key];
+    const chunk = chunks.find(item => item.chunk_id === ref.chunk_id);
+    if (!chunk) return '';
+    let offset = 0;
+    const parts = [];
+    for (const part of chunk.parts || []) {
+      const size = part.end - part.start;
+      const start = Math.max(ref.start, offset) - offset;
+      const end = Math.min(ref.end, offset + size) - offset;
+      if (start < end) parts.push({ block_index: part.block_index, start: part.start + start, end: part.start + end });
+      offset += size;
+    }
+    const quote = readingTextHtml(ref.quote, { pb: false });
+    const link = parts.length ? ' · <a href="' + punctuatedHitLink({ ...chunk, parts }, returnTo) + '">定位原文</a>' : '';
+    return '<dt>' + label + '</dt><dd>' + quote + link + '</dd>';
+  });
+  return '<dl class="dissuasion-evidence">' + items.join('') + '</dl>';
+}
+
 function punctuatedHitContext(hit, returnTo) {
   const c=hit.chunk;
   const scope=['page_id','book_id','revision_id','source_sha256','layer','heading'];
@@ -123,7 +148,7 @@ function punctuatedSearchResults(result) {
     const compare=`#/search?${qs({q:phrase,book:c.book_id,source:'original'})}`;
     const read=punctuatedHitLink(c,returnTo);
     const missing=hit.evidence_audit?.missing||[];
-    const focus=hit.evidence_focus?.selected?`<p class="quiet">重点比较的原文</p><p>${readingTextHtml(hit.evidence_focus.text,{pb:false})}</p>`:'';
+    const focus=punctuatedDissuasionEvidence(hit,returnTo) || (hit.evidence_focus?.selected?`<p class="quiet">重点比较的原文</p><p>${readingTextHtml(hit.evidence_focus.text,{pb:false})}</p>`:'');
     html+=`<article class="card punctuated-search-hit"><h3>《${esc(c.book_title)}》 ${esc(c.title)}</h3>
       <p class="quiet">标点版 · 维基文库录入本 · ${c.layer==='annotation'?'来源注释':'正文'}${c.status==='partial_render'?' · 来源排版异常':c.status==='insufficient_punctuation'?' · 短篇或低标点':''}</p>
       ${hit.channels?.includes('biography')?'<p class="quiet">按本纪记载的姓名与庙号找到</p>':''}
