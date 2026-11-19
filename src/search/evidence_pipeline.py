@@ -7,7 +7,7 @@ import json
 import math
 import re
 import time
-from search import annal_events, execution_recall, punctuated_relevance as R, punctuated_search as S, zh
+from search import advocacy_recall, annal_events, execution_recall, punctuated_relevance as R, punctuated_search as S, zh
 
 VERSION = 'context-evidence-v2'
 # Each independent channel keeps its own quota before deduplication. A shared
@@ -80,6 +80,16 @@ def place_attached(observation):
 def parse(query):
     from search.office_events import general_departure_frame
     text=zh.to_simplified(query)
+    advocacy = advocacy_recall.parse(text)
+    if advocacy:
+        p = R.plan(advocacy['person'])
+        terms = [advocacy['person'], advocacy['target'] or advocacy['topic']]
+        p['clues'] = [dict(text=term, forms=[S.normalize(term)], scope_titles=[]) for term in terms]
+        p.update(subject=p['clues'][:1], constraints=p['clues'][1:],
+                 relation_groups=[dict(kind='advocacy', terms=list(advocacy_recall.TERMS))],
+                 answer_slots=['reason'], advocacy_event=advocacy,
+                 general_departure=None, unsupported=False, pipeline_version=VERSION)
+        return p
     execution = execution_recall.parse(text)
     if execution:
         p = R.plan(execution['person'])
@@ -265,6 +275,8 @@ def audit(chunk, p, neighbors, annal=()):
 
 def biography_context_candidates(conn,p,subject,book=None):
     """Recall within source-attested biographies; never promote heading to actor."""
+    if advocacy := p.get('advocacy_event'):
+        return advocacy_recall.candidates(conn,advocacy,subject,book)
     if execution := p.get('execution_event'):
         return execution_recall.candidates(conn,execution,subject,book)
     kinds={g['kind'] for g in p['relation_groups']}

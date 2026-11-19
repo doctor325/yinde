@@ -190,6 +190,42 @@ class Evidence(unittest.TestCase):
                 self.assertEqual(result['hits'][0]['evidence_audit']['status'], 'insufficient')
                 self.assertEqual(E.evaluate(query, db, [], [], book='b', rerank=rerank)['candidate_ids'], [])
 
+    def test_advocacy_recall_keeps_the_proposed_action_and_its_speaker(self):
+        db, _ = self.evaluation_database()
+        anchor = {**chunk('欧阳甲，字景明。', 10), 'heading': '歐陽甲', 'page_id': 2}
+        other = dict(anchor, heading='司馬乙', page_id=3)
+        bodies = [
+            anchor,
+            dict(anchor, chunk_id=11, text_orig='自討南城，軍不利。甲以久則為患，堅請討伐。'),
+            dict(anchor, chunk_id=12, text_orig='自討南城，軍不利。甲以久則為患，堅請討伐北城。'),
+            dict(anchor, chunk_id=13, text_orig='自討南城，軍不利。甲以久則為患，未堅請討伐。'),
+            dict(anchor, chunk_id=14, text_orig='自討南城，軍不利。王壬奏曰：「以其多患，請討南城。」'),
+            dict(anchor, chunk_id=15, text_orig='甲以南城有患，請討南城。', source_sha256='other'),
+            dict(other, chunk_id=20, text_orig='司馬乙，字景文。'),
+            dict(other, chunk_id=21, text_orig='乙奏曰：\n\n臣以邊民困乏，故曰轉輸不可久。'),
+            dict(other, chunk_id=22, text_orig='臣以邊民困乏。今留步士二千屯田，則可省轉輸。'),
+            dict(other, chunk_id=24, text_orig='王壬奏曰：\n\n臣以邊民困乏。'),
+            dict(other, chunk_id=25, text_orig='臣以邊民困乏。今留步士二千屯田，則可省轉輸。'),
+        ]
+        for c in bodies:
+            db.execute('INSERT INTO chunks VALUES(?,?,?,?,?)',
+                       (c['chunk_id'], c['book_id'], c['page_id'], S.normalize(c['text_orig']), json.dumps(c)))
+        cases = [
+            ('欧阳甲为何坚持讨伐南城？', dict(stance='坚持', action='讨伐南城', predicate='讨伐', target='南城'), 11),
+            ('司马乙为什么主张留下步兵屯田？', dict(stance='主张', action='留下步兵屯田', topic='屯田', participants='步兵'), 22),
+        ]
+        for query, fields, expected in cases:
+            with self.subTest(query=query):
+                plan = E.parse(query)
+                self.assertEqual(plan['answer_slots'], ['reason'])
+                for key, value in fields.items():
+                    self.assertEqual(plan['advocacy_event'][key], value)
+                result = E.evaluate(query, db, [], [], rerank=lambda q, ts: dict(scores=[0.0] * len(ts), ms=0))
+                hits = [h for h in result['hits'] if 'biography_context' in h['channels']]
+                self.assertEqual([h['chunk']['chunk_id'] for h in hits], [expected])
+                self.assertEqual(hits[0]['evidence_audit']['status'], 'insufficient')
+        self.assertNotIn('advocacy_event', E.parse('欧阳甲为何离开南城？'))
+
     def test_invalid_model_output_is_rejected(self):
         db,_=self.evaluation_database()
         for scores in ([1.],[1.,float('nan')],['1','2']):

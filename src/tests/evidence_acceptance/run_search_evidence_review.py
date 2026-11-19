@@ -109,12 +109,12 @@ def main():
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--holdout", action="store_true",
                         help="Run the frozen new-person sample through the desktop search form")
+    parser.add_argument("--case", help="Run one case from the selected fixture")
     args = parser.parse_args()
     out = args.out.resolve()
     data = (Path(__file__).resolve().parents[2] / "data").resolve()
     if out == data or not out.is_relative_to(data):
         parser.error("--out must be a new directory under src/data")
-    out.mkdir(parents=True, exist_ok=False)
     with search.connect() as index:
         if args.holdout:
             cases, fixture_hashes = read_holdout(index)
@@ -122,6 +122,11 @@ def main():
             cases, fixture_hashes = read_cases()
             for case in cases:
                 verify_source(index, case["reference"])
+    if args.case:
+        cases = [case for case in cases if case["id"] == args.case]
+        if not cases:
+            parser.error(f"Unknown case: {args.case}")
+    out.mkdir(parents=True, exist_ok=False)
     write_json(out / "inputs.json", dict(cases=cases, fixture_sha256=fixture_hashes,
                                         database=search.identity(config.DB_PATH),
                                         index=search.status()["manifest"], pipeline=VERSION))

@@ -1,8 +1,8 @@
 """Parse and retrieve execution events without treating a lead as evidence."""
-import json
 import re
 
-from search import punctuated_search as S, zh
+from search import punctuated_search as S
+from search.biography_scope import named_biographies
 
 
 _PERSON = r'[\u3400-\u9fff]{2,4}'
@@ -51,53 +51,23 @@ def terms(frame):
 
 def candidates(conn, frame, subject, book=None):
     """Scan the matching body of a pinned biography, including short-name passages."""
-    name = frame['person']
-    pages = set()
-    for hit in subject:
-        chunk = hit['chunk']
-        if zh.to_simplified(chunk['heading']).strip() == name and (not book or chunk['book_id'] == book):
-            pages.add((chunk['book_id'], chunk['page_id']))
-    if not pages:
-        # A biography can use the short name from its opening to its last line.
-        headings = (name, zh.to_traditional(name))
-        sql = "SELECT DISTINCT book_id,page_id FROM chunks WHERE json_extract(payload,'$.heading') IN (?,?)"
-        args = headings
-        if book:
-            sql += " AND book_id=?"
-            args += (book,)
-        pages = {tuple(row) for row in conn.execute(sql, args)}
-
-    opening = re.compile(r'\s*(?:' + re.escape(name) + '|' + re.escape(name[-1]) + r')[，,]?\s*字')
     preceding = frame['preceding_event']
     place = S.normalize(preceding['object']) if preceding else ''
     expressions = terms(frame)
     ranked = []
     scanned = 0
     biographies = 0
-    for book_id, page_id in sorted(pages):
-        versions = {}
-        for row in conn.execute(
-            'SELECT payload FROM chunks WHERE book_id=? AND page_id=? ORDER BY chunk_id',
-            (book_id, page_id),
-        ):
-            chunk = json.loads(row[0])
-            if chunk['layer'] != 'body' or zh.to_simplified(chunk['heading']).strip() != name:
+    for peers in named_biographies(conn, frame['person'], subject, book):
+        biographies += 1
+        scanned += len(peers)
+        texts = {cid: S.normalize(c['text_orig']) for cid, c in peers.items()}
+        for cid, text in texts.items():
+            matched = [term for term in expressions if term in text]
+            if not matched:
                 continue
-            if chunk.get('revision_id') and chunk.get('source_sha256'):
-                versions.setdefault((chunk['revision_id'], chunk['source_sha256']), {})[chunk['chunk_id']] = chunk
-        for peers in versions.values():
-            if not opening.match(zh.to_simplified(next(iter(peers.values()))['text_orig'])):
+            nearby = (texts.get(cid - 1, ''), texts.get(cid + 1, ''))
+            if place and place not in text and not any(place in t for t in nearby):
                 continue
-            biographies += 1
-            scanned += len(peers)
-            texts = {cid: S.normalize(c['text_orig']) for cid, c in peers.items()}
-            for cid, text in texts.items():
-                matched = [term for term in expressions if term in text]
-                if not matched:
-                    continue
-                nearby = (texts.get(cid - 1, ''), texts.get(cid + 1, ''))
-                if place and place not in text and not any(place in t for t in nearby):
-                    continue
-                ranked.append(((bool(place and place not in text), -max(map(len, matched)), cid), peers[cid]))
+            ranked.append(((bool(place and place not in text), -max(map(len, matched)), cid), peers[cid]))
     ranked.sort(key=lambda item: item[0])
     return [dict(chunk=c) for _, c in ranked], dict(pages=biographies, scanned=scanned)
