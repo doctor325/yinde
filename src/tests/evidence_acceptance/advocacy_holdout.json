@@ -1,0 +1,98 @@
+[
+  {
+    "id": "gao-ang-home",
+    "era": "北魏",
+    "axis": "原因",
+    "query": "高昂为何建议还本乡招集部曲？",
+    "policy": "answerable",
+    "expected": "《北史》以寇难尚繁解释高昂请求回本乡召集部曲。",
+    "sources": [
+      {
+        "chunk_id": 176617,
+        "book_id": "KR2a0025",
+        "page_id": 60116,
+        "title": "北史/卷031",
+        "revision_id": 1559457,
+        "source_sha256": "9a32ab1a9562970f0ac6a032c6751bb2de0afc9e6f61339d0060fa47d74f89ff",
+        "source_url": "https://zh.wikisource.org/w/index.php?oldid=1559457",
+        "quote": "昂以寇難尚繁，乃請還本鄉招集部曲",
+        "offset": [
+          161,
+          177
+        ]
+      }
+    ]
+  },
+  {
+    "id": "yuan-wenyao-selection",
+    "era": "北齐",
+    "axis": "原因",
+    "query": "元文遥为何建议革选？",
+    "policy": "answerable",
+    "expected": "《北史》记元文遥认为县令承担养民治理之责，所以请求改革县令选任。",
+    "sources": [
+      {
+        "chunk_id": 113451,
+        "book_id": "KR2a0025",
+        "page_id": 34381,
+        "title": "北史/卷055",
+        "revision_id": 2020898,
+        "source_sha256": "e03949d390d8285466dc9d9ffe95be2f0cfbb34ff28b96207d3b38302d93fe33",
+        "source_url": "https://zh.wikisource.org/w/index.php?oldid=2020898",
+        "quote": "文遙以縣令為字人之功，遂請革選",
+        "offset": [
+          200,
+          215
+        ]
+      }
+    ]
+  },
+  {
+    "id": "huang-quan-vanguard",
+    "era": "三国蜀",
+    "axis": "原因",
+    "query": "黄权为什么主张为先驱？",
+    "policy": "answerable",
+    "expected": "《三国志》黄权亲言吴人善战、顺流前进容易回撤困难，因此请自己先行迎敌。",
+    "sources": [
+      {
+        "chunk_id": 66866,
+        "book_id": "KR2a0012",
+        "page_id": 19848,
+        "title": "三國志/卷43",
+        "revision_id": 2085132,
+        "source_sha256": "d6bb44f48b05a600de259632d49bc58a66ca8b3e7db797f50a124bfb512b2bf6",
+        "source_url": "https://zh.wikisource.org/w/index.php?oldid=2085132",
+        "quote": "吳人悍戰，又水軍順流，進易退難，臣請為先驅以當寇",
+        "offset": [
+          128,
+          152
+        ]
+      }
+    ]
+  },
+  {
+    "id": "liu-bei-vanguard",
+    "era": "三国蜀",
+    "axis": "原因",
+    "query": "刘备为什么主张为先驱？",
+    "policy": "different_event",
+    "expected": "先驱建议由黄权提出；先主刘备未采纳。该段不支持把建议及其理由归给刘备。",
+    "sources": [
+      {
+        "chunk_id": 66866,
+        "book_id": "KR2a0012",
+        "page_id": 19848,
+        "title": "三國志/卷43",
+        "revision_id": 2085132,
+        "source_sha256": "d6bb44f48b05a600de259632d49bc58a66ca8b3e7db797f50a124bfb512b2bf6",
+        "source_url": "https://zh.wikisource.org/w/index.php?oldid=2085132",
+        "quote": "臣請為先驅以當寇，陛下宜為後鎮。」先主不從",
+        "offset": [
+          144,
+          165
+        ]
+      }
+    ]
+  }
+]

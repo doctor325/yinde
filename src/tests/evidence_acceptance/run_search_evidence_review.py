@@ -41,6 +41,7 @@ CASES = {
 HOLDOUT_FIXTURE = Path(__file__).with_name("search_holdout8.json")
 ATTACHMENT_FIXTURE = Path(__file__).with_name("event_attachment_holdout.json")
 RECALL_FIXTURE = Path(__file__).with_name("event_recall_control.json")
+ADVOCACY_FIXTURE = Path(__file__).with_name("advocacy_holdout.json")
 SOURCE_KEYS = ("page_id", "revision_id", "source_sha256", "source_url", "parts", "text_orig")
 
 
@@ -116,7 +117,10 @@ def main():
                         help="Include independent event-attachment cases with --holdout")
     parser.add_argument("--recall-control", action="store_true",
                         help="Include the independent execution-date control with --holdout")
+    parser.add_argument("--stage", action="store_true", help="Run the full current phase fixtures")
     args = parser.parse_args()
+    if args.stage:
+        args.holdout = args.attachment = args.recall_control = True
     if (args.attachment or args.recall_control) and not args.holdout:
         parser.error("Additional fixtures require --holdout")
     out = args.out.resolve()
@@ -133,6 +137,10 @@ def main():
             if args.recall_control:
                 control, hashes = read_holdout(index, RECALL_FIXTURE)
                 cases.extend(control)
+                fixture_hashes.update(hashes)
+            if args.stage:
+                advocacy, hashes = read_holdout(index, ADVOCACY_FIXTURE)
+                cases.extend(advocacy)
                 fixture_hashes.update(hashes)
         else:
             cases, fixture_hashes = read_cases()

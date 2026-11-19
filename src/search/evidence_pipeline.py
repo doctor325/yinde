@@ -215,7 +215,9 @@ def context(conn, chunk):
 def audit(chunk, p, neighbors, annal=(), *, attachment=None):
     f=R.features(chunk,p)
     if attachment is None:
-        attachment=event_attachment.attach(chunk,p,neighbors)
+        advocacy=p.get('advocacy_event')
+        attachment=(advocacy_recall.evidence(chunk,advocacy,neighbors) if advocacy
+                    else event_attachment.attach(chunk,p,neighbors))
     missing=[]
     if p['unsupported']:missing.append('无法可靠解析问题关系')
     from search.office_events import observations as office_observations
@@ -238,7 +240,7 @@ def audit(chunk, p, neighbors, annal=(), *, attachment=None):
     needed={g['kind'] for g in p['relation_groups']}
     positive_groups={o['kind'] for o in positive}
     if attachment:
-        positive_groups.add('capture' if p.get('capture_event') else 'execution')
+        positive_groups.add(attachment.get('kind', 'capture' if p.get('capture_event') else 'execution'))
     if not needed or not needed.issubset(positive_groups):
         missing.append('缺少全部关系的明确主谓句式')
     # A nearby date/place in another passage cannot silently answer this event.
@@ -419,6 +421,9 @@ def evaluate(query,conn,dense,batches,book=None,rerank=None):
         # Center the pairwise comparison on the event sentence. Large unrelated
         # annal entries next to a six-character event used to dominate scoring.
         f=h['evidence_focus']=focus(c,p)
+        if p.get('advocacy_event') and h['evidence_audit']['attached_evidence']:
+            event=h['evidence_audit']['attached_evidence'][0]['event']
+            f=h['evidence_focus']=dict(start=event['start'],end=event['end'],text=event['quote'],selected=True)
         if observations and not f['selected']:
             observation=next((o for o in observations if o['polarity']=='positive_syntax'),observations[0])
             f=h['evidence_focus']=dict(start=observation['start'],end=observation['end'],

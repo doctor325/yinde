@@ -232,6 +232,37 @@ class Evidence(unittest.TestCase):
             with self.subTest(scores=scores), self.assertRaises(ValueError):
                 E.evaluate('甲公何时去世',db,[],[],rerank=lambda q,t:dict(scores=scores,ms=1))
 
+    def test_advocacy_reason_must_belong_to_the_asked_action_and_speaker(self):
+        campaign = E.parse('司马甲为何坚持讨伐南城？')
+        body = dict(chunk('自讨南城，官军屡败。众以转输不逮，请罢兵。甲以贼患日深，终为大患。遂坚请讨伐。'),
+                    heading='司马甲')
+        result = E.audit(body, campaign, [])
+        self.assertEqual(result['status'], 'clues_present')
+        clue = result['attached_evidence'][0]
+        self.assertEqual(clue['detail']['quote'], '贼患日深，终为大患')
+        self.assertEqual(clue['action_context']['quote'], '讨南城')
+        self.assertEqual(clue['attribution'], 'narrator_explanation')
+        for text in (
+            '自讨南城，官军屡败。众以转输不逮，遂请讨南城。',
+            '自讨南城，官军屡败。甲以贼患日深，遂坚请讨北城。',
+            '自讨南城，官军屡败。又讨北城，甲以贼患日深，遂坚请讨伐。',
+            '自讨南城，官军屡败。王壬曰：「甲以贼患日深，遂坚请讨伐。」',
+            '自讨南城，官军屡败。或云，甲以贼患日深，遂坚请讨伐。',
+        ):
+            self.assertEqual(E.audit(dict(body, text_orig=text), campaign, [])['status'], 'insufficient', text)
+
+        farming = E.parse('司马甲为何主张留下步兵屯田？')
+        anchor = dict(chunk('王问曰：「何如？」甲奏曰：\n\n臣闻治边务省费。', 20), heading='司马甲')
+        proposal = dict(anchor, chunk_id=21, text_orig='今留步士万人屯田。臣愚以为屯田内有省费之利，外有守城之备。')
+        finding = E.audit(proposal, farming, [anchor])['attached_evidence'][0]
+        self.assertEqual(finding['speaker']['quote'], '甲奏曰：')
+        self.assertEqual(finding['detail']['quote'], '屯田内有省费之利，外有守城之备')
+        self.assertEqual(finding['attribution'], 'own_statement')
+        for prev in (dict(anchor, revision_id=3), dict(anchor, text_orig='乙奏曰：臣闻治边务省费。')):
+            self.assertEqual(E.audit(proposal, farming, [prev])['status'], 'insufficient')
+        change = dict(proposal, text_orig=proposal['text_orig'].replace('。臣', '。复议留骑兵输粮。臣'))
+        self.assertEqual(E.audit(change, farming, [anchor])['status'], 'insufficient')
+
     def test_event_detail_must_belong_to_the_asked_event(self):
         cases = [
             ('司马甲攻破东城后诛杀了谁？', '传', '司马甲克东城，斩王壬。', '王壬',
