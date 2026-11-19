@@ -1,0 +1,255 @@
+{
+  "baseline": "1e997ea",
+  "episodes": {
+    "zhang": {
+      "answer": "义恭欲撤的叙事背景是军粮不足。张畅担心一撤就四散，认为现有军粮尚可支撑。军粮不足是史家叙述。拓跋焘南侵是当时战况。",
+      "sources": [
+        "song-59",
+        "song-46",
+        "nan-32"
+      ]
+    },
+    "wang": {
+      "answer": "王穆劝张大豫缓攻，因为吕光粮足、城坚、兵精，逼战不利。王穆建议先据岭西、整军蓄粮。张大豫拒绝。",
+      "sources": [
+        "jin-122"
+      ]
+    }
+  },
+  "cases": [
+    {
+      "id": "zhang-hold",
+      "query": "张畅为什么坚持守彭城？",
+      "episode": "zhang",
+      "required": [
+        "speaker",
+        "reason"
+      ],
+      "policy": "hold_reason"
+    },
+    {
+      "id": "zhang-two-sides",
+      "query": "张畅和主张撤走的人，各自担心什么？",
+      "episode": "zhang",
+      "required": [
+        "speaker",
+        "reason",
+        "proposal",
+        "recipient"
+      ],
+      "policy": "two_roles"
+    },
+    {
+      "id": "wang-forward",
+      "query": "王穆为什么劝张大豫别急着打吕光？",
+      "episode": "wang",
+      "required": [
+        "speaker",
+        "proposal",
+        "reason",
+        "response"
+      ],
+      "policy": "correct_roles"
+    },
+    {
+      "id": "wang-reversed",
+      "query": "张大豫为什么劝王穆别急着打吕光？",
+      "episode": "wang",
+      "required": [
+        "speaker",
+        "proposal",
+        "reason",
+        "response"
+      ],
+      "policy": "reversed_roles"
+    }
+  ],
+  "evidence": {
+    "song-59": {
+      "speaker": [
+        42376,
+        1996693,
+        "94c38972de8b9fe21ec29bd1443b8fc7f73989af1aafd109a0b51972a2c1adeb",
+        40,
+        42,
+        "457682a5724a17004f512bc4e873718f23b7dd9265afdfeb4ae038fa80692210"
+      ],
+      "recipient": [
+        42375,
+        1996693,
+        "94c38972de8b9fe21ec29bd1443b8fc7f73989af1aafd109a0b51972a2c1adeb",
+        57,
+        66,
+        "3e548419375d9bc2b70d7c10c5f863ae76003379a99f7f7bffbe55d9b8d1bb26"
+      ],
+      "proposal": [
+        42375,
+        1996693,
+        "94c38972de8b9fe21ec29bd1443b8fc7f73989af1aafd109a0b51972a2c1adeb",
+        92,
+        113,
+        "468f821e92be4476dc49b48a3ac5d8cd9b703eb457bab2cc9dc36263a477f433"
+      ],
+      "opponent": [
+        42375,
+        1996693,
+        "94c38972de8b9fe21ec29bd1443b8fc7f73989af1aafd109a0b51972a2c1adeb",
+        40,
+        54,
+        "10f5bf2803a69525af45ee8296aa508383071db86a0529c7a81d25720fdcbd1b"
+      ],
+      "reason": [
+        42376,
+        1996693,
+        "94c38972de8b9fe21ec29bd1443b8fc7f73989af1aafd109a0b51972a2c1adeb",
+        89,
+        100,
+        "4431f20b5d062c4664ba46813892233c329fa04e9cd66d17f3cf1b4ed22bb93c"
+      ]
+    },
+    "song-46": {
+      "speaker": [
+        41510,
+        2118581,
+        "3df8bb0cdbc5811a0747fcca3c9ed93d3b714bf0eee0315f6946eef8968fffdf",
+        20,
+        22,
+        "457682a5724a17004f512bc4e873718f23b7dd9265afdfeb4ae038fa80692210"
+      ],
+      "recipient": [
+        41509,
+        2118581,
+        "3df8bb0cdbc5811a0747fcca3c9ed93d3b714bf0eee0315f6946eef8968fffdf",
+        77,
+        89,
+        "1b2807b4e3a3d3f5f72d688ff8b7205a46c34272dff14f860a3adbc50cd4eec1"
+      ],
+      "proposal": [
+        41509,
+        2118581,
+        "3df8bb0cdbc5811a0747fcca3c9ed93d3b714bf0eee0315f6946eef8968fffdf",
+        98,
+        119,
+        "468f821e92be4476dc49b48a3ac5d8cd9b703eb457bab2cc9dc36263a477f433"
+      ],
+      "opponent": [
+        41509,
+        2118581,
+        "3df8bb0cdbc5811a0747fcca3c9ed93d3b714bf0eee0315f6946eef8968fffdf",
+        60,
+        74,
+        "6260aa35913b5b7e0cfc269fa44257ed74ead8b7a02f2a27e8cae93cee05cf2d"
+      ],
+      "reason": [
+        41510,
+        2118581,
+        "3df8bb0cdbc5811a0747fcca3c9ed93d3b714bf0eee0315f6946eef8968fffdf",
+        63,
+        73,
+        "ac8143b08ba438eaa6552167046d38fe458f8afe4346ed32e1fdd592c93cb9f6"
+      ]
+    },
+    "nan-32": {
+      "speaker": [
+        171760,
+        1494939,
+        "15c2de7372e19c4330803394c90b8fb62ace4280a0a8b70cd6afc5ecd8c863e5",
+        160,
+        162,
+        "457682a5724a17004f512bc4e873718f23b7dd9265afdfeb4ae038fa80692210"
+      ],
+      "recipient": [
+        171760,
+        1494939,
+        "15c2de7372e19c4330803394c90b8fb62ace4280a0a8b70cd6afc5ecd8c863e5",
+        13,
+        25,
+        "1b2807b4e3a3d3f5f72d688ff8b7205a46c34272dff14f860a3adbc50cd4eec1"
+      ],
+      "proposal": [
+        171760,
+        1494939,
+        "15c2de7372e19c4330803394c90b8fb62ace4280a0a8b70cd6afc5ecd8c863e5",
+        40,
+        60,
+        "6ee10fd4d46a2f0f067072503db0971278e4959526958ac479a15df29f94a18d"
+      ],
+      "opponent": [
+        171760,
+        1494939,
+        "15c2de7372e19c4330803394c90b8fb62ace4280a0a8b70cd6afc5ecd8c863e5",
+        0,
+        10,
+        "70ae47df9e9fd1446cbf1a87053e73f8cd0164bb4ef2ea7cbebf5b5df6cba45e"
+      ],
+      "reason": [
+        171760,
+        1494939,
+        "15c2de7372e19c4330803394c90b8fb62ace4280a0a8b70cd6afc5ecd8c863e5",
+        211,
+        222,
+        "ed922fbb22aa65fc109b1623b90ccfe00dff368921e3d085fe02f8a2b0cee94a"
+      ]
+    },
+    "jin-122": {
+      "speaker": [
+        87211,
+        1554250,
+        "719484f894b951f542be0925bd68de0dcc907e869b2ad7cc163ee5bab7566d5d",
+        53,
+        57,
+        "594465110f49988712bf7b58d9b5beb07a5730734c38c674fe8124cdc37079ca"
+      ],
+      "proposal": [
+        87211,
+        1554250,
+        "719484f894b951f542be0925bd68de0dcc907e869b2ad7cc163ee5bab7566d5d",
+        40,
+        52,
+        "fcaeac0b33f155a8b4ce7d80f240a8a44536f7c1180155c33bcf9ff6024f9aed"
+      ],
+      "reason": [
+        87211,
+        1554250,
+        "719484f894b951f542be0925bd68de0dcc907e869b2ad7cc163ee5bab7566d5d",
+        59,
+        75,
+        "2c1b8dc079a1ae7ff2962150976861e311dae518b547a2b20e423ab49d97f538"
+      ],
+      "alternative": [
+        87211,
+        1554250,
+        "719484f894b951f542be0925bd68de0dcc907e869b2ad7cc163ee5bab7566d5d",
+        76,
+        87,
+        "ebfc3b73f3486a030a78ebec7452267ad723e99b450781a62ad7cb9b9ed6c278"
+      ],
+      "response": [
+        87211,
+        1554250,
+        "719484f894b951f542be0925bd68de0dcc907e869b2ad7cc163ee5bab7566d5d",
+        104,
+        108,
+        "028213a6888c5e421a254554fd34d833a21050b1f974ffad2b04389a47b57647"
+      ]
+    }
+  },
+  "identity_and_chronology": [
+    [
+      85675,
+      5854886,
+      "e392273c22b15392b11dc8bc8f8b7a6b5d6294a6e913c9bde9d57a61fb9c76ff",
+      155,
+      169,
+      "0eb44089aaadc8b9b49c5915ce5214426f451e14b487dc712fd3575b48fdfc5a"
+    ],
+    [
+      87213,
+      1554250,
+      "719484f894b951f542be0925bd68de0dcc907e869b2ad7cc163ee5bab7566d5d",
+      40,
+      53,
+      "42af80c19121c5fc335cebbf145da994d8fda13e6b2c2cd5ae28351e4c5c63d0"
+    ]
+  ]
+}
