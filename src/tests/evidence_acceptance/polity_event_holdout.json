@@ -1,0 +1,83 @@
+{
+  "anchor": 85786,
+  "context": [
+    85785,
+    85786,
+    85787
+  ],
+  "cases": [
+    {
+      "id": "guo-western-qin",
+      "query": "郭黁为什么劝吕光别派兵打西秦？",
+      "expected": "supported"
+    },
+    {
+      "id": "guo-other-polity",
+      "query": "郭黁为什么劝吕光别派兵打后秦？",
+      "expected": "different_polity"
+    }
+  ],
+  "event": {
+    "chunk_id": 85786,
+    "revision_id": 2812436,
+    "page_id": 22626,
+    "source_sha256": "a17a28b2983663ecb7700e8431695479d37dbd7aabb2946cca2044ffa0b713bd",
+    "start": 162,
+    "end": 173,
+    "text_sha256": "f6b5a5a68e30d29e60251c54c7a64fd0d3217042dcf91ba6abd24aab61cc632a"
+  },
+  "reason": {
+    "chunk_id": 85786,
+    "revision_id": 2812436,
+    "page_id": 22626,
+    "source_sha256": "a17a28b2983663ecb7700e8431695479d37dbd7aabb2946cca2044ffa0b713bd",
+    "start": 175,
+    "end": 195,
+    "text_sha256": "6d454adef0497e2fbc5ab1bbeea158e2d2dd63d46a6885b2fe4f5f7012e9206b"
+  },
+  "outcome": {
+    "chunk_id": 85787,
+    "revision_id": 2812436,
+    "page_id": 22626,
+    "source_sha256": "a17a28b2983663ecb7700e8431695479d37dbd7aabb2946cca2044ffa0b713bd",
+    "start": 40,
+    "end": 50,
+    "text_sha256": "1df0efcd7991a14ed284bc5be1d5c47ee4793ec32c082aa3db0f504734dc7e3e"
+  },
+  "chronicle": {
+    "chunk_id": 87222,
+    "revision_id": 1554250,
+    "page_id": 22653,
+    "source_sha256": "719484f894b951f542be0925bd68de0dcc907e869b2ad7cc163ee5bab7566d5d",
+    "start": 99,
+    "end": 114,
+    "text_sha256": "6239e39007668a4aa85b79e731f7874108718cde5e281fb6f130e07c05b82d46"
+  },
+  "campaign_date": {
+    "chunk_id": 87366,
+    "revision_id": 2180625,
+    "page_id": 22656,
+    "source_sha256": "04c00b4f9cc952c813b59a835bb228b492656f1fbb3c5ec4991daf06a547efb7",
+    "start": 41,
+    "end": 61,
+    "text_sha256": "f06dfa4ecd807ea75ea362adfa2d0e1801edbaf083aa82ae6865e5a92cf85e75"
+  },
+  "reign_at_event": {
+    "chunk_id": 87366,
+    "revision_id": 2180625,
+    "page_id": 22656,
+    "source_sha256": "04c00b4f9cc952c813b59a835bb228b492656f1fbb3c5ec4991daf06a547efb7",
+    "start": 126,
+    "end": 143,
+    "text_sha256": "7482a57dc843054b0320205c9799c49c64ed6d219909d4b5775d75adeda5fe57"
+  },
+  "political_name": {
+    "chunk_id": 76156,
+    "revision_id": 2567072,
+    "page_id": 20419,
+    "source_sha256": "191bbf44a05c366e9ce2ae1556f05d317245ff0d923e97e99d5aad06c81e8794",
+    "start": 49,
+    "end": 64,
+    "text_sha256": "6f196426f8b6d884f85a287be6498a3a055b5391e2025ad185ea0f23afaefcf5"
+  }
+}

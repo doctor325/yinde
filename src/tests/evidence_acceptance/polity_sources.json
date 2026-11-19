@@ -1,0 +1,240 @@
+[
+  {
+    "polity": "北魏",
+    "ruler": "拓跋焘",
+    "year": "450",
+    "recorded_year": "元嘉二十七年",
+    "comparison_year": "太平真君十一年",
+    "event": {
+      "opponent": [
+        44069,
+        1997730,
+        "074e77c5ae33c63e933a9149263125ee2598c457c4c3be10182cc7c9a23427cd",
+        170,
+        180,
+        "0fa381051a4e1b33f5681c1b862122d09d2dc2041a411a8aa1fd3266783afea7"
+      ],
+      "date": [
+        44067,
+        1997730,
+        "074e77c5ae33c63e933a9149263125ee2598c457c4c3be10182cc7c9a23427cd",
+        159,
+        171,
+        "9bc871f78e063e89f835b0ceb059386aa434ab6cdcc59219ca4a7ac8bfb00c5e"
+      ],
+      "connection": [
+        44069,
+        1997730,
+        "074e77c5ae33c63e933a9149263125ee2598c457c4c3be10182cc7c9a23427cd",
+        117,
+        129,
+        "a364a4a8d7afb58043f5d4cf78b94e9cab0960b8ae50019845112099f3c56152"
+      ]
+    },
+    "identities": {
+      "庆之": [
+        "沈庆之",
+        [
+          44055,
+          1997730,
+          "074e77c5ae33c63e933a9149263125ee2598c457c4c3be10182cc7c9a23427cd",
+          2,
+          8,
+          "13a7e6a43c8357ae45ee483b1a778ad5fbde3f67491b850e6b84efd4996a43fd"
+        ]
+      ],
+      "太祖": [
+        "宋文帝",
+        [
+          33752,
+          2370105,
+          "a8c2b67f4b5da1596c81b26e1c1bda24b8881d6f9508c2de613fb5f2453a5cca",
+          3,
+          11,
+          "e2cb41f7d3d541e8715884330edf524a8430552d941c810d0750c969916b7693"
+        ]
+      ]
+    },
+    "authority": {
+      "identity": [
+        12456,
+        2318474,
+        "0ebe736ce6c2465660f92d3bc9e6e90351e4073c10d5f38c50daecc57c0ba384",
+        3,
+        12,
+        "0851102f1830ad8bee58b967b2c2c9411e78cd25dbfc42a7cbf1ae5382f1e3b1"
+      ],
+      "governance": [
+        12570,
+        2322627,
+        "9e4f01c1fa354c72d8387dc408a6e22a88cc2176b1558fc0f770bc63706998fc",
+        83,
+        92,
+        "4f5e0362a40ad018707cf3962c33990d1e38d68c359c2bba211999be0426437f"
+      ],
+      "political_name": [
+        45253,
+        2228706,
+        "fd48a45de03eedcde2674ab5f58dac812a31635d1baf73146739efd21417805f",
+        95,
+        195,
+        "491b1c22c1e8927823aaae36541742609a4b9584894ac6cfff5bcdd0aa98777b"
+      ],
+      "dated_event": [
+        33874,
+        2370105,
+        "a8c2b67f4b5da1596c81b26e1c1bda24b8881d6f9508c2de613fb5f2453a5cca",
+        28,
+        38,
+        "a5030229a9d967efbc927dd3ca2933befd63760dea2cdc8a2c8100746b46d55d"
+      ],
+      "date_synchronism": [
+        12570,
+        2322627,
+        "9e4f01c1fa354c72d8387dc408a6e22a88cc2176b1558fc0f770bc63706998fc",
+        32,
+        39,
+        "cb01124936f71532ade4d89dc6ba02032c30a83f64483041a3304875775cfe02"
+      ],
+      "took_office": [
+        12459,
+        2318474,
+        "0ebe736ce6c2465660f92d3bc9e6e90351e4073c10d5f38c50daecc57c0ba384",
+        0,
+        9,
+        "a8ed3640cb6d533d56585d53cb5ea63bff0948946ef687261ebd09bf418a748e"
+      ],
+      "reign_ended": [
+        12578,
+        2322627,
+        "9e4f01c1fa354c72d8387dc408a6e22a88cc2176b1558fc0f770bc63706998fc",
+        54,
+        65,
+        "aec637c6a8dc94321876732333af3102896de16773ebc4d98dc2f952e61b01c6"
+      ]
+    },
+    "reign": {
+      "start": 423,
+      "end": 452
+    }
+  },
+  {
+    "polity": "西秦",
+    "ruler": "乞伏乾归",
+    "year": "397",
+    "recorded_year": "隆安元年",
+    "comparison_year": "隆安元年",
+    "event": {
+      "opponent": [
+        85786,
+        2812436,
+        "a17a28b2983663ecb7700e8431695479d37dbd7aabb2946cca2044ffa0b713bd",
+        162,
+        169,
+        "6951209544ec2c5ae1b48363509f3ec78db3bc16fa6c0fc3cae303a72f67d9ee"
+      ],
+      "connection": [
+        85787,
+        2812436,
+        "a17a28b2983663ecb7700e8431695479d37dbd7aabb2946cca2044ffa0b713bd",
+        40,
+        50,
+        "1df0efcd7991a14ed284bc5be1d5c47ee4793ec32c082aa3db0f504734dc7e3e"
+      ]
+    },
+    "identities": {
+      "黁": [
+        "郭黁",
+        [
+          85785,
+          2812436,
+          "a17a28b2983663ecb7700e8431695479d37dbd7aabb2946cca2044ffa0b713bd",
+          2,
+          9,
+          "c91022f775fe9cc08f6642a8099fc51ac76cf0b370577b60df129dd8689810ab"
+        ]
+      ],
+      "光": [
+        "吕光",
+        [
+          85786,
+          2812436,
+          "a17a28b2983663ecb7700e8431695479d37dbd7aabb2946cca2044ffa0b713bd",
+          40,
+          47,
+          "09c1874f43a37e6449a2d5c8f40f9da02ccc83abf0369ec1c9f15e7546f7964d"
+        ]
+      ]
+    },
+    "authority": {
+      "identity": [
+        87357,
+        2180625,
+        "04c00b4f9cc952c813b59a835bb228b492656f1fbb3c5ec4991daf06a547efb7",
+        2,
+        9,
+        "eda932e03715e149329268c06f83cfde04117b2692bf800ce99e21a308cc45af"
+      ],
+      "governance": [
+        87366,
+        2180625,
+        "04c00b4f9cc952c813b59a835bb228b492656f1fbb3c5ec4991daf06a547efb7",
+        126,
+        138,
+        "66356eafe89a4e46c410a4b921951468dc3a9e62b9b5f93db6dc2b4397e0bf82"
+      ],
+      "political_name": [
+        76156,
+        2567072,
+        "191bbf44a05c366e9ce2ae1556f05d317245ff0d923e97e99d5aad06c81e8794",
+        52,
+        64,
+        "5d8390229f2299e1cd9d3985eee07b0138d2da614e8c5ec034a3b7cd09556f56"
+      ],
+      "dated_event": [
+        87366,
+        2180625,
+        "04c00b4f9cc952c813b59a835bb228b492656f1fbb3c5ec4991daf06a547efb7",
+        41,
+        61,
+        "f06dfa4ecd807ea75ea362adfa2d0e1801edbaf083aa82ae6865e5a92cf85e75"
+      ],
+      "date_synchronism": [
+        87222,
+        1554250,
+        "719484f894b951f542be0925bd68de0dcc907e869b2ad7cc163ee5bab7566d5d",
+        99,
+        114,
+        "6239e39007668a4aa85b79e731f7874108718cde5e281fb6f130e07c05b82d46"
+      ],
+      "accession_year": [
+        87356,
+        2180625,
+        "04c00b4f9cc952c813b59a835bb228b492656f1fbb3c5ec4991daf06a547efb7",
+        133,
+        142,
+        "5acc653683f9af30ac1541c576f80496181e3b6ae0ffb99859fb49f2dac3b5bd"
+      ],
+      "took_office": [
+        87357,
+        2180625,
+        "04c00b4f9cc952c813b59a835bb228b492656f1fbb3c5ec4991daf06a547efb7",
+        45,
+        65,
+        "80f897c0ee678fd1c36013ec9efc151780eb84a92bc5b86b68364fbec4ddcc4f"
+      ],
+      "reign_ended": [
+        76112,
+        2567072,
+        "191bbf44a05c366e9ce2ae1556f05d317245ff0d923e97e99d5aad06c81e8794",
+        49,
+        59,
+        "464691dca3c73ead5032cd0100da6bdf12b46e2b1ea68f9a80755ebe4b5db6db"
+      ]
+    },
+    "reign": {
+      "start": 388,
+      "end": 400
+    }
+  }
+]
