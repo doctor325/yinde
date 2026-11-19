@@ -4,12 +4,15 @@ import vm from 'node:vm';
 
 // Use the same form, routing and renderer as the desktop. Replace the DOM
 // and wire fetch to the real authenticated loopback API.
-const { entry, query } = JSON.parse(readFileSync(0, 'utf8'));
-const origin = new URL(entry).origin;
-const bootstrap = await fetch(entry, { redirect: 'manual' });
-assert.equal(bootstrap.status, 302);
-const cookie = bootstrap.headers.get('set-cookie').split(';', 1)[0];
-await bootstrap.body?.cancel();
+const { entry, query, replay } = JSON.parse(readFileSync(0, 'utf8'));
+let origin, cookie;
+if (!replay) {
+  origin = new URL(entry).origin;
+  const bootstrap = await fetch(entry, { redirect: 'manual' });
+  assert.equal(bootstrap.status, 302);
+  cookie = bootstrap.headers.get('set-cookie').split(';', 1)[0];
+  await bootstrap.body?.cancel();
+}
 
 const nodes = {};
 let submit;
@@ -54,11 +57,18 @@ for (const name of ['engine/zh_table.js', 'engine/zh.js', 'engine/dual_text.js',
   }
   vm.runInContext(source, context);
 }
-await vm.runInContext('searchView({}, 0, location.hash)', context);
-assert.equal(typeof submit, 'function', 'Default search should render the punctuated form');
-nodes['#punctuatedSearchQuery'].value = query;
-const started = performance.now();
-await submit({ preventDefault() {} });
+let started;
+if (replay) {
+  context.replay = searchResult = replay;
+  started = performance.now();
+  nodes['#punctuatedSearchResult'].innerHTML = vm.runInContext('punctuatedSearchResults(replay)', context);
+} else {
+  await vm.runInContext('searchView({}, 0, location.hash)', context);
+  assert.equal(typeof submit, 'function', 'Default search should render the punctuated form');
+  nodes['#punctuatedSearchQuery'].value = query;
+  started = performance.now();
+  await submit({ preventDefault() {} });
+}
 const form_ms = performance.now() - started;
 const resultNode = nodes['#punctuatedSearchResult'];
 assert.equal(searchResult?.mode, 'evidence', searchResult?.error || resultNode.textContent);
