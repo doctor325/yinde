@@ -94,12 +94,13 @@ function punctuatedDissuasionEvidence(hit, returnTo) {
   return '<dl class="dissuasion-evidence">' + items.join('') + '</dl>';
 }
 
-function punctuatedPolityEvidence(evidence, returnTo) {
+function punctuatedPolityEvidence(evidence, returnTo, advice=false) {
   if (!evidence) return '';
   const supported = evidence.status === 'supported';
   const label = supported ? '有原文依据' : '尚未确认';
   const entries = Object.entries(evidence.citations);
   const primary = ['劝谏理由', '出兵对手', '事发时在位', '政权名称依据'];
+  if (advice) primary.unshift('劝谏人', '所劝对象', '所议行动', '原文叙述的撤城背景');
   if (!evidence.citations['事发时在位']) primary.push('战事纪年', '即位记载', '在位终点');
   const item = (role, ref) => {
     const parts = ref.ranges.map(([block_index, start, end]) => ({block_index, start, end}));
@@ -110,11 +111,11 @@ function punctuatedPolityEvidence(evidence, returnTo) {
     .map(role => item(role, evidence.citations[role])).join('');
   const more = entries.filter(([role]) => !primary.includes(role))
     .map(([role, ref]) => item(role, ref)).join('');
-  const date = supported ? `<p>${esc(evidence.era)}（${num(evidence.year)} 年），当时的对手是${esc(evidence.polity)}的${esc(evidence.ruler)}。</p>` : '';
+  const date = supported && evidence.year != null ? `<p>${esc(evidence.era)}（${num(evidence.year)} 年），当时的对手是${esc(evidence.polity)}的${esc(evidence.ruler)}。</p>` : '';
   return `<section class="polity-evidence" data-status="${esc(evidence.status)}">
     <p><strong>${label}</strong> · ${esc(evidence.message)}</p>${date}
     ${selected ? `<dl class="dissuasion-evidence">${selected}</dl>` : ''}
-    ${more ? `<details><summary>身份、在位与战事互证</summary><dl class="dissuasion-evidence">${more}</dl></details>` : ''}
+    ${more ? `<details><summary>${advice?'其他出处':'身份、在位与战事互证'}</summary><dl class="dissuasion-evidence">${more}</dl></details>` : ''}
     </section>`;
 }
 
@@ -139,8 +140,10 @@ function punctuatedSearchResults(result) {
   const old=`#/search?${qs({q:result.query,book:result.book,source:'original'})}`;
   if (!result.book_available) return `<p>这部史书尚未收录标点版本。</p><a class="btn" href="${old}">检索所收原底本</a>`;
   const pipeline=result.evidence_pipeline;
-  const hasClues=pipeline && result.hits.some(hit=>hit.polity_evidence
-    ? hit.polity_evidence.status==='supported' : hit.evidence_audit?.status==='clues_present');
+  const hasClues=pipeline && result.hits.some(hit=>{
+    const evidence=hit.advice_evidence || hit.polity_evidence;
+    return evidence ? evidence.status==='supported' : hit.evidence_audit?.status==='clues_present';
+  });
   let html=pipeline?'':`<p class="quiet">${result.mode==='keyword'?`共 ${num(result.total)} 个匹配片段 · 第 ${num(result.page)} 页`:`语义候选 ${num(result.candidate_counts.semantic)} 个 · 关键词／规则候选 ${num(result.candidate_counts.keyword)} 个 · 展示前 ${result.hits.length} 个`}
     · ${num(result.elapsed_ms)} ms</p>`;
   const biographies=result.biographies||[];
@@ -173,12 +176,13 @@ function punctuatedSearchResults(result) {
     const compare=`#/search?${qs({q:phrase,book:c.book_id,source:'original'})}`;
     const read=punctuatedHitLink(c,returnTo);
     const missing=hit.evidence_audit?.missing||[];
-    const focus=(!hit.polity_evidence && punctuatedDissuasionEvidence(hit,returnTo)) || (hit.evidence_focus?.selected?`<p class="quiet">重点比较的原文</p><p>${readingTextHtml(hit.evidence_focus.text,{pb:false})}</p>`:'');
+    const evidence=hit.advice_evidence || hit.polity_evidence;
+    const focus=(!evidence && punctuatedDissuasionEvidence(hit,returnTo)) || (hit.evidence_focus?.selected?`<p class="quiet">重点比较的原文</p><p>${readingTextHtml(hit.evidence_focus.text,{pb:false})}</p>`:'');
     html+=`<article class="card punctuated-search-hit"><h3>《${esc(c.book_title)}》 ${esc(c.title)}</h3>
       <p class="quiet">标点版 · 维基文库录入本 · ${c.layer==='annotation'?'来源注释':'正文'}${c.status==='partial_render'?' · 来源排版异常':c.status==='insufficient_punctuation'?' · 短篇或低标点':''}</p>
       ${hit.channels?.includes('biography')?'<p class="quiet">按本纪记载的姓名与庙号找到</p>':''}
       <div class="blk-text">${readingTextHtml(c.text_orig,{pb:false})}</div>
-      ${punctuatedPolityEvidence(hit.polity_evidence,returnTo)}
+      ${punctuatedPolityEvidence(evidence,returnTo,Boolean(hit.advice_evidence))}
       ${c.status!=='readable'?`<p class="quiet">${esc(c.reason)}</p>`:''}
       ${pipeline||hit.semantic_score==null?'':`<p class="quiet">语义相似分 ${Number(hit.semantic_score).toFixed(3)}（不是正确概率）</p>`}
       <div class="controls"><a class="btn read-link" href="${read}">标点原文与上下文</a>${punctuatedSourceLink(c.source_url,'固定版本出处')}${punctuatedCitation(c,c.text_orig,c.layer)}</div>

@@ -479,12 +479,16 @@ def evaluate(query,conn,dense,batches,book=None,rerank=None):
             h['retrieval_rank']=i+1
     model_ranks={h['chunk']['chunk_id']:i for i,h in enumerate(sorted(hits,
         key=lambda h:(-h['context_relevance_score'],h['retrieval_rank'])),1)}
-    hits.sort(key=lambda h:(h['evidence_audit']['status']!='clues_present',-h['context_relevance_score'],h['retrieval_rank']))
+    from search.polity_evidence import review_hits, review_natural_hits
+    review_natural_hits(conn, frame, hits)
+    hits.sort(key=lambda h:(
+        {'supported': 0, 'different_roles': 1}.get(h.get('advice_evidence', {}).get('status'), 2),
+        h['evidence_audit']['status']!='clues_present',
+        -h['context_relevance_score'],h['retrieval_rank']))
     diagnostics=[dict(chunk_id=h['chunk']['chunk_id'], channel_ranks=h['channel_ranks'],
                       model_rank=model_ranks[h['chunk']['chunk_id']],final_rank=i,
                       score=h['context_relevance_score'], audit_status=h['evidence_audit']['status'],
                       displayed=i<=20) for i,h in enumerate(hits,1)]
-    from search.polity_evidence import review_hits
     review_hits(conn, frame, hits[:20])
     return dict(hits=hits[:20],query_plan=p,pipeline=dict(version=VERSION,
         candidate_counts=dict(semantic=len(dense),lexical=len(literal),subject=len(subject),context_scored=len(hits)),

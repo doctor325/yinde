@@ -1,12 +1,14 @@
-"""Capture four frozen questions with the unmodified desktop search path."""
+"""Capture and verify four frozen questions through desktop search."""
+import argparse
 import hashlib
 import json
 from urllib.parse import parse_qs, urlsplit
 
 from desktop.runtime import DesktopServer
-from search import punctuated, punctuated_search
+from search import evidence_pipeline, polity_evidence, punctuated, punctuated_search
 from search.semantic_bridge import worker
 from tests.evidence_acceptance.review_polity_evidence import DATA, FIXTURES, Sources
+from tests.evidence_acceptance.review_polity_search import check_shen
 from tests.evidence_acceptance.review_speech_search import covered, ranges
 from tests.evidence_acceptance.run_search_evidence_review import submit_form, write_json
 
@@ -61,7 +63,7 @@ def assess(case, result, form, passages, reason_ids):
         sufficient_ranks=sufficient, exact_evidence_links=routes,
         supported_ranks=[
             rank for rank, hit in enumerate(result['hits'], 1)
-            if hit.get('polity_evidence', {}).get('status') == 'supported'
+            if (hit.get('advice_evidence') or hit.get('polity_evidence') or {}).get('status') == 'supported'
         ],
         clue_ranks=[
             rank for rank, hit in enumerate(result['hits'], 1)
@@ -70,18 +72,47 @@ def assess(case, result, form, passages, reason_ids):
     )
 
 
+def verify(case, result, form, passages, summary):
+    expected = 'different_roles' if case['policy'] == 'reversed_roles' else 'supported'
+    if expected == 'different_roles':
+        assert not summary['supported_ranks'], summary
+    hits_with_cards = [(rank, hit['advice_evidence']) for rank, hit in enumerate(result['hits'], 1)
+                       if 'advice_evidence' in hit]
+    assert len(hits_with_cards) == len(form['polityCards'])
+    for (rank, evidence), card in zip(hits_with_cards, form['polityCards']):
+        assert evidence['status'] == card['status']
+        if rank > 5 or evidence['status'] != expected:
+            continue
+        for name, refs in passages.items():
+            exact = {role for role, ref in refs.items()
+                     if any(exact_link(link, ref) for link in card['links'])}
+            required = {'speaker', 'reason'}
+            if case['policy'] == 'two_roles':
+                required |= {'proposal'}
+                assert any(link['label'] == '原文叙述的撤城背景' for link in card['links'])
+            elif case['episode'] == 'wang':
+                required |= {'proposal', 'response'}
+            if required <= exact:
+                return dict(rank=rank, edition=name, status=expected, linked_roles=sorted(exact))
+    raise AssertionError((case['id'], 'No qualifying card in the top five', summary))
+
+
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--validate', action='store_true')
+    args = parser.parse_args()
     raw = (FIXTURES / 'natural_polity_questions.json').read_bytes()
     checksum = hashlib.sha256(raw).hexdigest()
     assert checksum == '4fae577d586b72b9d42c8ae147a914e85537bcd6a39cb6e6e96ae4a0d6149b97'
     frozen = json.loads(raw)
-    out = DATA / 'polity-natural-1e997ea'
+    out = DATA / ('polity-natural-validated' if args.validate else 'polity-natural-1e997ea')
     out.mkdir(exist_ok=False)
     try:
         with DesktopServer(DATA.parent.parent) as server, punctuated_search.connect() as index, punctuated.connect() as library:
             sources = Sources(index, library, [])
             for pin in frozen['identity_and_chronology']:
                 sources.pinned(pin)
+            failures = []
             for case in frozen['cases']:
                 response, form = submit_form(server.entry, case['query'])
                 params = parse_qs(urlsplit(form['requestPath']).query)
@@ -93,9 +124,27 @@ def main():
                 }
                 reason_ids = {frozen['evidence'][name]['reason'][0] for name in editions}
                 summary = assess(case, response, form, passages, reason_ids)
+                if args.validate:
+                    try:
+                        summary['verified_card'] = verify(case, response, form, passages, summary)
+                    except AssertionError as error:
+                        failures.append(case['id'])
+                        summary['validation_error'] = str(error.args[0])
                 write_json(out / (case['id'] + '.json'), dict(result=response, form=form, summary=summary,
                                                             fixture_sha256=checksum))
                 print(case['id'], json.dumps(summary, ensure_ascii=False), flush=True)
+            if args.validate:
+                check_shen(index)
+                for query, expected in [
+                    ('张畅为什么劝江夏王义恭别在北魏来攻时撤出彭城？', 'supported'),
+                    ('张畅为什么劝江夏王义恭别在柔然来攻时撤出彭城？', 'different_polity'),
+                ]:
+                    frame = evidence_pipeline.parse(query)['colloquial_advocacy']
+                    judgment = polity_evidence.defence(
+                        Sources(index, library, polity_evidence.catalog()), frame, sources.chunk(42375))
+                    assert judgment['status'] == expected
+                if failures:
+                    raise AssertionError(f'Unverified cases: {", ".join(failures)}')
     finally:
         worker.close()
 

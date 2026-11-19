@@ -37,6 +37,12 @@ _RAID = re.compile(
 )
 _WITHDRAWAL_REASON = re.compile(r'若[^。！？；\n]{2,24}[，,]则[^。！？；\n]{0,12}(?:散走|溃散)')
 _OPPOSITION = re.compile(r'岂有[舍弃捨][^。！？；]{2,36}而就|(?:不可|未可)(?:弃城|退兵|遁走)')
+_ADVANCE = re.compile(
+    r'(?:^|(?<=[。，；\n]))\s*(?P<recipient>[\u3400-\u9fff]{2,5}?)(?:遂|欲|将|乃)?'
+    r'(?:进逼|进攻|攻|伐|讨)[\u3400-\u9fff]{2,8}(?:[，,]求决胜负)?[。，；]\s*'
+    r'(?P<intro>(?P<speaker>[\u3400-\u9fff]{2,5}?)(?:固|苦|进)?谏曰)[：:]\s*$'
+)
+_DELAY_REASON = re.compile(r'(?P<reason>[^。！？；\n]{4,70}?(?:非利|未可轻进|不可轻进))[。；]\s*不如[^。！？；\n]+')
 _MESSAGES = {
     'supported': '发言、所议行动与对手身份均有原文依据。',
     'missing_event_opponent': '当前片段缺少能与这次劝谏相连的对手证据。',
@@ -127,8 +133,8 @@ def overlaps(left, right):
                for a, lo, hi in left for b, start, end in right)
 
 
-def result(status, citations=(), **fields):
-    return dict(status=status, message=_MESSAGES[status], citations=dict(citations), **fields)
+def result(status, citations=(), *, message=None, **fields):
+    return dict(status=status, message=message or _MESSAGES[status], citations=dict(citations), **fields)
 
 
 def decide(sources, frame, chunk):
@@ -264,13 +270,16 @@ def defence(sources, frame, chunk):
     if len(text) != len(window['text_orig']):
         return None
     prose = event_attachment.narrative(text)
-    place = re.escape(frame['place'])
     recipient = frame['recipient']
-    retreat = re.compile(rf'(?:^|(?<=[。，；\n]))\s*(?P<actor>{re.escape(recipient)}|{re.escape(recipient[-2:])})'
-                         rf'欲(?:弃|捨|舍){place}(?:[东西南北]归)?(?=[。，；])')
+    actor = (rf'(?:{re.escape(recipient)}|{re.escape(recipient[-2:])})'
+             if recipient else r'[\u3400-\u9fff]{2,5}?')
+    place = re.escape(frame['place']) if frame['place'] else r'[\u3400-\u9fff]{2,8}?'
+    movement = r'(?:[东西南北]归)?' if frame['place'] else r'(?:[东西南北]归|而退|而走)'
+    retreat = re.compile(rf'(?:^|(?<=[。，；\n]))\s*(?P<actor>{actor})'
+                         rf'欲(?:弃|捨|舍)(?P<place>{place}){movement}(?=[。，；])')
     speaker = re.escape(frame['person'])
-    spoken_by = re.compile(rf'(?:^|(?<=[。，；\n]))\s*(?P<speaker>{speaker}|{re.escape(frame["person"][-1])})'
-                           r'(?:固谏|谏)?曰[：:]\s*$')
+    spoken_by = re.compile(rf'(?:^|(?<=[。，；\n]))\s*'
+                           rf'(?P<intro>(?:{speaker}|{re.escape(frame["person"][-1])})(?:固谏|谏)?曰)[：:]\s*$')
     # The full biography heading grounds the shortened speaker's name.
     _, blocks = sources.page(chunk['page_id'])
     start = chunk['parts'][0]['block_index']
@@ -283,7 +292,16 @@ def defence(sources, frame, chunk):
     for proposal in retreat.finditer(prose):
         action = source_ref(window, proposal.start('actor'), proposal.end())
         before = prose[:proposal.start()]
-        recipient_at = before.rfind(recipient, max(0, len(before) - 150))
+        # When the question omits the addressee, resolve the short subject through
+        # an earlier title and name in the same account of the defence.
+        recipient_name = recipient
+        if not recipient_name:
+            titled = re.search(rf'([\u3400-\u9fff]{{2}}王{re.escape(proposal["actor"])})'
+                               r'(?=统|总|镇|领|督)', before[-150:])
+            recipient_name = titled[1] if titled else None
+        if not recipient_name:
+            continue
+        recipient_at = before.rfind(recipient_name, max(0, len(before) - 150))
         if recipient_at < 0:
             continue
         for begin, end in complete_speeches(text):
@@ -302,15 +320,35 @@ def defence(sources, frame, chunk):
             if not reason or not _OPPOSITION.search(body):
                 continue
             citations = [
-                ('劝谏人', source_ref(window, *introduction.span('speaker'))),
+                ('劝谏人', source_ref(window, *introduction.span('intro'))),
                 ('劝谏人称谓依据', source_ref(heading_window, 0, len(heading_text))),
-                ('所劝对象', source_ref(window, recipient_at, recipient_at + len(recipient))),
+                ('所劝对象', source_ref(window, recipient_at, recipient_at + len(recipient_name))),
                 ('所议行动', action),
                 ('劝谏理由', source_ref(window, begin + 1 + reason.start(), begin + 1 + reason.end())),
             ]
+            sentence_start = max(prose.rfind(mark, 0, proposal.start()) for mark in '。！？；\n') + 1
+            background = prose[sentence_start:proposal.start('actor')]
+            if frame.get('comparison'):
+                if not re.search(r'(?:军食|粮食|军粮)(?:不足|乏|少|尽)', background):
+                    continue
+                while text[sentence_start].isspace():
+                    sentence_start += 1
+                citations.append(('原文叙述的撤城背景', source_ref(window, sentence_start, proposal.end())))
             raids = [raid for raid in _RAID.finditer(before, max(0, len(before) - 180))
-                     if frame['place'] in before[raid.end():]
+                     if proposal['place'] in before[raid.end():]
                      and not re.search(r'[元一二三四五六七八九十]+年', before[raid.end():])]
+            if not frame['target']:
+                fields = {}
+                if len(raids) == 1:
+                    raid, = raids
+                    citations.append(('出兵对手', source_ref(window, raid.start('opponent'), raid.end())))
+                    citations.append(('战事纪年', source_ref(window, *raid.span('date'))))
+                    _, fields, refs = verify_ruler(sources, raid['opponent'], raid['date'], chunk['book_id'])
+                    citations.extend(refs)
+                message = f'{frame["person"]}劝{recipient_name}留守{proposal["place"]}。'
+                if frame.get('comparison'):
+                    message += '军粮不足是史书交代的撤城背景。下列劝谏理由出自留守一方的发言。'
+                return result('supported', citations, message=message, **fields)
             if len(raids) != 1:
                 return result('missing_event_opponent', citations)
             raid, = raids
@@ -332,6 +370,88 @@ def complete_speeches(text):
         yield from quotes(text)
     except ValueError:
         return
+
+
+def delayed_attack(sources, frame, chunk):
+    try:
+        context = evidence_context.assemble(sources.library, chunk, max_chars=1200)
+    except ValueError:
+        return None
+    if context['boundary_cut']:
+        return None
+    window = evidence_context.rule_view(chunk, context)
+    text = zh.to_simplified(window['text_orig'])
+    if len(text) != len(window['text_orig']):
+        return None
+    prose = event_attachment.narrative(text)
+    person, recipient, target = (frame[key] for key in ('person', 'recipient', 'target'))
+    for begin, end in complete_speeches(text):
+        debate = _ADVANCE.search(prose, max(0, begin - 85), begin)
+        if not debate or debate['speaker'] not in (person, recipient):
+            continue
+        addressee = recipient if debate['speaker'] == person else person
+        short = debate['recipient']
+        if short == addressee:
+            identity = None
+        elif len(addressee) == len(short) + 1 and addressee.endswith(short):
+            # Source ties this abbreviated name to a father of the cited surname.
+            identity = re.search(rf'{re.escape(addressee[0])}[\u3400-\u9fff]{{2}}'
+                                 rf'[^。！？；\n]{{0,20}}[，,]其(?:世子|子){re.escape(short)}',
+                                 prose[:debate.start()])
+            if not identity:
+                continue
+        else:
+            continue
+        response = re.match(rf'\s*{re.escape(short)}(?:不从|不纳|弗从)(?=[。，；])', prose[end + 1:])
+        body = event_attachment.narrative(text[begin + 1:end])
+        reason = _DELAY_REASON.match(body.lstrip())
+        if not response or not reason or not reason['reason'].startswith(target):
+            continue
+        reason_start = begin + 1 + len(body) - len(body.lstrip())
+        turn = source_ref(window, debate.start('recipient'), end + 1)
+        if not overlaps(ranges(chunk), turn['ranges']):
+            continue
+        citations = [
+            ('劝谏人', source_ref(window, *debate.span('intro'))),
+            ('所议行动', source_ref(window, debate.start('recipient'), debate.start('intro'))),
+            ('受议者回应', source_ref(window, end + 1, end + 1 + response.end())),
+            ('劝谏理由', source_ref(window, reason_start, reason_start + reason.end('reason'))),
+        ]
+        if identity:
+            citations.append(('所劝对象称谓依据', source_ref(window, *identity.span())))
+        statement = f'原文记载{debate["speaker"]}劝{addressee}暂缓进兵。'
+        if debate['speaker'] != person:
+            return result('different_roles', citations, message=statement + '问句中的发言人与受议者对调了。')
+        return result('supported', citations, message=statement)
+    return None
+
+
+def review_natural_hits(index, frame, hits):
+    if not frame:
+        return
+    kind = frame['kind']
+    if kind == 'oppose_withdrawal' and not frame['target']:
+        candidates = [
+            hit for hit in hits if hit['chunk']['layer'] == 'body'
+            and zh.to_simplified(hit['chunk']['heading']).strip() == frame['person']
+        ]
+        reader = defence
+    elif kind == 'delay_attack':
+        candidates = [
+            hit for hit in hits if hit['chunk']['layer'] == 'body'
+            and any(frame['target'] in zh.to_simplified(part['text_orig'])
+                    and '谏曰' in zh.to_simplified(part['text_orig'])
+                    for part in [hit['chunk'], *hit['context_chunks']])
+        ]
+        reader = delayed_attack
+    else:
+        return
+    if candidates:
+        with punctuated.connect() as library:
+            sources = Sources(index, library, catalog())
+            for hit in candidates:
+                if evidence := reader(sources, frame, hit['chunk']):
+                    hit['advice_evidence'] = evidence
 
 
 def direction_without_opponent(sources, frame, chunk):
