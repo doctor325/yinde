@@ -1,0 +1,292 @@
+[
+  {
+    "id": "zhao-farming",
+    "era": "西汉",
+    "axis": "原因",
+    "query": "赵充国为什么主张留下步兵屯田？",
+    "policy": "answerable",
+    "expected": "据赵充国自己的奏议，留步兵屯田可以节约军费、维持边地防守，也能以逸待劳等待先零羌瓦解。后者是预期，单条证据给出至少一项明确理由即可。",
+    "sources": [
+      {
+        "chunk_id": 57945,
+        "book_id": "KR2a0007",
+        "page_id": 19696,
+        "title": "漢書/卷069",
+        "revision_id": 1751975,
+        "source_sha256": "c0fd9306fec9362bda7fdfcab0ce0bb13dc0b96247df3290664949adc826720a",
+        "source_url": "https://zh.wikisource.org/w/index.php?oldid=1751975",
+        "quote": "臣愚以爲屯田內有亡費之利，外有守禦之備。",
+        "offset": [
+          147,
+          167
+        ]
+      },
+      {
+        "chunk_id": 57944,
+        "book_id": "KR2a0007",
+        "page_id": 19696,
+        "title": "漢書/卷069",
+        "revision_id": 1751975,
+        "source_sha256": "c0fd9306fec9362bda7fdfcab0ce0bb13dc0b96247df3290664949adc826720a",
+        "source_url": "https://zh.wikisource.org/w/index.php?oldid=1751975",
+        "quote": "將軍孰計復奏。」充國奏曰：",
+        "offset": [
+          105,
+          118
+        ]
+      }
+    ]
+  },
+  {
+    "id": "lu-xiling",
+    "era": "三国吴",
+    "axis": "动作对象",
+    "query": "陆抗攻破西陵后诛杀了谁？",
+    "policy": "answerable",
+    "expected": "受诛的是据城反叛的步阐一族及其主要将吏。可答出步阐或步阐一族。杨肇是被击败而逃的援军，羊祜撤军。",
+    "sources": [
+      {
+        "chunk_id": 7657,
+        "book_id": "KR2a0012",
+        "page_id": 8520,
+        "title": "三國志/卷58",
+        "revision_id": 2131313,
+        "source_sha256": "8bc2076ba31052c04c70204ac931fa655ed6b4e11c842ae2742ba05bb7b9aa10",
+        "source_url": "https://zh.wikisource.org/w/index.php?oldid=2131313",
+        "quote": "抗遂陷西陵城，誅夷闡族及其大將吏",
+        "offset": [
+          70,
+          86
+        ]
+      },
+      {
+        "chunk_id": 7653,
+        "book_id": "KR2a0012",
+        "page_id": 8520,
+        "title": "三國志/卷58",
+        "revision_id": 2131313,
+        "source_sha256": "8bc2076ba31052c04c70204ac931fa655ed6b4e11c842ae2742ba05bb7b9aa10",
+        "source_url": "https://zh.wikisource.org/w/index.php?oldid=2131313",
+        "quote": "鳳皇元年，西陵督步闡據城以叛，遣使降晉。",
+        "offset": [
+          138,
+          158
+        ]
+      }
+    ]
+  },
+  {
+    "id": "heruo-date",
+    "era": "隋",
+    "axis": "时间",
+    "query": "贺若弼什么时候被处死？",
+    "policy": "answerable",
+    "expected": "大业三年。北巡至榆林后的私议获罪与该年相接。史料给出相符年号即可，遇到儿子怀亮后来被杀须分开。",
+    "sources": [
+      {
+        "chunk_id": 168554,
+        "book_id": "KR2a0023",
+        "page_id": 58464,
+        "title": "隋書/卷52",
+        "revision_id": 1517597,
+        "source_sha256": "f0142554cc450d2f4b796e7ed41b90953f6bfc331cf726504bb83306de88ae0e",
+        "source_url": "https://zh.wikisource.org/w/index.php?oldid=1517597",
+        "quote": "大業三年，從駕北巡，至榆林。帝時為大帳，其下可坐數千人，召突厥啟民可汗饗之。弼以為大侈，與高熲、宇文弼等私議得失，為人所奏，竟坐誅",
+        "offset": [
+          60,
+          125
+        ]
+      }
+    ]
+  },
+  {
+    "id": "pei-huaixi",
+    "era": "唐",
+    "axis": "原因",
+    "query": "裴度为何坚持讨伐淮西？",
+    "policy": "answerable",
+    "expected": "本传将裴度坚持讨伐解释为担心淮西问题拖成大患、两河势力效尤。文中杀伤与转运不继是反对者的理由。",
+    "sources": [
+      {
+        "chunk_id": 221138,
+        "book_id": "KR2a0026",
+        "page_id": 99944,
+        "title": "舊唐書/卷170",
+        "revision_id": 2579122,
+        "source_sha256": "91d123b83c5864ed27266c36866b39ab22be2700ea9d3580a6679dd8ada53929",
+        "source_url": "https://zh.wikisource.org/w/index.php?oldid=2579122",
+        "quote": "度以腹心之疾，不時去之，終為大患，不然，兩河之盜，亦將視此為高下。遂堅請討伐",
+        "offset": [
+          176,
+          214
+        ]
+      }
+    ]
+  },
+  {
+    "id": "yang-capture",
+    "era": "北宋",
+    "axis": "地点",
+    "query": "杨业在哪里被辽军俘虏？",
+    "policy": "answerable",
+    "expected": "据《宋史》本传，杨业到陈家谷口后仍战斗，最终为契丹所擒，可支持在陈家谷口一带被俘。若平行史料给出更具体地点，需说明其与被俘而非交战、会师或阵亡的关系。",
+    "sources": [
+      {
+        "chunk_id": 95515,
+        "book_id": "KR2a0032",
+        "page_id": 24820,
+        "title": "宋史/卷272",
+        "revision_id": 1476835,
+        "source_sha256": "8fbd555eac05800b88327aa2baf86f1eb116e92795109bad967600265d6adc04",
+        "source_url": "https://zh.wikisource.org/w/index.php?oldid=1476835",
+        "quote": "業力戰，自午至暮，果至谷口。",
+        "offset": [
+          26,
+          40
+        ]
+      },
+      {
+        "chunk_id": 95514,
+        "book_id": "KR2a0032",
+        "page_id": 24820,
+        "title": "宋史/卷272",
+        "revision_id": 1476835,
+        "source_sha256": "8fbd555eac05800b88327aa2baf86f1eb116e92795109bad967600265d6adc04",
+        "source_url": "https://zh.wikisource.org/w/index.php?oldid=1476835",
+        "quote": "因指陳家谷口曰：「諸君",
+        "offset": [
+          78,
+          89
+        ]
+      },
+      {
+        "chunk_id": 95515,
+        "book_id": "KR2a0032",
+        "page_id": 24820,
+        "title": "宋史/卷272",
+        "revision_id": 1476835,
+        "source_sha256": "8fbd555eac05800b88327aa2baf86f1eb116e92795109bad967600265d6adc04",
+        "source_url": "https://zh.wikisource.org/w/index.php?oldid=1476835",
+        "quote": "馬重傷不能進，遂為契丹所擒",
+        "offset": [
+          79,
+          92
+        ]
+      }
+    ]
+  },
+  {
+    "id": "yuan-date",
+    "era": "明",
+    "axis": "时间",
+    "query": "袁崇焕何时被处死？",
+    "policy": "answerable",
+    "expected": "崇祯三年八月。须区分十二月朔下诏狱、袁崇焕先前处死毛文龙、满桂战死。",
+    "sources": [
+      {
+        "chunk_id": 97119,
+        "book_id": "KR2a0038",
+        "page_id": 25082,
+        "title": "明史/卷259",
+        "revision_id": 11119347,
+        "source_sha256": "7571a76633e78dab8309d0acd7c3e5f789251fbf1076cf946f2f1b0bfdf3805d",
+        "source_url": "https://zh.wikisource.org/w/index.php?oldid=11119347",
+        "quote": "三年八月，遂磔崇煥于市",
+        "offset": [
+          40,
+          51
+        ]
+      },
+      {
+        "chunk_id": 97114,
+        "book_id": "KR2a0038",
+        "page_id": 25082,
+        "title": "明史/卷259",
+        "revision_id": 11119347,
+        "source_sha256": "7571a76633e78dab8309d0acd7c3e5f789251fbf1076cf946f2f1b0bfdf3805d",
+        "source_url": "https://zh.wikisource.org/w/index.php?oldid=11119347",
+        "quote": "時崇禎二年五月也。",
+        "offset": [
+          71,
+          80
+        ]
+      }
+    ]
+  },
+  {
+    "id": "xiling-reversal",
+    "era": "三国吴",
+    "axis": "主客体反转",
+    "query": "步阐在哪里击败陆抗？",
+    "policy": "reversed_roles",
+    "expected": "西陵记载的方向相反，夺城的是陆抗，步阐是据城反叛后被诛的一方。地点相同不能支持题设。",
+    "sources": [
+      {
+        "chunk_id": 7657,
+        "book_id": "KR2a0012",
+        "page_id": 8520,
+        "title": "三國志/卷58",
+        "revision_id": 2131313,
+        "source_sha256": "8bc2076ba31052c04c70204ac931fa655ed6b4e11c842ae2742ba05bb7b9aa10",
+        "source_url": "https://zh.wikisource.org/w/index.php?oldid=2131313",
+        "quote": "抗遂陷西陵城，誅夷闡族及其大將吏",
+        "offset": [
+          70,
+          86
+        ]
+      },
+      {
+        "chunk_id": 7653,
+        "book_id": "KR2a0012",
+        "page_id": 8520,
+        "title": "三國志/卷58",
+        "revision_id": 2131313,
+        "source_sha256": "8bc2076ba31052c04c70204ac931fa655ed6b4e11c842ae2742ba05bb7b9aa10",
+        "source_url": "https://zh.wikisource.org/w/index.php?oldid=2131313",
+        "quote": "鳳皇元年，西陵督步闡據城以叛，遣使降晉。",
+        "offset": [
+          138,
+          158
+        ]
+      }
+    ]
+  },
+  {
+    "id": "heruo-event",
+    "era": "隋",
+    "axis": "事件错配",
+    "query": "贺若弼为何在灭陈时被处死？",
+    "policy": "different_event",
+    "expected": "开皇九年贺若弼受命伐陈，因私议坐诛发生在大业三年北巡之后。伐陈时渡江祷词是假设，不支持题设。",
+    "sources": [
+      {
+        "chunk_id": 168554,
+        "book_id": "KR2a0023",
+        "page_id": 58464,
+        "title": "隋書/卷52",
+        "revision_id": 1517597,
+        "source_sha256": "f0142554cc450d2f4b796e7ed41b90953f6bfc331cf726504bb83306de88ae0e",
+        "source_url": "https://zh.wikisource.org/w/index.php?oldid=1517597",
+        "quote": "弼以為大侈，與高熲、宇文弼等私議得失，為人所奏，竟坐誅",
+        "offset": [
+          98,
+          125
+        ]
+      },
+      {
+        "chunk_id": 168548,
+        "book_id": "KR2a0023",
+        "page_id": 58464,
+        "title": "隋書/卷52",
+        "revision_id": 1517597,
+        "source_sha256": "f0142554cc450d2f4b796e7ed41b90953f6bfc331cf726504bb83306de88ae0e",
+        "source_url": "https://zh.wikisource.org/w/index.php?oldid=1517597",
+        "quote": "開皇九年，大舉伐陳，以弼為行軍總管。",
+        "offset": [
+          101,
+          119
+        ]
+      }
+    ]
+  }
+]
