@@ -232,6 +232,60 @@ class Evidence(unittest.TestCase):
             with self.subTest(scores=scores), self.assertRaises(ValueError):
                 E.evaluate('甲公何时去世',db,[],[],rerank=lambda q,t:dict(scores=scores,ms=1))
 
+    def test_colloquial_advocacy_keeps_roles_and_background_separate(self):
+        examples = (
+            ('边境告急后，王甲为什么劝晋王别派兵打西秦？',
+             dict(person='王甲', recipient='晋王', target='西秦', stance='劝止', background='边境告急后')),
+            ('李乙为什么建议趁早攻打西秦，别拖到冬天？',
+             dict(person='李乙', target='西秦', stance='主张及早', deadline='冬天')),
+            ('北城兵败后，李乙为什么不愿把都城搬到北边？',
+             dict(person='李乙', target='北边', stance='反对')),
+            ('王甲不让儿子当官，是因为怕朝廷迁走吗？',
+             dict(person='王甲', target='儿子', reason_hypothesis='怕朝廷迁走')),
+        )
+        for query, expected in examples:
+            with self.subTest(query=query):
+                plan = E.parse(query)
+                self.assertEqual(plan['subject'][0]['text'], expected['person'])
+                self.assertEqual(plan['answer_slots'], ['reason'])
+                for key, value in expected.items():
+                    self.assertEqual(plan['colloquial_advocacy'][key], value)
+        self.assertNotIn('colloquial_advocacy', E.parse('王甲为什么要离任？'))
+
+    def test_colloquial_advocacy_recalls_speech_without_confirming_its_roles(self):
+        db, _ = self.evaluation_database()
+        anchor = dict(chunk('司马甲，字文恭。', 10), heading='司马甲', page_id=2)
+        bodies = (
+            anchor,
+            dict(anchor, chunk_id=11, text_orig='晋王欲出兵攻西秦，甲进谏曰：「今边郡困乏，难于动兵。'),
+            dict(anchor, chunk_id=12, text_orig='难于动兵。愿王察之。」王乃止。'),
+            dict(anchor, chunk_id=13, text_orig='又谏出兵，边郡困乏。', revision_id=3),
+            dict(anchor, chunk_id=14, text_orig='甲与客论盐铁。'),
+            dict(anchor, chunk_id=15, text_orig='甲进谏曰：「今攻东夷，难于动兵。」'),
+        )
+        db.executemany('INSERT INTO chunks VALUES(?,?,?,?,?)',
+                       [(c['chunk_id'], c['book_id'], c['page_id'], S.normalize(c['text_orig']), json.dumps(c))
+                        for c in bodies])
+        query = '司马甲为什么劝晋王别派兵打西秦？'
+        result = E.evaluate(query, db, [], [], rerank=lambda q, ts: dict(scores=[0.0] * len(ts), ms=0))
+        hits = [h for h in result['hits'] if 'biography_context' in h['channels']]
+        self.assertEqual([h['chunk']['chunk_id'] for h in hits], [11, 12])
+        reversed_plan = E.parse('晋王为什么劝司马甲别派兵打西秦？')
+        self.assertEqual(E.audit(bodies[1], reversed_plan, list(bodies))['status'], 'insufficient')
+
+    def test_colloquial_tax_reform_requires_a_source_bound_explanation(self):
+        plan = E.parse('司马甲为什么觉得旧的收税制度应该改？')
+        body = dict(chunk('科斂新舊仍積，百姓殘瘁。甲疾其敝，乃請作新稅法以一其名。'), heading='司马甲')
+        finding = E.audit(body, plan, [])['attached_evidence'][0]
+        self.assertEqual(finding['detail']['quote'], '科斂新舊仍積，百姓殘瘁')
+        self.assertEqual(finding['action']['quote'], '請作新稅法以一其名')
+        for text in (
+            '科斂新舊仍積，百姓殘瘁。乙疾其敝，乃請作新稅法以一其名。',
+            '科斂新舊仍積，百姓殘瘁。甲因病請退。甲疾其敝，乃請作新稅法以一其名。',
+            '王乙曰：「科斂新舊仍積，百姓殘瘁。甲疾其敝，乃請作新稅法以一其名。」',
+        ):
+            self.assertEqual(E.audit(dict(body, text_orig=text), plan, [])['status'], 'insufficient', text)
+
     def test_advocacy_reason_must_belong_to_the_asked_action_and_speaker(self):
         campaign = E.parse('司马甲为何坚持讨伐南城？')
         body = dict(chunk('自讨南城，官军屡败。众以转输不逮，请罢兵。甲以贼患日深，终为大患。遂坚请讨伐。'),

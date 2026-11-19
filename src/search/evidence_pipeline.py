@@ -8,6 +8,7 @@ import math
 import re
 import time
 from search import advocacy_recall, annal_events, event_attachment, event_recall, execution_recall, punctuated_relevance as R, punctuated_search as S, zh
+from search import colloquial_advocacy
 
 VERSION = 'context-evidence-v2'
 # Each independent channel keeps its own quota before deduplication. A shared
@@ -80,6 +81,16 @@ def place_attached(observation):
 def parse(query):
     from search.office_events import general_departure_frame
     text=zh.to_simplified(query)
+    colloquial = colloquial_advocacy.parse(text)
+    if colloquial:
+        p = R.plan(colloquial['person'])
+        p['clues'].append(dict(text=colloquial['target'], forms=[S.normalize(colloquial['target'])],
+                               scope_titles=[]))
+        p.update(subject=p['clues'][:1], constraints=p['clues'][1:],
+                 relation_groups=[dict(kind='advocacy', terms=list(colloquial_advocacy.terms(colloquial)))],
+                 answer_slots=['reason'], colloquial_advocacy=colloquial,
+                 general_departure=None, unsupported=False, pipeline_version=VERSION)
+        return p
     advocacy = advocacy_recall.parse(text)
     if advocacy:
         p = R.plan(advocacy['person'])
@@ -216,8 +227,12 @@ def audit(chunk, p, neighbors, annal=(), *, attachment=None):
     f=R.features(chunk,p)
     if attachment is None:
         advocacy=p.get('advocacy_event')
-        attachment=(advocacy_recall.evidence(chunk,advocacy,neighbors) if advocacy
-                    else event_attachment.attach(chunk,p,neighbors))
+        if colloquial := p.get('colloquial_advocacy'):
+            attachment = colloquial_advocacy.evidence(chunk, colloquial)
+        elif advocacy:
+            attachment = advocacy_recall.evidence(chunk,advocacy,neighbors)
+        else:
+            attachment = event_attachment.attach(chunk,p,neighbors)
     missing=[]
     if p['unsupported']:missing.append('无法可靠解析问题关系')
     from search.office_events import observations as office_observations
@@ -293,6 +308,8 @@ def audit(chunk, p, neighbors, annal=(), *, attachment=None):
 
 def biography_context_candidates(conn,p,subject,book=None):
     """Recall within source-attested biographies; never promote heading to actor."""
+    if colloquial := p.get('colloquial_advocacy'):
+        return colloquial_advocacy.candidates(conn,colloquial,subject,book)
     if advocacy := p.get('advocacy_event'):
         return advocacy_recall.candidates(conn,advocacy,subject,book)
     if execution := p.get('execution_event'):
@@ -421,8 +438,9 @@ def evaluate(query,conn,dense,batches,book=None,rerank=None):
         # Center the pairwise comparison on the event sentence. Large unrelated
         # annal entries next to a six-character event used to dominate scoring.
         f=h['evidence_focus']=focus(c,p)
-        if p.get('advocacy_event') and h['evidence_audit']['attached_evidence']:
-            event=h['evidence_audit']['attached_evidence'][0]['event']
+        attachment = next(iter(h['evidence_audit']['attached_evidence']), None)
+        if attachment and attachment.get('kind') == 'advocacy':
+            event=attachment['event']
             f=h['evidence_focus']=dict(start=event['start'],end=event['end'],text=event['quote'],selected=True)
         if observations and not f['selected']:
             observation=next((o for o in observations if o['polarity']=='positive_syntax'),observations[0])
@@ -436,11 +454,17 @@ def evaluate(query,conn,dense,batches,book=None,rerank=None):
         text+='\n前文：'+(before or '\n'.join(prev))+'\n后文：'+(after or '\n'.join(nxt))
         h['context_truncated']=len(text)>1000;texts.append(text[:1000])
     model_report={'scores':[],'truncated_indices':[],'ms':0}
+    ranking_query = query
+    frame = p.get('colloquial_advocacy')
+    if frame and frame['reason_hypothesis']:
+        # A user's proposed explanation can be false. Rank by the event so
+        # material explaining its actual cause can still reach the front.
+        ranking_query = f"{frame['person']}为什么{frame['action']}？"
     if hits:
         if rerank is None:
             from search.semantic_bridge import worker
             rerank=worker.rerank
-        model_report=rerank(query,texts)
+        model_report=rerank(ranking_query,texts)
         scores=model_report['scores']
         if len(scores)!=len(hits) or not all(isinstance(s,(float,int)) and math.isfinite(s) for s in scores):
             raise ValueError('上下文模型返回了无效评分')
@@ -462,7 +486,7 @@ def evaluate(query,conn,dense,batches,book=None,rerank=None):
         admission={name:dict(available=len(items),reserved=min(len(items),CHANNEL_LIMIT),
                             admitted=sum(name in h['channels'] for h in hits)) for name,items in channels},
         candidate_diagnostics=diagnostics,
-        candidate_scan=scan,reranker_ms=model_report['ms'],
+        candidate_scan=scan,reranker_ms=model_report['ms'],rerank_query=ranking_query,
         audit_clues_present=sum(h['evidence_audit']['status']=='clues_present' for h in hits[:20]),
         model='BAAI/bge-reranker-base',model_generation_calls=0,
         elapsed_ms=round((time.perf_counter()-started)*1000,2)),candidate_ids=candidate_ids)
