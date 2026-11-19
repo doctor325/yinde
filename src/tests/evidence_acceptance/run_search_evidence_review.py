@@ -40,6 +40,7 @@ CASES = {
 }
 HOLDOUT_FIXTURE = Path(__file__).with_name("search_holdout8.json")
 ATTACHMENT_FIXTURE = Path(__file__).with_name("event_attachment_holdout.json")
+RECALL_FIXTURE = Path(__file__).with_name("event_recall_control.json")
 SOURCE_KEYS = ("page_id", "revision_id", "source_sha256", "source_url", "parts", "text_orig")
 
 
@@ -110,12 +111,14 @@ def main():
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--holdout", action="store_true",
                         help="Run the frozen new-person sample through the desktop search form")
-    parser.add_argument("--case", help="Run one case from the selected fixture")
+    parser.add_argument("--case", action="append", help="Run a named case. Repeat to select multiple cases.")
     parser.add_argument("--attachment", action="store_true",
                         help="Include independent event-attachment cases with --holdout")
+    parser.add_argument("--recall-control", action="store_true",
+                        help="Include the independent execution-date control with --holdout")
     args = parser.parse_args()
-    if args.attachment and not args.holdout:
-        parser.error("--attachment requires --holdout")
+    if (args.attachment or args.recall_control) and not args.holdout:
+        parser.error("Additional fixtures require --holdout")
     out = args.out.resolve()
     data = (Path(__file__).resolve().parents[2] / "data").resolve()
     if out == data or not out.is_relative_to(data):
@@ -127,14 +130,20 @@ def main():
                 independent, hashes = read_holdout(index, ATTACHMENT_FIXTURE)
                 cases.extend(independent)
                 fixture_hashes.update(hashes)
+            if args.recall_control:
+                control, hashes = read_holdout(index, RECALL_FIXTURE)
+                cases.extend(control)
+                fixture_hashes.update(hashes)
         else:
             cases, fixture_hashes = read_cases()
             for case in cases:
                 verify_source(index, case["reference"])
     if args.case:
-        cases = [case for case in cases if case["id"] == args.case]
-        if not cases:
-            parser.error(f"Unknown case: {args.case}")
+        requested = set(args.case)
+        unknown = requested - {case["id"] for case in cases}
+        if unknown:
+            parser.error(f"Unknown case: {', '.join(sorted(unknown))}")
+        cases = [case for case in cases if case["id"] in requested]
     out.mkdir(parents=True, exist_ok=False)
     write_json(out / "inputs.json", dict(cases=cases, fixture_sha256=fixture_hashes,
                                         database=search.identity(config.DB_PATH),

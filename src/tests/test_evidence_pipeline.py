@@ -263,5 +263,45 @@ class Evidence(unittest.TestCase):
         E.evaluate('甲公何时去世',db,[],[],rerank=lambda q,t:dict(scores=[0.,0.],ms=1))
         self.assertFalse(any('WHERE page_id=' in sql for sql in statements))
 
+    def test_dated_execution_is_admitted_beyond_the_name_channel_quota(self):
+        db, _ = self.evaluation_database()
+        clues = [chunk('王甲为将军。', number) for number in range(10, 36)]
+        clues.extend([chunk('汉五年为郎中，后诛王甲。', 38), chunk('永兴三年，诛王甲。', 40)])
+        db.executemany('INSERT INTO chunks VALUES(?,?,?,?,?)',
+                       [(c['chunk_id'], c['book_id'], c['page_id'], S.normalize(c['text_orig']), json.dumps(c))
+                        for c in clues])
+        result = E.evaluate('王甲何时被处死？', db, [], [],
+                            rerank=lambda q, ts: dict(scores=[0.] * len(ts), ms=0))
+        hit = result['hits'][0]
+        self.assertEqual(hit['chunk']['chunk_id'], 40)
+        self.assertIn('attached_event', hit['channels'])
+        self.assertGreater(hit['channel_ranks']['relation'], E.CHANNEL_LIMIT)
+        self.assertEqual(hit['evidence_audit']['attached_evidence'][0]['detail']['quote'], '永兴三年')
+
+    def test_capture_short_name_requires_a_continuous_source_and_patient_role(self):
+        db, _ = self.evaluation_database()
+        anchor = dict(chunk('乃送王甲还北。甲乃即位。', 10), heading='李乙')
+        episode = [
+            anchor,
+            dict(anchor, chunk_id=11, text_orig='甲与敌战。李丙走至北关，为甲所擒。'),
+            dict(anchor, chunk_id=12, text_orig='甲大败，走至石门，遇贼被擒。'),
+            dict(anchor, chunk_id=13, text_orig='甲走至西门，被擒。', revision_id=2),
+            dict(anchor, chunk_id=14, text_orig='甲走至南关，被擒。'),
+            dict(anchor, chunk_id=20, text_orig='送王甲还北。甲乃即位。'),
+            dict(anchor, chunk_id=21, text_orig='遂迎钱甲还朝。甲乃领兵。甲走至新城，被擒。'),
+            dict(anchor, chunk_id=22, text_orig='甲走至东关，被擒。'),
+        ]
+        db.executemany('INSERT INTO chunks VALUES(?,?,?,?,?)',
+                       [(c['chunk_id'], c['book_id'], c['page_id'], S.normalize(c['text_orig']), json.dumps(c))
+                        for c in episode])
+        self.assertEqual(E.audit(episode[1], E.parse('王甲在哪里被俘虏？'), [])['status'], 'insufficient')
+        result = E.evaluate('王甲在哪里被俘虏？', db, [], [],
+                            rerank=lambda q, ts: dict(scores=[0.] * len(ts), ms=0))
+        attached = [hit for hit in result['hits'] if 'attached_event' in hit['channels']]
+        self.assertEqual([hit['chunk']['chunk_id'] for hit in attached], [12])
+        clue = attached[0]['evidence_audit']['attached_evidence'][0]
+        self.assertEqual(clue['subject_anchor']['quote'], '王甲还北。甲')
+        self.assertEqual(clue['detail']['quote'], '石门')
+
 
 if __name__=='__main__':unittest.main()

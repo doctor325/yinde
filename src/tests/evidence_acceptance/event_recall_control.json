@@ -1,0 +1,26 @@
+[
+  {
+    "id": "sangge-date",
+    "era": "元",
+    "axis": "时间",
+    "query": "桑哥什么时候被处死？",
+    "policy": "answerable",
+    "expected": "《元史·完泽传》记至元二十八年桑哥伏诛。",
+    "sources": [
+      {
+        "chunk_id": 274721,
+        "book_id": "KR2a0036",
+        "page_id": 142413,
+        "title": "元史/卷130",
+        "revision_id": 2191177,
+        "source_sha256": "e7a3687a97ea85dc22308b9475a8bb4d8dc3f77d0102bb36cb948feed9cd37c3",
+        "source_url": "https://zh.wikisource.org/w/index.php?oldid=2191177",
+        "quote": "至元二十八年，桑哥伏誅",
+        "offset": [
+          133,
+          144
+        ]
+      }
+    ]
+  }
+]

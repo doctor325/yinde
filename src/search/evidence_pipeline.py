@@ -7,7 +7,7 @@ import json
 import math
 import re
 import time
-from search import advocacy_recall, annal_events, event_attachment, execution_recall, punctuated_relevance as R, punctuated_search as S, zh
+from search import advocacy_recall, annal_events, event_attachment, event_recall, execution_recall, punctuated_relevance as R, punctuated_search as S, zh
 
 VERSION = 'context-evidence-v2'
 # Each independent channel keeps its own quota before deduplication. A shared
@@ -212,9 +212,10 @@ def context(conn, chunk):
     return result
 
 
-def audit(chunk, p, neighbors, annal=()):
+def audit(chunk, p, neighbors, annal=(), *, attachment=None):
     f=R.features(chunk,p)
-    attachment=event_attachment.attach(chunk,p,neighbors)
+    if attachment is None:
+        attachment=event_attachment.attach(chunk,p,neighbors)
     missing=[]
     if p['unsupported']:missing.append('无法可靠解析问题关系')
     from search.office_events import observations as office_observations
@@ -388,7 +389,9 @@ def evaluate(query,conn,dense,batches,book=None,rerank=None):
             -sum(c['text'] in zh.to_simplified(h['chunk']['text_orig']) for c in p['constraints']),
             h['chunk']['chunk_id']))
     biography_context,biography_scan=biography_context_candidates(conn,p,subject,book)
-    channels=(('biography_context',biography_context),('semantic',dense),('lexical',literal),('relation',relation_ranked),
+    attached_events,attachments=event_recall.candidates(conn,p,subject)
+    channels=(('attached_event',attached_events),('biography_context',biography_context),
+              ('semantic',dense),('lexical',literal),('relation',relation_ranked),
               ('biography',biography),('annal_event',event_hits),('grounded',fallback))
     hits=admit(channels);texts=[]
     from search import biography_office, patient_references
@@ -412,7 +415,7 @@ def evaluate(query,conn,dense,batches,book=None,rerank=None):
             peers=biography_pages.get(page,())
             if needs_office: observations+=biography_office.observations(c,p,peers)
             if needs_patient: observations+=patient_references.observations(c,p,peers)
-        h['evidence_audit']=audit(c,p,neighbors,observations)
+        h['evidence_audit']=audit(c,p,neighbors,observations,attachment=attachments.get(c['chunk_id']))
         # Center the pairwise comparison on the event sentence. Large unrelated
         # annal entries next to a six-character event used to dominate scoring.
         f=h['evidence_focus']=focus(c,p)

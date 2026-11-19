@@ -18,7 +18,7 @@ _CAPTURE_QUERY = re.compile(
 )
 _CAPTORS = {'辽军': ('辽军', '辽兵', '辽人', '契丹'),
             '金军': ('金军', '金兵', '金人', '女真')}
-_SCOPE = ('book_id', 'page_id', 'revision_id', 'source_sha256', 'layer', 'heading')
+SOURCE_SCOPE = ('book_id', 'page_id', 'revision_id', 'source_sha256', 'layer', 'heading')
 _OPEN_QUOTE = '「『“‘'
 _CLOSE_QUOTE = '」』”’'
 
@@ -28,7 +28,7 @@ def capture_query(text):
     return match.groupdict() if match else None
 
 
-def _narrative(text):
+def narrative(text):
     """Mask quoted speech while keeping the original character offsets."""
     chars = list(text)
     start = None
@@ -49,7 +49,7 @@ def _narrative(text):
     return ''.join(chars)
 
 
-def _excerpt(chunk, start, end):
+def excerpt(chunk, start, end):
     return dict(chunk_id=chunk['chunk_id'], start=start, end=end,
                 quote=chunk['text_orig'][start:end])
 
@@ -103,13 +103,15 @@ def _capture_place(text, actor, captor):
     # After reaching the place allow only a short sequence of local reactions
     # or injuries, with any explicitly named actor drawn from the same subject.
     local = rf'(?:望见无人|(?:即|乃)?拊膺{_HAN}{{0,4}}|(?:再|复)率{_HAN}{{1,10}}力战|身被{_HAN}{{1,8}}创|士卒殆尽|{actor}犹{_HAN}{{1,12}}|马重伤不能进)'
+    movement = rf'(?:大?败[，,]走|败走|力战[，,]自{_HAN}至{_HAN}[，,]果|走|奔|行)?至'
+    place = rf'(?!(?:天明|天晓|日暮|明日|翌日|来日|旦日|次日)[，,。]){_HAN}{{2,10}}'
     return re.search(
-        rf'{_BOUNDARY}(?P<event>{actor}(?:败走|力战[，,]自{_HAN}至{_HAN}[，,]果|走|奔|行)?至'
-        rf'(?P<value>{_HAN}{{2,10}})[，,。](?:{local}[，,。]){{0,8}}'
+        rf'{_BOUNDARY}(?P<event>{actor}{movement}'
+        rf'(?P<value>{place})[，,。](?:{local}[，,。]){{0,8}}'
         rf'(?:遂|乃|即|遇贼)?{passive})(?=[，。；！？]|$)', text)
 
 
-def attach(chunk, plan, neighbors):
+def attach(chunk, plan, neighbors, *, subject_anchor=None):
     execution = plan.get('execution_event')
     capture = plan.get('capture_event')
     if not (execution or capture) or chunk['layer'] != 'body' or not all(chunk.get(k) for k in ('revision_id', 'source_sha256')):
@@ -120,10 +122,12 @@ def attach(chunk, plan, neighbors):
     actor = re.escape(person)
     if heading == person:
         actor = rf'(?:{actor}|{re.escape(person[-1])})'
+    elif capture and subject_anchor:
+        actor = rf'(?:{actor}|{re.escape(subject_anchor["form"])})'
     text = zh.to_simplified(chunk['text_orig'])
     if len(text) != len(chunk['text_orig']):
         return None
-    text = _narrative(text)
+    text = narrative(text)
     basis = None
     if capture:
         slot = 'place'
@@ -139,21 +143,25 @@ def attach(chunk, plan, neighbors):
             return None
     if not match:
         return None
-    detail = _excerpt(chunk, *match.span('value'))
-    record = dict(slot=slot, detail=detail, event=_excerpt(chunk, *match.span('event')))
+    detail = excerpt(chunk, *match.span('value'))
+    record = dict(slot=slot, detail=detail, event=excerpt(chunk, *match.span('event')))
+    if subject_anchor:
+        if subject_anchor['chunk_id'] == chunk['chunk_id'] and match.start('event') < subject_anchor['end']:
+            return None
+        record['subject_anchor'] = subject_anchor
     if basis:
         record['year_heading'] = chunk['heading']
     if slot == 'place' and match['value'] in ('谷口', '城门', '山下', '河口', '渡口', '关口'):
         # A relative place needs a uniquely named anchor from the same version.
         anchors = {}
         for previous in neighbors:
-            if previous['chunk_id'] != chunk['chunk_id'] - 1 or any(previous.get(k) != chunk.get(k) for k in _SCOPE):
+            if previous['chunk_id'] != chunk['chunk_id'] - 1 or any(previous.get(k) != chunk.get(k) for k in SOURCE_SCOPE):
                 continue
             prefix = zh.to_simplified(previous['text_orig'])
             if len(prefix) != len(previous['text_orig']):
                 continue
             for found in re.finditer(rf'(?:指|至|于|於)(?P<place>{_HAN}{{1,5}}{match["value"]})(?=[，。；！？]|曰)', prefix):
-                anchors[found['place']] = _excerpt(previous, *found.span('place'))
+                anchors[found['place']] = excerpt(previous, *found.span('place'))
         if len(anchors) != 1:
             return None
         record['place_anchor'] = next(iter(anchors.values()))
