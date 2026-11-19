@@ -1,0 +1,369 @@
+{
+  "baseline": "839c743",
+  "cases": [
+    {
+      "id": "zhang-paraphrase",
+      "query": "彭城当时为什么不能撤？张畅是怎么说的？",
+      "episode": "zhang",
+      "kind": "positive",
+      "group": "paraphrase"
+    },
+    {
+      "id": "wang-paraphrase",
+      "query": "王穆觉得张大豫急着动手有什么问题？",
+      "episode": "wang",
+      "kind": "positive",
+      "group": "paraphrase"
+    },
+    {
+      "id": "xin-migration",
+      "query": "曹丕想把冀州人迁到河南，辛毗为什么拦着？",
+      "episode": "xin",
+      "kind": "positive",
+      "group": "independent"
+    },
+    {
+      "id": "xin-reversed",
+      "query": "辛毗想把冀州人迁到河南，曹丕为什么拦着？",
+      "episode": "xin",
+      "kind": "reversed_roles",
+      "group": "independent"
+    },
+    {
+      "id": "wei-taishan",
+      "query": "大家都请皇帝去泰山封禅，魏征为什么觉得还不是时候？",
+      "episode": "wei",
+      "kind": "positive",
+      "group": "independent"
+    },
+    {
+      "id": "wei-other-event",
+      "query": "魏征劝唐太宗别修飞仙宫，是怕各国使者看到中原还很虚弱吗？",
+      "episode": "wei",
+      "other_episode": "feixian",
+      "kind": "different_event",
+      "group": "independent"
+    }
+  ],
+  "episodes": {
+    "zhang": {
+      "sources": [
+        "song-59",
+        "song-46",
+        "nan-32"
+      ],
+      "required": [
+        "speaker",
+        "reason"
+      ],
+      "expected": "义恭欲弃彭城南归。军粮不足是史家交代的背景。张畅说一动身人就会散，还认为现有办法可以支撑守城。"
+    },
+    "wang": {
+      "sources": [
+        "jin-122"
+      ],
+      "required": [
+        "speaker",
+        "proposal",
+        "reason"
+      ],
+      "expected": "王穆劝张大豫不要急于逼战，指出吕光兵精、粮足、城坚。大豫进逼是史家叙述，兵粮判断是王穆的发言。"
+    },
+    "xin": {
+      "sources": [
+        "sanguozhi-25"
+      ],
+      "required": [
+        "speaker",
+        "proposal",
+        "reason"
+      ],
+      "expected": "曹丕要把冀州士家迁往河南，辛毗劝阻。他本人说此时迁徙会失去民心，也没粮食供给。蝗灾与民饥、最终迁半数均为史家叙述。"
+    },
+    "wei": {
+      "sources": [
+        "jiutangshu-71"
+      ],
+      "required": [
+        "speaker",
+        "proposal",
+        "reason"
+      ],
+      "expected": "魏徵反对封禅，唐太宗要求他说清楚。魏徵在答话中说各国会来，而伊洛以东至海岱仍萧条，向来使暴露虚弱。公卿请封禅是史家叙述。"
+    },
+    "feixian": {
+      "sources": [
+        "xintangshu-97"
+      ],
+      "required": [
+        "speaker",
+        "reason"
+      ],
+      "expected": "魏徵就修飞仙宫上疏，以隋炀帝奢侈扰民而亡为鉴，劝太宗节制营建。外国使者看到中原虚弱属于另一次封禅问答。"
+    }
+  },
+  "evidence": {
+    "song-59": {
+      "speaker": [
+        42376,
+        1996693,
+        "94c38972de8b9fe21ec29bd1443b8fc7f73989af1aafd109a0b51972a2c1adeb",
+        40,
+        42,
+        "457682a5724a17004f512bc4e873718f23b7dd9265afdfeb4ae038fa80692210"
+      ],
+      "recipient": [
+        42375,
+        1996693,
+        "94c38972de8b9fe21ec29bd1443b8fc7f73989af1aafd109a0b51972a2c1adeb",
+        57,
+        66,
+        "3e548419375d9bc2b70d7c10c5f863ae76003379a99f7f7bffbe55d9b8d1bb26"
+      ],
+      "proposal": [
+        42375,
+        1996693,
+        "94c38972de8b9fe21ec29bd1443b8fc7f73989af1aafd109a0b51972a2c1adeb",
+        92,
+        113,
+        "468f821e92be4476dc49b48a3ac5d8cd9b703eb457bab2cc9dc36263a477f433"
+      ],
+      "opponent": [
+        42375,
+        1996693,
+        "94c38972de8b9fe21ec29bd1443b8fc7f73989af1aafd109a0b51972a2c1adeb",
+        40,
+        54,
+        "10f5bf2803a69525af45ee8296aa508383071db86a0529c7a81d25720fdcbd1b"
+      ],
+      "reason": [
+        42376,
+        1996693,
+        "94c38972de8b9fe21ec29bd1443b8fc7f73989af1aafd109a0b51972a2c1adeb",
+        89,
+        100,
+        "4431f20b5d062c4664ba46813892233c329fa04e9cd66d17f3cf1b4ed22bb93c"
+      ]
+    },
+    "song-46": {
+      "speaker": [
+        41510,
+        2118581,
+        "3df8bb0cdbc5811a0747fcca3c9ed93d3b714bf0eee0315f6946eef8968fffdf",
+        20,
+        22,
+        "457682a5724a17004f512bc4e873718f23b7dd9265afdfeb4ae038fa80692210"
+      ],
+      "recipient": [
+        41509,
+        2118581,
+        "3df8bb0cdbc5811a0747fcca3c9ed93d3b714bf0eee0315f6946eef8968fffdf",
+        77,
+        89,
+        "1b2807b4e3a3d3f5f72d688ff8b7205a46c34272dff14f860a3adbc50cd4eec1"
+      ],
+      "proposal": [
+        41509,
+        2118581,
+        "3df8bb0cdbc5811a0747fcca3c9ed93d3b714bf0eee0315f6946eef8968fffdf",
+        98,
+        119,
+        "468f821e92be4476dc49b48a3ac5d8cd9b703eb457bab2cc9dc36263a477f433"
+      ],
+      "opponent": [
+        41509,
+        2118581,
+        "3df8bb0cdbc5811a0747fcca3c9ed93d3b714bf0eee0315f6946eef8968fffdf",
+        60,
+        74,
+        "6260aa35913b5b7e0cfc269fa44257ed74ead8b7a02f2a27e8cae93cee05cf2d"
+      ],
+      "reason": [
+        41510,
+        2118581,
+        "3df8bb0cdbc5811a0747fcca3c9ed93d3b714bf0eee0315f6946eef8968fffdf",
+        63,
+        73,
+        "ac8143b08ba438eaa6552167046d38fe458f8afe4346ed32e1fdd592c93cb9f6"
+      ]
+    },
+    "nan-32": {
+      "speaker": [
+        171760,
+        1494939,
+        "15c2de7372e19c4330803394c90b8fb62ace4280a0a8b70cd6afc5ecd8c863e5",
+        160,
+        162,
+        "457682a5724a17004f512bc4e873718f23b7dd9265afdfeb4ae038fa80692210"
+      ],
+      "recipient": [
+        171760,
+        1494939,
+        "15c2de7372e19c4330803394c90b8fb62ace4280a0a8b70cd6afc5ecd8c863e5",
+        13,
+        25,
+        "1b2807b4e3a3d3f5f72d688ff8b7205a46c34272dff14f860a3adbc50cd4eec1"
+      ],
+      "proposal": [
+        171760,
+        1494939,
+        "15c2de7372e19c4330803394c90b8fb62ace4280a0a8b70cd6afc5ecd8c863e5",
+        40,
+        60,
+        "6ee10fd4d46a2f0f067072503db0971278e4959526958ac479a15df29f94a18d"
+      ],
+      "opponent": [
+        171760,
+        1494939,
+        "15c2de7372e19c4330803394c90b8fb62ace4280a0a8b70cd6afc5ecd8c863e5",
+        0,
+        10,
+        "70ae47df9e9fd1446cbf1a87053e73f8cd0164bb4ef2ea7cbebf5b5df6cba45e"
+      ],
+      "reason": [
+        171760,
+        1494939,
+        "15c2de7372e19c4330803394c90b8fb62ace4280a0a8b70cd6afc5ecd8c863e5",
+        211,
+        222,
+        "ed922fbb22aa65fc109b1623b90ccfe00dff368921e3d085fe02f8a2b0cee94a"
+      ]
+    },
+    "jin-122": {
+      "speaker": [
+        87211,
+        1554250,
+        "719484f894b951f542be0925bd68de0dcc907e869b2ad7cc163ee5bab7566d5d",
+        53,
+        57,
+        "594465110f49988712bf7b58d9b5beb07a5730734c38c674fe8124cdc37079ca"
+      ],
+      "proposal": [
+        87211,
+        1554250,
+        "719484f894b951f542be0925bd68de0dcc907e869b2ad7cc163ee5bab7566d5d",
+        40,
+        52,
+        "fcaeac0b33f155a8b4ce7d80f240a8a44536f7c1180155c33bcf9ff6024f9aed"
+      ],
+      "reason": [
+        87211,
+        1554250,
+        "719484f894b951f542be0925bd68de0dcc907e869b2ad7cc163ee5bab7566d5d",
+        59,
+        75,
+        "2c1b8dc079a1ae7ff2962150976861e311dae518b547a2b20e423ab49d97f538"
+      ],
+      "alternative": [
+        87211,
+        1554250,
+        "719484f894b951f542be0925bd68de0dcc907e869b2ad7cc163ee5bab7566d5d",
+        76,
+        87,
+        "ebfc3b73f3486a030a78ebec7452267ad723e99b450781a62ad7cb9b9ed6c278"
+      ],
+      "response": [
+        87211,
+        1554250,
+        "719484f894b951f542be0925bd68de0dcc907e869b2ad7cc163ee5bab7566d5d",
+        104,
+        108,
+        "028213a6888c5e421a254554fd34d833a21050b1f974ffad2b04389a47b57647"
+      ]
+    },
+    "sanguozhi-25": {
+      "speaker": [
+        65939,
+        2074129,
+        "273b1ab2bf04bf0ad717ba9a07f51006c6e506212596fbc9eb6981ed65444206",
+        191,
+        208,
+        "356f06c305b5acc9114001404ae739c07830658bbb71540df6893ef63b686593"
+      ],
+      "proposal": [
+        65939,
+        2074129,
+        "273b1ab2bf04bf0ad717ba9a07f51006c6e506212596fbc9eb6981ed65444206",
+        133,
+        147,
+        "de0258c0e0b8e14356cd1a05e9946c5ecad85ffe1e89ddc20339ad91de59a241"
+      ],
+      "background": [
+        65939,
+        2074129,
+        "273b1ab2bf04bf0ad717ba9a07f51006c6e506212596fbc9eb6981ed65444206",
+        147,
+        152,
+        "187ed32c8a0e9f79bd6cd1156763238c1aca21da7da4bc9e626d2f9fd097d98e"
+      ],
+      "reason": [
+        65940,
+        2074129,
+        "273b1ab2bf04bf0ad717ba9a07f51006c6e506212596fbc9eb6981ed65444206",
+        147,
+        166,
+        "25462bd3bf9ac7af9ed6c976affb1723141258684db744f6c39ce3e6158791cb"
+      ],
+      "outcome": [
+        65940,
+        2074129,
+        "273b1ab2bf04bf0ad717ba9a07f51006c6e506212596fbc9eb6981ed65444206",
+        166,
+        172,
+        "341a3a0921897623c3b98d5a8a0d01f7098466582099cf9a5ced2914dc76e9be"
+      ]
+    },
+    "jiutangshu-71": {
+      "speaker": [
+        121411,
+        2020238,
+        "addfdc48c5ac86e0f5c7ed1bfa8109bdb0d89afcbe8e58cb3add6552d66beee3",
+        156,
+        175,
+        "7337cf1e1a41f4732e327057175015dd2918765a57d3120faadf4ea1ee7b4ec8"
+      ],
+      "proposal": [
+        121411,
+        2020238,
+        "addfdc48c5ac86e0f5c7ed1bfa8109bdb0d89afcbe8e58cb3add6552d66beee3",
+        146,
+        155,
+        "7bd838f0c3f74d319941dcc6468b750f2eb09dbf2cac9ecbe80104e3ac3550f9"
+      ],
+      "other_reason": [
+        121412,
+        2020238,
+        "addfdc48c5ac86e0f5c7ed1bfa8109bdb0d89afcbe8e58cb3add6552d66beee3",
+        83,
+        92,
+        "1a8b1eb7d84709d6eeda27980aec54ecd6a656b5eb4fb7868a87666bc90f3a95"
+      ],
+      "reason": [
+        121413,
+        2020238,
+        "addfdc48c5ac86e0f5c7ed1bfa8109bdb0d89afcbe8e58cb3add6552d66beee3",
+        83,
+        95,
+        "0fd62a2b19afd6c9e513ea7a2807f0d7fd416c15c0d95417d1a31a0d35696d0c"
+      ]
+    },
+    "xintangshu-97": {
+      "speaker": [
+        123754,
+        2693693,
+        "3f2c71435374909b020f731c6613fa255a93ee72619fc952445f9c5ab1b2b404",
+        27,
+        37,
+        "b359312874c34674824e02d9281f96410ae6e947207430389df150559b5429f6"
+      ],
+      "reason": [
+        123755,
+        2693693,
+        "3f2c71435374909b020f731c6613fa255a93ee72619fc952445f9c5ab1b2b404",
+        107,
+        133,
+        "226fcc52ab25f425165a333e5afe8bb6651076c2ccb0c47af80e05aecbc21e62"
+      ]
+    }
+  }
+}

@@ -85,4 +85,11 @@ const polityCards = [...resultNode.innerHTML.matchAll(/<section class="polity-ev
     links: [...content.matchAll(/<dt>([^<]+)<\/dt><dd>[^]*? · <a href="([^"]+)">定位原文<\/a>/g)]
       .map(([, label, href]) => ({ label, href })),
   }));
-console.log(JSON.stringify({ requestPath, form_ms, rendered, evidenceLinks, polityCards, result: searchResult }));
+const hitCards = [...resultNode.innerHTML.matchAll(/<article class="card punctuated-search-hit">([^]*?)<\/article>/g)]
+  .map(([, content]) => ({
+    evidenceStatus: content.match(/<section class="polity-evidence" data-status="([^"]+)">/)?.[1] ?? null,
+    evidenceLinks: [...content.matchAll(/<dt>([^<]+)<\/dt><dd>([^]*?) · <a href="([^"]+)">定位原文<\/a>/g)]
+      .map(([, label, quote, href]) => ({ label, quote, href })),
+  }));
+assert.equal(hitCards.length, rendered.length);
+console.log(JSON.stringify({ requestPath, form_ms, rendered, evidenceLinks, polityCards, hitCards, result: searchResult }));
