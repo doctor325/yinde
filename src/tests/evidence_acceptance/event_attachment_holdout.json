@@ -1,0 +1,98 @@
+[
+  {
+    "id": "wu-shouyang",
+    "era": "南朝陈",
+    "axis": "动作对象",
+    "query": "吴明彻攻克寿阳后斩杀了谁？",
+    "policy": "answerable",
+    "expected": "《陈书》记吴明彻克寿阳城，所斩为王琳。",
+    "sources": [
+      {
+        "chunk_id": 25965,
+        "book_id": "KR2a0019",
+        "page_id": 11181,
+        "title": "陳書/卷5",
+        "revision_id": 2374950,
+        "source_sha256": "f5038d61a89224b9f4ca7922f43c6ff49c083dd1f652a6f6b1ff2fcc9435fa7f",
+        "source_url": "https://zh.wikisource.org/w/index.php?oldid=2374950",
+        "quote": "吳明徹克壽陽城，斬王琳",
+        "offset": [
+          153,
+          164
+        ]
+      }
+    ]
+  },
+  {
+    "id": "yuan-lying",
+    "era": "南北朝",
+    "axis": "地点",
+    "query": "元颢在哪里被俘虏？",
+    "policy": "answerable",
+    "expected": "《梁书》陈庆之传记元颢败走至临颍被擒，正文用简称“顥”。",
+    "sources": [
+      {
+        "chunk_id": 158104,
+        "book_id": "KR2a0018",
+        "page_id": 58278,
+        "title": "梁書/卷32",
+        "revision_id": 1506956,
+        "source_sha256": "194c4a86837056713c8137b2b38f8e77c6a611d81c8588b4f479ed4a397eabd9",
+        "source_url": "https://zh.wikisource.org/w/index.php?oldid=1506956",
+        "quote": "顥大敗，走至臨潁，遇賊被擒",
+        "offset": [
+          132,
+          145
+        ]
+      }
+    ]
+  },
+  {
+    "id": "chen-xi-time",
+    "era": "西汉",
+    "axis": "时间",
+    "query": "陈豨什么时候被处死？",
+    "policy": "answerable",
+    "expected": "《汉书·文帝纪》载高祖十一年诛陈豨。",
+    "sources": [
+      {
+        "chunk_id": 46057,
+        "book_id": "KR2a0007",
+        "page_id": 19624,
+        "title": "漢書/卷004",
+        "revision_id": 2610745,
+        "source_sha256": "e47a44397145ae6ee5d0f05e767cba8820f0cfce69e96144c829a35bf3fe2f85",
+        "source_url": "https://zh.wikisource.org/w/index.php?oldid=2610745",
+        "quote": "高祖十一年，誅陳豨",
+        "offset": [
+          20,
+          29
+        ]
+      }
+    ]
+  },
+  {
+    "id": "liu-tongguan",
+    "era": "后梁",
+    "axis": "地点",
+    "query": "刘知俊在哪里被俘虏？",
+    "policy": "different_event",
+    "expected": "潼关被刘鄩擒获的人是刘知俊的弟弟知浣，不能当作刘知俊在潼关被俘的证据。此对照只审计这处事件。",
+    "sources": [
+      {
+        "chunk_id": 212973,
+        "book_id": "KR2a0029",
+        "page_id": 67158,
+        "title": "舊五代史/卷13",
+        "revision_id": 8730587,
+        "source_sha256": "2d6a0b5ce58d2d0fb93f1f5ef2c1ec0d2893ab2589ae45b05996ad6c29cbdfb9",
+        "source_url": "https://zh.wikisource.org/w/index.php?oldid=8730587",
+        "quote": "時知俊弟知浣為親衛指揮使，聞知俊叛，自洛奔至潼關，為鄩所擒",
+        "offset": [
+          40,
+          69
+        ]
+      }
+    ]
+  }
+]

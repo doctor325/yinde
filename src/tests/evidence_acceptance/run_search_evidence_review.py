@@ -39,6 +39,7 @@ CASES = {
     },
 }
 HOLDOUT_FIXTURE = Path(__file__).with_name("search_holdout8.json")
+ATTACHMENT_FIXTURE = Path(__file__).with_name("event_attachment_holdout.json")
 SOURCE_KEYS = ("page_id", "revision_id", "source_sha256", "source_url", "parts", "text_orig")
 
 
@@ -71,8 +72,8 @@ def verify_source(conn, chunk):
         raise ValueError(f"Source mismatch for {chunk['chunk_id']}: {', '.join(mismatches)}")
 
 
-def read_holdout(index):
-    raw = HOLDOUT_FIXTURE.read_bytes()
+def read_holdout(index, fixture=HOLDOUT_FIXTURE):
+    raw = fixture.read_bytes()
     cases = json.loads(raw)
     for case in cases:
         for source in case["sources"]:
@@ -84,7 +85,7 @@ def read_holdout(index):
                     if key not in {"quote", "offset"}) or
                     chunk["text_orig"][start:end] != source["quote"]):
                 raise ValueError(f"{case['id']}: frozen source changed")
-    return cases, {HOLDOUT_FIXTURE.name: hashlib.sha256(raw).hexdigest()}
+    return cases, {fixture.name: hashlib.sha256(raw).hexdigest()}
 
 
 def submit_form(entry, query):
@@ -110,7 +111,11 @@ def main():
     parser.add_argument("--holdout", action="store_true",
                         help="Run the frozen new-person sample through the desktop search form")
     parser.add_argument("--case", help="Run one case from the selected fixture")
+    parser.add_argument("--attachment", action="store_true",
+                        help="Include independent event-attachment cases with --holdout")
     args = parser.parse_args()
+    if args.attachment and not args.holdout:
+        parser.error("--attachment requires --holdout")
     out = args.out.resolve()
     data = (Path(__file__).resolve().parents[2] / "data").resolve()
     if out == data or not out.is_relative_to(data):
@@ -118,6 +123,10 @@ def main():
     with search.connect() as index:
         if args.holdout:
             cases, fixture_hashes = read_holdout(index)
+            if args.attachment:
+                independent, hashes = read_holdout(index, ATTACHMENT_FIXTURE)
+                cases.extend(independent)
+                fixture_hashes.update(hashes)
         else:
             cases, fixture_hashes = read_cases()
             for case in cases:

@@ -7,7 +7,7 @@ import json
 import math
 import re
 import time
-from search import advocacy_recall, annal_events, execution_recall, punctuated_relevance as R, punctuated_search as S, zh
+from search import advocacy_recall, annal_events, event_attachment, execution_recall, punctuated_relevance as R, punctuated_search as S, zh
 
 VERSION = 'context-evidence-v2'
 # Each independent channel keeps its own quota before deduplication. A shared
@@ -101,6 +101,13 @@ def parse(query):
         p.update(subject=p['clues'][:1], constraints=p['clues'][1:],
                  relation_groups=[dict(kind='execution', terms=list(execution_recall.terms(execution)))],
                  answer_slots=[execution['answer_slot']], execution_event=execution,
+                 general_departure=None, unsupported=False, pipeline_version=VERSION)
+        return p
+    if capture := event_attachment.capture_query(text):
+        p = R.plan(capture['person'])
+        p.update(subject=p['clues'][:1], constraints=[],
+                 relation_groups=[dict(kind='capture', terms=['被擒', '被俘', '所擒', '所禽'])],
+                 answer_slots=['place'], capture_event=capture,
                  general_departure=None, unsupported=False, pipeline_version=VERSION)
         return p
     office_question = r'(?:担任|出任)(?:过)?(?:什么|哪些|何种)(?:官职|职务)'
@@ -207,6 +214,7 @@ def context(conn, chunk):
 
 def audit(chunk, p, neighbors, annal=()):
     f=R.features(chunk,p)
+    attachment=event_attachment.attach(chunk,p,neighbors)
     missing=[]
     if p['unsupported']:missing.append('无法可靠解析问题关系')
     from search.office_events import observations as office_observations
@@ -217,7 +225,7 @@ def audit(chunk, p, neighbors, annal=()):
     attributed=attributed_observations(chunk,p)
     annal=list(annal)+office+speech+attributed
     scoped = [o for o in annal if o['polarity']=='positive_syntax']
-    if not f['all_clues'] and not scoped:missing.append('主体或约束未在当前片段同时出现')
+    if not f['all_clues'] and not (scoped or attachment):missing.append('主体或约束未在当前片段同时出现')
     observations=f['subject_syntax']['observations']+list(annal)
     from search.relative_time import reference
     observations=[dict(o) for o in observations]
@@ -227,11 +235,17 @@ def audit(chunk, p, neighbors, annal=()):
             if ref:o['time_reference']=ref
     positive=[o for o in observations if o['polarity']=='positive_syntax']
     needed={g['kind'] for g in p['relation_groups']}
-    if not needed.issubset({o['kind'] for o in positive}) or not needed:
+    positive_groups={o['kind'] for o in positive}
+    if attachment:
+        positive_groups.add('capture' if p.get('capture_event') else 'execution')
+    if not needed or not needed.issubset(positive_groups):
         missing.append('缺少全部关系的明确主谓句式')
     # A nearby date/place in another passage cannot silently answer this event.
     slot_evidence={}
     for slot in p['answer_slots']:
+        if attachment and attachment['slot']==slot:
+            slot_evidence[slot]=[attachment['event']['quote']]
+            continue
         if slot in ('object','outcome'):
             slot_evidence[slot]=[o['quote'] for o in positive if o.get('resolved_object' if slot=='object' else 'outcome_span')]
             if not slot_evidence[slot]:missing.append('缺少可溯源的动作对象')
@@ -265,8 +279,9 @@ def audit(chunk, p, neighbors, annal=()):
                 causal_event_explanations=causal_events,
                 time_references=[o['time_reference'] for o in positive if 'time_reference' in o],
                 answer_slot_evidence=slot_evidence,
+                attached_evidence=[attachment] if attachment else [],
                 subject_syntax={**f['subject_syntax'],'observations':observations,
-                                'positive_groups':sorted({o['kind'] for o in positive})},
+                                'positive_groups':sorted(positive_groups)},
                 context_has_clues=adjacent_only,relation_verified=False,
                 time_attachment_version='local-event-date-v1',
                 place_attachment_version='local-event-place-v1',

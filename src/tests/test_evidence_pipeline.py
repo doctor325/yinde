@@ -232,6 +232,30 @@ class Evidence(unittest.TestCase):
             with self.subTest(scores=scores), self.assertRaises(ValueError):
                 E.evaluate('甲公何时去世',db,[],[],rerank=lambda q,t:dict(scores=scores,ms=1))
 
+    def test_event_detail_must_belong_to_the_asked_event(self):
+        cases = [
+            ('司马甲攻破东城后诛杀了谁？', '传', '司马甲克东城，斩王壬。', '王壬',
+             ('司马甲克西城，斩王壬。', '司马甲克东城，司马乙斩王壬。', '司马甲克东城，斩之。')),
+            ('司马甲在哪里被燕军俘虏？', '司马甲', '甲败走至石门，为燕军所擒。', '石门',
+             ('甲败走至石门，为秦军所擒。', '甲至石门。乙为燕军所擒。', '甲至石门，马奔北关，为燕军所擒。')),
+            ('司马甲何时被处死？', '永兴三年', '秋八月癸亥，杀司马甲。', '秋八月癸亥',
+             ('秋八月癸亥，杀司马乙。司马甲卒。', '秋八月癸亥，有言曰：「永兴三年，诛司马甲。」')),
+        ]
+        for query, heading, positive, detail, negatives in cases:
+            with self.subTest(query=query):
+                plan = E.parse(query)
+                body = dict(chunk(positive), heading=heading)
+                result = E.audit(body, plan, [])
+                self.assertEqual(result['status'], 'clues_present')
+                record = result['attached_evidence'][0]
+                quote = record['detail']
+                self.assertEqual(positive[quote['start']:quote['end']], detail)
+                for text in negatives:
+                    self.assertEqual(E.audit(dict(body, text_orig=text), plan, [])['status'], 'insufficient', text)
+                self.assertEqual(E.audit(dict(body, layer='annotation'), plan, [])['status'], 'insufficient')
+        self.assertEqual(E.audit(chunk('三年八月，遂磔司马甲于市。'), E.parse('司马甲何时被处死？'), [])['status'],
+                         'insufficient')
+
     def test_explicit_death_needs_no_whole_page_query(self):
         db,_=self.evaluation_database()
         statements=[]
