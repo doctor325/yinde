@@ -189,6 +189,8 @@ def admit(channels):
                 if name not in value['channels']:
                     value['channels'].append(name);value['channel_ranks'][name]=rank
                 if 'semantic_score' in h:value['semantic_score']=h['semantic_score']
+                if name == 'biography_context' and 'campaign_context' in h:
+                    value['campaign_context'] = h['campaign_context']
     return list(selected.values())
 
 
@@ -306,10 +308,10 @@ def audit(chunk, p, neighbors, annal=(), *, attachment=None):
                 note='要素与句式检查，不等于答案正确；跨句指代、否定与因果未核实。')
 
 
-def biography_context_candidates(conn,p,subject,book=None):
+def biography_context_candidates(conn,p,subject,book=None,*,semantic=()):
     """Recall within source-attested biographies; never promote heading to actor."""
     if colloquial := p.get('colloquial_advocacy'):
-        return colloquial_advocacy.candidates(conn,colloquial,subject,book)
+        return colloquial_advocacy.candidates(conn,colloquial,subject,book,semantic=semantic)
     if advocacy := p.get('advocacy_event'):
         return advocacy_recall.candidates(conn,advocacy,subject,book)
     if execution := p.get('execution_event'):
@@ -407,7 +409,7 @@ def evaluate(query,conn,dense,batches,book=None,rerank=None):
             not any(o['polarity']=='positive_syntax' for o in annal[h['chunk']['chunk_id']]),
             -sum(c['text'] in zh.to_simplified(h['chunk']['text_orig']) for c in p['constraints']),
             h['chunk']['chunk_id']))
-    biography_context,biography_scan=biography_context_candidates(conn,p,subject,book)
+    biography_context,biography_scan=biography_context_candidates(conn,p,subject,book,semantic=dense)
     attached_events,attachments=event_recall.candidates(conn,p,subject)
     channels=(('attached_event',attached_events),('biography_context',biography_context),
               ('semantic',dense),('lexical',literal),('relation',relation_ranked),
@@ -452,6 +454,8 @@ def evaluate(query,conn,dense,batches,book=None,rerank=None):
         prev=[n['text_orig'][-60:] for n in neighbors if n['chunk_id']<c['chunk_id']]
         nxt=[n['text_orig'][:60] for n in neighbors if n['chunk_id']>c['chunk_id']]
         text+='\n前文：'+(before or '\n'.join(prev))+'\n后文：'+(after or '\n'.join(nxt))
+        if campaign := h.get('campaign_context'):
+            text += '\n同篇出兵前后：' + campaign
         h['context_truncated']=len(text)>1000;texts.append(text[:1000])
     model_report={'scores':[],'truncated_indices':[],'ms':0}
     ranking_query = query

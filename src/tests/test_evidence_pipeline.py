@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+import re
 import sqlite3
 import sys
 import unittest
@@ -285,6 +286,35 @@ class Evidence(unittest.TestCase):
             '王乙曰：「科斂新舊仍積，百姓殘瘁。甲疾其敝，乃請作新稅法以一其名。」',
         ):
             self.assertEqual(E.audit(dict(body, text_orig=text), plan, [])['status'], 'insufficient', text)
+
+    def test_directional_campaign_recall_requires_the_same_continued_expedition(self):
+        plan = E.parse('司马甲为什么劝晋王别派兵打西秦？')
+        topic = re.compile('西秦')
+        proposal = '其年，晋王欲西讨，甲谏曰：「战必甚难，'
+        reply = '请更议之。」王曰：「吾计已定。」'
+        continued = '及西讨，前军围城。敌主苏丙率其师东行。'
+
+        def episode(after=continued):
+            prose = proposal + reply + '\n\n' + after
+            left_end = len(proposal)
+            right_start = left_end + len(reply)
+            return {cid: dict(chunk(prose[lo:hi], cid), heading='司马甲',
+                              parts=[dict(block_index=1, start=lo, end=hi)])
+                    for cid, lo, hi in ((10, 0, left_end), (11, left_end - 8, right_start + 5),
+                                        (12, right_start, len(prose)))}
+
+        direction_context = E.colloquial_advocacy.directional_context
+        peers = episode()
+        context = direction_context(peers, 11, '司马甲', topic)
+        self.assertIn('晋王欲西讨，甲谏曰', context)
+        self.assertIn('及西讨，前军围城。敌主苏丙', context)
+        self.assertEqual(E.audit(peers[11], plan, list(peers.values()))['status'], 'insufficient')
+        for after in ('及东征，前军围城。敌主苏丙率其师东行。',
+                      '及西讨，前军围城。三年，又欲攻城。敌主苏丙率师东行。',
+                      '及西讨，前军围城。客曰：「敌主苏丙率师东行。」'):
+            self.assertIsNone(direction_context(episode(after), 11, '司马甲', topic), after)
+        peers[12]['revision_id'] = 2
+        self.assertIsNone(direction_context(peers, 11, '司马甲', topic))
 
     def test_military_dissuasion_requires_a_continuous_named_speaker_and_recipient(self):
         plan = E.parse('司马甲为什么劝晋王别派兵打西秦？')

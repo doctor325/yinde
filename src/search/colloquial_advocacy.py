@@ -27,6 +27,11 @@ _FAMILY_ACTION = r'(?:不让儿子当官|反对儿子受荐|拒绝让儿子当�
 _HYPOTHESIS = re.compile(rf'(?P<person>{_HAN}{{2,5}}?)(?P<action>{_FAMILY_ACTION})[，,]\s*'
                          rf'(?:是因为(?P<reason>{_HAN}{{2,40}})吗|是不是因为(?P<check>{_HAN}{{2,40}}))')
 _MILITARY_SOURCE = r'出兵|发兵|兴兵|动兵|击|伐|攻|讨|征'
+_DIRECTIONAL = re.compile(
+    rf'(?:^|(?<=[。；，,！？\n]))\s*(?P<proposal>{_HAN}{{1,8}}?(?:将|欲)(?P<action>[东西南北][征伐讨]))'
+    rf'[。；，,]\s*(?P<speaker>{_HAN}{{1,5}}?)(?:固谏|进谏|谏)曰[：:]\s*(?=[「『])'
+)
+_NEW_EXPEDITION = re.compile(r'(?:[一二三四五六七八九十]+年|复更|更议|改议|又欲|复欲)')
 _TAX_TOPIC = r'赋税|课税|租庸|新旧税|税法|赋敛|科敛|赋役'
 _SOURCE_ACTIONS = {
     'dissuade_attack': (r'谏|难[于於]动兵|从其言而止|不可.{0,6}(?:出兵|兴师)',
@@ -93,25 +98,86 @@ def terms(frame):
     }[frame['kind']]
 
 
-def candidates(conn, frame, subject, book=None):
+def candidates(conn, frame, subject, book=None, *, semantic=()):
     topic = re.compile(_topic(frame))
     action, reason = map(re.compile, _SOURCE_ACTIONS[frame['kind']])
     military = frame['predicate'] == '出兵'
     ranked = []
     pages = scanned = 0
-    for peers in named_biographies(conn, frame['person'], subject, book):
-        pages += 1
-        scanned += len(peers)
-        texts = {cid: zh.to_simplified(chunk['text_orig']) for cid, chunk in peers.items()}
-        for cid, text in texts.items():
-            if not (action.search(text) and (not military or re.search(_MILITARY_SOURCE, text))):
-                continue
-            local_topic = bool(topic.search(text))
-            if not local_topic and not any(topic.search(texts.get(n, '')) for n in (cid - 1, cid + 1)):
-                continue
-            ranked.append(((not bool(reason.search(text)), not local_topic, cid), dict(chunk=peers[cid])))
+    direction_recall = frame['kind'] == 'dissuade_attack' and bool(frame['target'])
+    sources = [(frame['person'], subject, False)]
+    # If the semantic results already locate the other participant's biography,
+    # let its remonstrance enter as context even for a question reversing the roles.
+    recipient = frame.get('recipient')
+    if direction_recall and recipient != frame['person'] and any(
+        zh.to_simplified(hit['chunk']['heading']).strip() == recipient for hit in semantic
+    ):
+        sources.append((recipient, semantic, True))
+    for name, anchors, directional_only in sources:
+        for peers in named_biographies(conn, name, anchors, book):
+            pages += 1
+            scanned += len(peers)
+            texts = {cid: zh.to_simplified(chunk['text_orig']) for cid, chunk in peers.items()}
+            for cid, text in texts.items():
+                local_topic = bool(topic.search(text))
+                if (not directional_only and action.search(text)
+                        and (not military or re.search(_MILITARY_SOURCE, text))
+                        and (local_topic or any(topic.search(texts.get(n, '')) for n in (cid - 1, cid + 1)))):
+                    ranked.append(((False, not bool(reason.search(text)), not local_topic, cid), dict(chunk=peers[cid])))
+                elif direction_recall and (context := directional_context(peers, cid, name, topic)):
+                    ranked.append(((True, False, True, cid), dict(chunk=peers[cid], campaign_context=context)))
     ranked.sort(key=lambda item: item[0])
     return [hit for _, hit in ranked], dict(pages=pages, scanned=scanned)
+
+
+def directional_context(peers, cid, name, topic):
+    """Recall one card for a directional proposal with a named opponent in its resumption."""
+    previous, current, following = (peers.get(i) for i in (cid - 1, cid, cid + 1))
+    if not previous or not following:
+        return None
+    prefix = next(A.previous_overlap(current, (previous,)), None)
+    tail = next(A.previous_overlap(following, (current,)), None)
+    if not prefix or not tail:
+        return None
+    if previous['parts'][-1]['block_index'] != following['parts'][0]['block_index']:
+        return None
+    before = previous['text_orig'][:-prefix[3]]
+    original = before + current['text_orig'] + following['text_orig'][tail[3]:]
+    text = zh.to_simplified(original)
+    if len(text) != len(original):
+        return None
+    prose = A.narrative(text)
+    for proposal in _DIRECTIONAL.finditer(text):
+        if prose[proposal.start():proposal.end()] != proposal[0]:
+            continue
+        if proposal['speaker'] not in (name, name[-2:], name[-1:]):
+            continue
+        if not (proposal.start() < len(before) and proposal.end() >= len(before) - 40
+                and text[proposal.end():].startswith(('「', '『'))):
+            continue
+        action = proposal['action']
+        resumes = re.search(rf'(?:^|(?<=[。；\n]))\s*(?P<start>及{action}[，,])',
+                            prose[proposal.end():])
+        if not resumes:
+            continue
+        start = proposal.end() + resumes.start('start')
+        if _NEW_EXPEDITION.search(prose[proposal.end():start]):
+            continue
+        end = min(len(text), start + 160)
+        narrative = prose[start:end]
+        boundary = _NEW_EXPEDITION.search(narrative)
+        if boundary:
+            narrative = narrative[:boundary.start()]
+        # A direction alone cannot verify the target in the question.
+        # Require an actual opponent in the continued narration for recall.
+        opponent = re.search(rf'(?:虏主|敌主|贼主){_HAN}{{2,6}}?(?=率|遣|将|攻|围|南|北)', narrative)
+        explicit = topic.search(narrative)
+        if not opponent and not explicit:
+            continue
+        marker = opponent or explicit
+        head = original[proposal.start('proposal'):proposal.end()]
+        return head + '\n' + original[start:start + marker.end()]
+    return None
 
 
 _CLAUSE = r'[^，,。！？；：「」『』“”‘’\n]'
