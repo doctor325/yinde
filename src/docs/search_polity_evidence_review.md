@@ -167,3 +167,13 @@
 运行入口为从 `src` 执行 `python -B -X utf8 -m tests.evidence_acceptance.review_directed_advice`。留出题冻结文件 SHA-256 为 `70ecafd07e492bf51ca5205194c437b57cfca4a00d6add68f2db70d77b998d82`。本机 `src/data/advice-speech-direction` 保留冻结依据、四条渲染结果与汇总。
 
 本机桌面包已更新。新包的 21 个内嵌后端模块和出处索引与验收源码一致，执行文件 SHA-256 为 `33a33bbf8edfe357a62436c54a5ccc310e13205d4367cbde59efa633d0eb5a98`。旧包保存在 `desktop-dist/Yinde-backup-200106f-before-directed-advice`。执行文件校验收据保存在本机 `src/data/advice-speech-direction/desktop-receipt.json`。
+
+### 败后时间换说法的回放
+
+`aa1f825` 首次实搜“刘备兵败之后，田丰为什么劝袁绍别急着进兵？”时，片段 `73733` 的战前进言排第 1，片段 `73734` 的战后进言排第 2，两张卡都缺少劝谏理由。旧问句识别要求急着攻打的对象出现在问句里，时间核验也要求问句点名胜方。
+
+修复后，句末“别急着进兵”可独立表示缓进建议。对只说“某人兵败／战败后”的问句，判读仍要求同一次劝谏的引语明确记载“某人既破败方”，并在相邻的引语前正文核对原文所写的胜方。假设、正在交战、胜方缺少正文依据时保留未确认。
+
+固定首次搜索的候选及顺序后，战后片段的卡片确认田丰劝袁绍，并分别链接“曹操既破劉備”和“曹操既破劉備，則許下非復空虛”所在的理由原文。战前片段未被确认；对调双方时，战后卡片指出角色对调。另换胜方或败方，两条劝谏都不确认。链接已按固定版本和字位核对。此次结果覆盖同材料上的判读，修复后的实际召回、排序和桌面包仍待验收。 [《后汉书》卷七十四上](https://zh.wikisource.org/w/index.php?oldid=2410960)
+
+从 `src` 执行 `python -B -X utf8 -m tests.evidence_acceptance.review_directed_advice --time-paraphrase`，使用本机 `src/data/advice-speech-direction/time-paraphrase-aa1f825` 中的首次响应、冻结判据及回放记录。

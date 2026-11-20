@@ -46,7 +46,10 @@ _DELAY_REASON = re.compile(r'(?P<reason>[^。！？；\n]{4,70}?(?:非利|未可
 _DIRECTED_ADVICE = r'(?:谏|说)[\u3400-\u9fff]{0,5}曰'
 _DELAY_CAUTION = re.compile(r'(?:未可|不可)轻(?:也|进)?|逼之非利')
 _DELAY_ALTERNATIVE = re.compile(r'(?<=[。；])\s*(?:今)?不如')
-_AFTER_DEFEAT = re.compile(r'(?P<winner>[\u3400-\u9fff]{2,5}?)打败(?P<loser>[\u3400-\u9fff]{2,5})后')
+_AFTER_DEFEAT = re.compile(
+    r'(?:(?P<winner>[\u3400-\u9fff]{2,5}?)打败(?P<loser>[\u3400-\u9fff]{2,5})'
+    r'|(?P<defeated>[\u3400-\u9fff]{2,5}?)(?:兵败|战败))(?:之后|后)'
+)
 _CAO_WEI_OPENING = re.compile(r'^\s*(?:太祖)?(?P<title>[\u3400-\u9fff])皇帝[^。]{0,20}?'
                              r'(?:姓(?P<surname>[\u3400-\u9fff])，)?讳(?P<name>[\u3400-\u9fff]{1,3})[，,]')
 _CEREMONY_PROPOSAL = re.compile(r'(?:群臣|百官|公卿大臣)(?:上言|上表|并)?请(?:封禅|封[泰太]山)')
@@ -466,6 +469,22 @@ def directed_delay(sources, frame, chunk, window, text, prose):
     return None
 
 
+def _defeat_anchor(background, body, preceding):
+    loser = re.escape(background['loser'] or background['defeated'])
+    if winner := background['winner']:
+        return re.match(rf'\s*(?P<event>{re.escape(winner)}(?:既破|击败|大破){loser})(?=[，,。；])', body)
+
+    # A question can omit the winner. Require an explicit completed defeat
+    # and a matching actor in the nearby narrative before using the quote.
+    anchor = re.match(
+        rf'\s*(?P<event>(?P<actor>(?![若如苟使倘假纵待])[\u3400-\u9fff]{{2,5}}?)既破{loser})(?=[，,。；])',
+        body,
+    )
+    if anchor and re.search(rf'(?:^|[。！？；，,\n])\s*{re.escape(anchor["actor"])}', preceding):
+        return anchor
+    return None
+
+
 def directed_delay_turn(frame, chunk, window, text, prose, intro, begin, end, background):
     recipient = re.escape(intro['recipient'])
     proposal = re.compile(
@@ -493,8 +512,8 @@ def directed_delay_turn(frame, chunk, window, text, prose, intro, begin, end, ba
         return None
     time_refs = []
     if background:
-        winner, loser = (re.escape(background[role]) for role in ('winner', 'loser'))
-        anchor = re.match(rf'\s*(?P<event>{winner}(?:既破|击败|大破){loser})(?=[，,。；])', body)
+        intro_start = intro.start('intro')
+        anchor = _defeat_anchor(background, body, prose[:intro_start])
         if anchor is None:
             return None
         time_refs.append(('战事先后依据', source_ref(window, begin + 1 + anchor.start('event'),

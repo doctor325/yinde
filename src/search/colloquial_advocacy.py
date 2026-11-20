@@ -22,7 +22,7 @@ _BOTH_SIDES = re.compile(
 )
 _DELAY_ATTACK = re.compile(
     rf'劝(?P<recipient>{_HAN}{{2,8}}?)(?:别急着|别急于|不要急于|不要贸然|先别)'
-    rf'{_ATTACK}(?P<target>{_HAN}{{2,10}})'
+    rf'(?:{_ATTACK}(?P<target>{_HAN}{{2,10}})|进兵|出兵|派兵|进攻|动兵)'
 )
 _WITHDRAWAL_QUESTION = re.compile(
     rf'(?P<place>{_HAN}{{2,8}}?)(?:当时|那时)?(?:为什么|为何)(?:不能|不宜|不该)'
