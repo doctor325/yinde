@@ -45,7 +45,7 @@ const context = vm.createContext({
       if (requestPath !== undefined) {
         assert.equal(requestPaths.length, 1, 'Only one expansion request is allowed');
         assert.equal(searchResult.mode, 'keyword');
-        assert.equal(searchResult.total, 0);
+        assert.equal(searchResult.total, searchResult.hits.length);
         assert.equal(url.searchParams.get('strategy'), 'evidence');
       }
       requestPath = path;
@@ -81,23 +81,26 @@ const resultNode = nodes['#punctuatedSearchResult'];
 const allowedModes = acceptKeyword ? ['keyword', 'evidence'] : ['evidence'];
 assert.ok(allowedModes.includes(searchResult?.mode), searchResult?.error || resultNode.textContent);
 assert.equal(searchResult.query, query);
-const rendered = [...resultNode.innerHTML.matchAll(/· 片段 ([\d,]+)<\/p>/g)]
+const [primaryHtml, literalHtml = ''] = resultNode.innerHTML.split('<details class="literal-search-matches">');
+const fragmentIds = html => [...html.matchAll(/· 片段 ([\d,]+)<\/p>/g)]
   .map(match => Number(match[1].replaceAll(',', '')));
+const rendered = fragmentIds(primaryHtml);
+const literalRendered = fragmentIds(literalHtml);
 assert.deepEqual(rendered, searchResult.hits.map(hit => hit.chunk.chunk_id));
-const evidenceLinks = [...resultNode.innerHTML.matchAll(/<dl class="dissuasion-evidence">([^]*?)<\/dl>/g)]
+const evidenceLinks = [...primaryHtml.matchAll(/<dl class="dissuasion-evidence">([^]*?)<\/dl>/g)]
   .map(group => [...group[1].matchAll(/<dt>([^<]+)<\/dt><dd>([^]*?) · <a href="([^"]+)">定位原文<\/a>/g)]
     .map(([, label, quote, href]) => ({ label, quote, href })));
-const polityCards = [...resultNode.innerHTML.matchAll(/<section class="polity-evidence" data-status="([^"]+)">([^]*?)<\/section>/g)]
+const polityCards = [...primaryHtml.matchAll(/<section class="polity-evidence" data-status="([^"]+)">([^]*?)<\/section>/g)]
   .map(([, status, content]) => ({
     status,
     links: [...content.matchAll(/<dt>([^<]+)<\/dt><dd>[^]*? · <a href="([^"]+)">定位原文<\/a>/g)]
       .map(([, label, href]) => ({ label, href })),
   }));
-const hitCards = [...resultNode.innerHTML.matchAll(/<article class="card punctuated-search-hit">([^]*?)<\/article>/g)]
+const hitCards = [...primaryHtml.matchAll(/<article class="card punctuated-search-hit">([^]*?)<\/article>/g)]
   .map(([, content]) => ({
     evidenceStatus: content.match(/<section class="polity-evidence" data-status="([^"]+)">/)?.[1] ?? null,
     evidenceLinks: [...content.matchAll(/<dt>([^<]+)<\/dt><dd>([^]*?) · <a href="([^"]+)">定位原文<\/a>/g)]
       .map(([, label, quote, href]) => ({ label, quote, href })),
   }));
 assert.equal(hitCards.length, rendered.length);
-console.log(JSON.stringify({ requestPath, requestPaths, form_ms, rendered, evidenceLinks, polityCards, hitCards, result: searchResult }));
+console.log(JSON.stringify({ requestPath, requestPaths, form_ms, rendered, literalRendered, evidenceLinks, polityCards, hitCards, result: searchResult }));

@@ -1,14 +1,50 @@
 /* Primary source edition search. Older witnesses remain a separate route. */
+function searchSimplified(text) {
+  return window.YindeEngine?.zh?.toSimplified ? window.YindeEngine.zh.toSimplified(text) : text;
+}
+
 function unifiedSearchStrategy(query, legacy) {
   if (['keyword','expanded','evidence','relation','hybrid','semantic'].includes(legacy)) return legacy;
-  const text=window.YindeEngine?.zh?.toSimplified ? window.YindeEngine.zh.toSimplified(query) : query;
+  const text=searchSimplified(query);
   const question = /[？?]\s*$|何时|何年|何月|何日|何地|何处|为何|何故|如何|何人|何事|什么|怎么|怎样|是否|多少|几[年月日次岁]|哪里|哪儿|哪[年月日位个次些]|谁|吗\s*$/.test(text);
   return question ? 'evidence' : 'keyword';
 }
 
-function canExpandEmptyPhrase(query, explicitStrategy, page, result) {
-  return !explicitStrategy && page===1 && result.mode==='keyword' && result.book_available
-    && result.total===0 && !result.biographies?.length && /^\p{Script=Han}{6,48}$/u.test(query);
+function phraseOnlyInQuotes(phrase, source) {
+  const closing={'「':'」','『':'』','“':'”'};
+  const quotes=[];
+  const positions=[];
+  let outer=0, normalized='';
+  for (const char of searchSimplified(source)) {
+    if (closing[char]) {
+      if (!quotes.length) outer+=1;
+      quotes.push(closing[char]);
+    } else if ('」』”'.includes(char)) {
+      if (quotes.pop()!==char) return false;
+    } else if (/\p{L}|\p{N}/u.test(char)) {
+      normalized+=char;
+      for (let i=0;i<char.length;i++) positions.push(quotes.length?outer:0);
+    }
+  }
+  // A passage may end in mid-speech. Only trust an opening mark we saw in the passage.
+  let found=false;
+  for (let start=normalized.indexOf(phrase);start>=0;start=normalized.indexOf(phrase,start+1)) {
+    const inQuote=positions[start];
+    if (!inQuote || positions.slice(start,start+phrase.length).some(pos=>pos!==inQuote)) return false;
+    found=true;
+  }
+  return found;
+}
+
+function phraseExpansion(query, explicitStrategy, page, result) {
+  if (explicitStrategy || page!==1 || result.mode!=='keyword' || !result.book_available
+      || result.biographies?.length || !/^\p{Script=Han}{6,48}$/u.test(query)) return '';
+  if (result.total===0) return 'empty';
+  const hits=result.hits;
+  const phrase=searchSimplified(query);
+  if (hits.length && hits.length===result.total &&
+      hits.every(hit=>phraseOnlyInQuotes(phrase,hit.chunk.text_orig))) return 'quoted';
+  return '';
 }
 
 async function punctuatedSearchView(params, revision, semantic = false) {
@@ -55,12 +91,23 @@ async function punctuatedSearchView(params, revision, semantic = false) {
     try {
       let result=await api('/api/punctuated/search?'+qs(args),{signal:controller.signal});
       if (!current()) return;
-      if (canExpandEmptyPhrase(query,params.strategy,page,result)) {
-        box.textContent='未找到直接匹配，正在查找相关史料…';
-        result=await api('/api/punctuated/search?'+qs({...args,strategy:'evidence'}),{signal:controller.signal});
-        if (!current()) return;
+      const expansion=phraseExpansion(query,params.strategy,page,result);
+      let literalResults='', expansionNote='';
+      if (expansion) {
+        box.textContent=expansion==='quoted'?'字面匹配均在引语中，正在查找其他记载…':'未找到直接匹配，正在查找相关史料…';
+        try {
+          const supplemental=await api('/api/punctuated/search?'+qs({...args,strategy:'evidence'}),{signal:controller.signal});
+          if (!current()) return;
+          if (supplemental.hits.length) {
+            if (expansion==='quoted') literalResults='<details class="literal-search-matches"><summary>查看字面匹配</summary>'+punctuatedSearchResults(result)+'</details>';
+            result=supplemental;
+          }
+        } catch (error) {
+          if (!current() || error.name==='AbortError') return;
+          expansionNote='<p class="quiet">相关史料补查暂不可用。</p>';
+        }
       }
-      box.innerHTML=punctuatedSearchResults(result);
+      box.innerHTML=punctuatedSearchResults(result)+expansionNote+literalResults;
       bindPunctuatedCitations(box);
       for (const button of box.querySelectorAll('[data-search-page]')) button.addEventListener('click',()=>search(Number(button.dataset.searchPage)));
     } catch (error) {
