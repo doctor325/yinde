@@ -6,6 +6,11 @@ function unifiedSearchStrategy(query, legacy) {
   return question ? 'evidence' : 'keyword';
 }
 
+function canExpandEmptyPhrase(query, explicitStrategy, page, result) {
+  return !explicitStrategy && page===1 && result.mode==='keyword' && result.book_available
+    && result.total===0 && !result.biographies?.length && /^\p{Script=Han}{6,48}$/u.test(query);
+}
+
 async function punctuatedSearchView(params, revision, semantic = false) {
   if (params.source === 'original' || params.edition) return false;
   const boot = window.YindeBoot ? await window.YindeBoot : {mode:'api'};
@@ -48,8 +53,13 @@ async function punctuatedSearchView(params, revision, semantic = false) {
     box.textContent=strategy==='evidence'?'正在查找史料并比较上下文，首次加载本地模型可能较慢…':
       strategy==='keyword'?'正在查找史料…':'正在寻找相关史料，首次加载本地模型可能较慢…';
     try {
-      const result=await api('/api/punctuated/search?'+qs(args),{signal:controller.signal});
+      let result=await api('/api/punctuated/search?'+qs(args),{signal:controller.signal});
       if (!current()) return;
+      if (canExpandEmptyPhrase(query,params.strategy,page,result)) {
+        box.textContent='未找到直接匹配，正在查找相关史料…';
+        result=await api('/api/punctuated/search?'+qs({...args,strategy:'evidence'}),{signal:controller.signal});
+        if (!current()) return;
+      }
       box.innerHTML=punctuatedSearchResults(result);
       bindPunctuatedCitations(box);
       for (const button of box.querySelectorAll('[data-search-page]')) button.addEventListener('click',()=>search(Number(button.dataset.searchPage)));

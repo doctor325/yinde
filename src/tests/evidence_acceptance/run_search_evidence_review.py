@@ -91,10 +91,10 @@ def read_holdout(index, fixture=HOLDOUT_FIXTURE):
     return cases, {fixture.name: hashlib.sha256(raw).hexdigest()}
 
 
-def submit_form(entry, query, *, replay=None):
+def submit_form(entry, query, *, replay=None, accept_keyword=False):
     process = subprocess.run(
         ["node", str(Path(__file__).with_name("submit_search.mjs"))],
-        input=json.dumps(dict(entry=entry, query=query, replay=replay)),
+        input=json.dumps(dict(entry=entry, query=query, replay=replay, acceptKeyword=accept_keyword)),
         capture_output=True, encoding="utf-8", timeout=240, check=False,
     )
     if process.returncode:

@@ -4,7 +4,7 @@ import vm from 'node:vm';
 
 // Use the same form, routing and renderer as the desktop. Replace the DOM
 // and wire fetch to the real authenticated loopback API.
-const { entry, query, replay } = JSON.parse(readFileSync(0, 'utf8'));
+const { entry, query, replay, acceptKeyword = false } = JSON.parse(readFileSync(0, 'utf8'));
 let origin, cookie;
 if (!replay) {
   origin = new URL(entry).origin;
@@ -29,6 +29,7 @@ for (const id of ['view', 'punctuatedSearchForm', 'punctuatedSearchQuery',
 }
 let searchResult;
 let requestPath;
+const requestPaths = [];
 const location = { hash: '#/search' };
 const context = vm.createContext({
   console, URL, URLSearchParams, AbortController, DOMException, location,
@@ -41,8 +42,14 @@ const context = vm.createContext({
     assert.equal(url.origin, origin);
     const response = await fetch(url, { ...options, headers: { Cookie: cookie }, redirect: 'error' });
     if (url.pathname === '/api/punctuated/search') {
-      assert.equal(requestPath, undefined, 'Each case submits exactly once');
+      if (requestPath !== undefined) {
+        assert.equal(requestPaths.length, 1, 'Only one expansion request is allowed');
+        assert.equal(searchResult.mode, 'keyword');
+        assert.equal(searchResult.total, 0);
+        assert.equal(url.searchParams.get('strategy'), 'evidence');
+      }
       requestPath = path;
+      requestPaths.push(path);
       searchResult = await response.clone().json();
     }
     return response;
@@ -71,7 +78,8 @@ if (replay) {
 }
 const form_ms = performance.now() - started;
 const resultNode = nodes['#punctuatedSearchResult'];
-assert.equal(searchResult?.mode, 'evidence', searchResult?.error || resultNode.textContent);
+const allowedModes = acceptKeyword ? ['keyword', 'evidence'] : ['evidence'];
+assert.ok(allowedModes.includes(searchResult?.mode), searchResult?.error || resultNode.textContent);
 assert.equal(searchResult.query, query);
 const rendered = [...resultNode.innerHTML.matchAll(/· 片段 ([\d,]+)<\/p>/g)]
   .map(match => Number(match[1].replaceAll(',', '')));
@@ -92,4 +100,4 @@ const hitCards = [...resultNode.innerHTML.matchAll(/<article class="card punctua
       .map(([, label, quote, href]) => ({ label, quote, href })),
   }));
 assert.equal(hitCards.length, rendered.length);
-console.log(JSON.stringify({ requestPath, form_ms, rendered, evidenceLinks, polityCards, hitCards, result: searchResult }));
+console.log(JSON.stringify({ requestPath, requestPaths, form_ms, rendered, evidenceLinks, polityCards, hitCards, result: searchResult }));
