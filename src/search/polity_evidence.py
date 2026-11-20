@@ -43,6 +43,10 @@ _ADVANCE = re.compile(
     r'(?P<intro>(?P<speaker>[\u3400-\u9fff]{2,5}?)(?:固|苦|进)?谏曰)[：:]\s*$'
 )
 _DELAY_REASON = re.compile(r'(?P<reason>[^。！？；\n]{4,70}?(?:非利|未可轻进|不可轻进))[。；]\s*不如[^。！？；\n]+')
+_DIRECTED_ADVICE = r'(?:谏|说)[\u3400-\u9fff]{0,5}曰'
+_DELAY_CAUTION = re.compile(r'(?:未可|不可)轻(?:也|进)?|逼之非利')
+_DELAY_ALTERNATIVE = re.compile(r'(?<=[。；])\s*(?:今)?不如')
+_AFTER_DEFEAT = re.compile(r'(?P<winner>[\u3400-\u9fff]{2,5}?)打败(?P<loser>[\u3400-\u9fff]{2,5})后')
 _CAO_WEI_OPENING = re.compile(r'^\s*(?:太祖)?(?P<title>[\u3400-\u9fff])皇帝[^。]{0,20}?'
                              r'(?:姓(?P<surname>[\u3400-\u9fff])，)?讳(?P<name>[\u3400-\u9fff]{1,3})[，,]')
 _CEREMONY_PROPOSAL = re.compile(r'(?:群臣|百官|公卿大臣)(?:上言|上表|并)?请(?:封禅|封[泰太]山)')
@@ -398,6 +402,117 @@ def complete_speeches(text):
         return
 
 
+def participant_reference(sources, window, prose, name, end):
+    """Find a source span that grounds a shortened participant name."""
+    _, blocks = sources.page(window['page_id'])
+    first = window['parts'][0]['block_index']
+    heading = next((index for index in range(first, -1, -1) if blocks[index]['kind'] == 'heading'), None)
+    if heading is not None:
+        original = blocks[heading]['text']
+        normalized = zh.to_simplified(original)
+        if len(normalized) == len(original) and name in re.split(r'[、，,\s]+', normalized.strip()):
+            start = normalized.index(name)
+            return source_ref(dict(window, text_orig=original, parts=[
+                dict(block_index=heading, start=0, end=len(original))]), start, start + len(name))
+    start = prose.rfind(name, 0, end)
+    if start >= 0:
+        return source_ref(window, start, start + len(name))
+    return None
+
+
+def directed_delay(sources, frame, chunk, window, text, prose):
+    names = (frame['person'], frame['recipient'])
+    if names[0] == names[1]:
+        return None
+    forms = {}
+    for name in names:
+        for form in {name, name[-2:] if len(name) > 2 else name[-1:]}:
+            forms.setdefault(form, set()).add(name)
+    unambiguous = {form: next(iter(owners)) for form, owners in forms.items() if len(owners) == 1}
+    names_pattern = '|'.join(re.escape(form) for form in sorted(unambiguous, key=lambda form: (-len(form), form)))
+    introduction = re.compile(
+        rf'(?:^|(?<=[。！？；，,\n]))\s*(?P<intro>(?P<speaker>{names_pattern})'
+        rf'(?:以[^。！？；，,\n]{{1,24}}[，,](?:不宜|不可|未可)[^。！？；，,\n]{{1,14}}[，,])?'
+        rf'(?:固|进)?(?:谏|说)(?P<recipient>{names_pattern})曰)[：:]\s*$'
+    )
+    background = _AFTER_DEFEAT.fullmatch(frame['background'] or '')
+    if frame['background'] and not background:
+        return None
+    for begin, end in complete_speeches(text):
+        intro = introduction.search(prose, max(0, begin - 85), begin)
+        if not intro:
+            continue
+        speaker, recipient = (unambiguous[intro[role]] for role in ('speaker', 'recipient'))
+        if speaker == recipient:
+            continue
+        refs = []
+        for label, name, role in (('劝谏人称谓依据', speaker, 'speaker'),
+                                  ('所劝对象称谓依据', recipient, 'recipient')):
+            spelling = intro[role]
+            if spelling != name:
+                ref = participant_reference(sources, window, prose, name, intro.start('intro'))
+                if ref is None:
+                    break
+                refs.append((label, ref))
+        else:
+            decision = directed_delay_turn(frame, chunk, window, text, prose, intro, begin, end, background)
+            if decision is None:
+                continue
+            statement = f'原文记载{speaker}劝{recipient}暂缓进兵。'
+            if speaker != frame['person']:
+                return result('different_roles', decision + refs,
+                              message=statement + '问句中的发言人与受议者对调了。')
+            return result('supported', decision + refs, message=statement)
+    return None
+
+
+def directed_delay_turn(frame, chunk, window, text, prose, intro, begin, end, background):
+    recipient = re.escape(intro['recipient'])
+    proposal = re.compile(
+        rf'(?:^|(?<=[。！？；，,\n]))\s*(?P<action>{recipient}'
+        rf'(?:[于於]是|乃|遂|欲|将)?(?:进军|进兵|断路|进逼|出兵)?'
+        rf'(?:攻|伐|征|讨|击|袭|进逼)[\u3400-\u9fff]{{1,12}})[。；，,]\s*$'
+    ).search(prose, max(0, intro.start() - 75), intro.start('intro'))
+    reply = re.compile(rf'\s*{recipient}(?:不从|不纳|弗从|乃听[^。！？；\n]{{0,10}})(?=[。；，])').match(prose, end + 1)
+    if proposal is None or reply is None:
+        return None
+    action_start = max(prose.rfind(mark, max(0, proposal.start() - 35), proposal.start('action'))
+                       for mark in '。！？；\n') + 1
+    if action_start == 0:
+        action_start = proposal.start('action')
+    while text[action_start].isspace():
+        action_start += 1
+    turn = source_ref(window, action_start, end + 1)
+    if not overlaps(ranges(chunk), turn['ranges']):
+        return None
+    body = event_attachment.narrative(text[begin + 1:end])
+    caution = _DELAY_CAUTION.search(body, 0, min(len(body), 105))
+    if caution is None or not _DELAY_ALTERNATIVE.search(body, caution.end(), caution.end() + 85):
+        return None
+    if frame['target'] and frame['target'] not in f'{proposal["action"]}{body[:caution.end()]}':
+        return None
+    time_refs = []
+    if background:
+        winner, loser = (re.escape(background[role]) for role in ('winner', 'loser'))
+        anchor = re.match(rf'\s*(?P<event>{winner}(?:既破|击败|大破){loser})(?=[，,。；])', body)
+        if anchor is None:
+            return None
+        time_refs.append(('战事先后依据', source_ref(window, begin + 1 + anchor.start('event'),
+                                                  begin + 1 + anchor.end('event'))))
+    reason_end = caution.end()
+    if body[reason_end:reason_end + 1] in ('。', '；', '！', '？'):
+        reason_end += 1
+    return [
+        ('劝谏人', source_ref(window, *intro.span('speaker'))),
+        ('所劝对象', source_ref(window, *intro.span('recipient'))),
+        ('所议行动', source_ref(window, action_start, proposal.end('action') + 1)),
+        ('劝谏理由', source_ref(window, begin + 1, begin + 1 + reason_end)),
+        ('完整引语', source_ref(window, begin, end + 1)),
+        ('受议者回应', source_ref(window, reply.start(), reply.end())),
+        *time_refs,
+    ]
+
+
 def delayed_attack(sources, frame, chunk):
     try:
         context = evidence_context.assemble(sources.library, chunk, max_chars=1200)
@@ -410,6 +525,10 @@ def delayed_attack(sources, frame, chunk):
     if len(text) != len(window['text_orig']):
         return None
     prose = event_attachment.narrative(text)
+    if evidence := directed_delay(sources, frame, chunk, window, text, prose):
+        return evidence
+    if frame['background']:
+        return None
     person, recipient, target = (frame[key] for key in ('person', 'recipient', 'target'))
     for begin, end in complete_speeches(text):
         debate = _ADVANCE.search(prose, max(0, begin - 85), begin)
@@ -625,8 +744,7 @@ def review_natural_hits(index, frame, hits):
     elif kind == 'delay_attack':
         candidates = [
             hit for hit in hits if hit['chunk']['layer'] == 'body'
-            and any((not frame['target'] or frame['target'] in zh.to_simplified(part['text_orig']))
-                    and '谏曰' in zh.to_simplified(part['text_orig'])
+            and any(re.search(_DIRECTED_ADVICE, zh.to_simplified(part['text_orig']))
                     for part in [hit['chunk'], *hit['context_chunks']])
         ]
         reader = delayed_attack
