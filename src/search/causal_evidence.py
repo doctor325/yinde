@@ -1,4 +1,4 @@
-"""Source attribution and a closed, explicit bereavement/resignation frame.
+"""Source attribution and bound event/reason pairs.
 
 These labels describe what a source says, not whether its explanation is true.
 Source classifications never supply a missing subject or promote a candidate.
@@ -6,6 +6,67 @@ Source classifications never supply a missing subject or promote a candidate.
 import re
 from search import zh
 from search.relation_context import assess_context
+
+
+def _biography(chunk, name):
+    return (chunk.get('layer') == 'body' and chunk.get('revision_id') and chunk.get('source_sha256')
+            and zh.to_simplified(chunk.get('heading', '')).strip() == name)
+
+
+def _narration_at(text, offset):
+    return all(text.rfind(a, 0, offset) <= text.rfind(b, 0, offset)
+               for a, b in [('「', '」'), ('『', '』'), ('“', '”')])
+
+
+def _family_departure(chunk, text, name):
+    if not _biography(chunk, name):
+        return []
+    actor = '|'.join(map(re.escape, dict.fromkeys((name, name[1:], name[-1:]))))
+    pattern = re.compile(
+        rf'(?:^|[。；！？\n])\s*(?P<record>(?:得监|出为|除|拜)[^，。；「」\n]{{2,12}}[，。]'
+        rf'(?P<reason>(?:父母|二亲|其亲)(?:又)?不(?:欲|愿)(?:其)?行)[，。]'
+        rf'(?P<actor>{actor})(?:即|遂|乃)(?P<event>解官归养|去官归养))(?=[。；，]|$)'
+    )
+    source = chunk['text_orig']
+    results = []
+    for m in pattern.finditer(text):
+        start, end = m.span('record')
+        paragraph = text[:start].rpartition('\n\n')[2]
+        if not _narration_at(text, start) or (m['actor'] != name and name not in paragraph):
+            continue
+        results.append(dict(start=start, end=end, quote=source[start:end], subject_span=list(m.span('actor')),
+            reason_span=list(m.span('reason')), event_span=list(m.span('event')), event_type='resignation',
+            attribution='narrator_explanation', subject_basis='local_appointment_and_departure',
+            explanation='史料将归养离任与此相连：'+source[slice(*m.span('reason'))],
+            qualification='', relation_verified=False))
+    return results
+
+
+def _demotion_observations(chunk, text, name):
+    if not _biography(chunk, name):
+        return []
+    actor = '|'.join(map(re.escape, dict.fromkeys((name, name[1:], name[-1:]))))
+    pattern = re.compile(
+        rf'(?:^|[。；！？\n」])\s*(?P<record>(?P<speaker>上|帝)曰：「'
+        rf'(?P<subject>{actor})(?:言|上疏言)[^「」\n]{{2,55}}。'
+        r'(?P<reason>至谓[^「」！？\n]{2,60}?)[，,]何言[^「」！？\n]{1,18}[！？]'
+        rf'(?P=subject)为人臣[^「」\n]{{2,35}}不可赦[。！？]?」'
+        rf'(?:[。；，]?[于於]是[^。；「」\n]{{0,36}}?以罪(?P=subject)太重[，,]因事言之[，,])?'
+        r'[。；，]?(?P<event>乃贬为[^，。；「」\n]{2,12})(?=[。；，]|$))'
+    )
+    source = chunk['text_orig']
+    results = []
+    for m in pattern.finditer(text):
+        start, end = m.span('record')
+        if not _narration_at(text, start) or (m['subject'] != name and name not in text[max(0, start - 120):start]):
+            continue
+        value = dict(start=start, end=end, quote=source[start:end], subject_span=list(m.span('subject')),
+            speaker_span=list(m.span('speaker')), predicate_span=list(m.span('event')),
+            reason_span=list(m.span('reason')), subject_basis='source_local_demotion',
+            source_attribution='speaker_explanation', polarity='positive_syntax', qualifications=[],
+            explanation='原文记载君主在贬谪前指责：'+source[slice(*m.span('reason'))], relation_verified=False)
+        results.extend(dict(value, kind=kind) for kind in ('cause', 'demotion'))
+    return results
 
 
 def source_labels(chunk):
@@ -79,7 +140,7 @@ def event_explanations(chunk, plan):
             explanation='史书记载其离职原因为：'+source[m.start('reason'):m.end('reason')],
             qualification='称病是原文记载的对外理由，未核实真实病情。' if '称病' in m['event'] else '',
             relation_verified=False))
-    return reports
+    return reports + _family_departure(chunk, text, name)
 
 
 def attributed_observations(chunk, plan):
@@ -96,12 +157,14 @@ def attributed_observations(chunk, plan):
     results=[]
     if kinds=={'cause','resignation'} and plan.get('answer_slots')==['reason']:
         for report in event_explanations(chunk,plan):
-            if not report['qualification']:
+            if not report['qualification'] and report['subject_basis'] != 'local_appointment_and_departure':
                 continue
             value={**report,'polarity':'positive_syntax','qualifications':[],
                    'predicate_span':report['event_span'],'source_attribution':report['attribution']}
             results.extend(dict(value,kind=kind) for kind in ('resignation','cause'))
         return results
+    if kinds=={'cause','demotion'} and plan.get('answer_slots')==['reason']:
+        return _demotion_observations(chunk, text, name)
     if kinds=={'cause','policy'} and plan.get('answer_slots')==['outcome']:
         pattern=(r'(?:^|[。\n])\s*(?:太史公|史臣)曰：(?:[^「」\n]{0,160}?[，。；](?:而)?)?'
                  r'(?P<subject>'+full+r')(?P<predicate>(?:刻削|削)诸侯)，遂使'

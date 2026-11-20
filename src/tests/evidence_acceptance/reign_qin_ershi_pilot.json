@@ -1,0 +1,23 @@
+{
+  "period_id": "moe-av8343",
+  "expected_ruler": "二世",
+  "reign_years_as_source": "B.C.209 B.C.207",
+  "seed": 20261021,
+  "origin_path": "shiji/KR2a0001_100.txt",
+  "sha256": "b2c951b0613186eca4026c0f91d1dc913046313e778a2af368fd32fd63545991",
+  "chapter": "秦始皇本紀",
+  "period_bounds": [
+    {"row": 9554, "quote": "二世皇帝元年"},
+    {"row": 10161, "quote": "二世自殺"}
+  ],
+  "cases": [
+    {"year_row": 9554, "year": "二世皇帝元年", "row": 9751, "quote": "復作阿房宮", "content": "秦二世复建阿房宫", "query": "秦二世复建阿房宫"},
+    {"year_row": 9554, "year": "二世皇帝元年", "row": 9778, "quote": "勝自立為楚王", "content": "陈胜自立楚王", "query": "陈胜自立为楚王"},
+    {"year_row": 9554, "year": "二世皇帝元年", "row": 9815, "quote": "項梁舉兵會稽郡", "content": "项梁起兵会稽", "query": "项梁在会稽郡起兵"},
+    {"year_row": 9820, "year": "二年冬", "row": 9840, "quote": "遂殺章曹陽", "content": "周章败死曹阳", "query": "周章在曹阳被杀"},
+    {"year_row": 9820, "year": "二年冬", "row": 9847, "quote": "破項梁定陶", "content": "章邯击破项梁于定陶", "query": "章邯在定陶击败项梁"},
+    {"year_row": 9967, "year": "三年", "row": 9973, "quote": "趙高為丞相", "content": "赵高当丞相", "query": "赵高担任丞相"},
+    {"year_row": 9967, "year": "三年", "row": 10000, "quote": "虜王離", "content": "项羽破秦军俘王离", "query": "项羽俘虏秦将王离"},
+    {"year_row": 9967, "year": "三年", "row": 10015, "quote": "謂鹿為馬", "content": "赵高献鹿称马", "query": "赵高指鹿为马"}
+  ]
+}
