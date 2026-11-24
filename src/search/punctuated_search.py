@@ -210,6 +210,20 @@ def fused(dense, batches, limit=20):
     return selected
 
 
+def _event_location_probe(query, raw):
+    """Form a conjunction for a short military event with an explicit location."""
+    if not raw['hits'] or raw['total'] != len(raw['hits']):
+        return None
+    match = re.fullmatch(
+        r'[\u3400-\u9fff]{1,6}?[伐攻克破败袭围]'
+        r'(?P<object>[\u3400-\u9fff]{1,4})[于於](?P<place>[\u3400-\u9fff]{1,5})',
+        zh.to_simplified(query.strip()),
+    )
+    if not match or match['object'] == match['place']:
+        return None
+    return f"{match['object']} {match['place']}"
+
+
 def run(query, book=None, mode='keyword', page=1, cur=None):
     tokens(query)
     if mode not in ('keyword','semantic','hybrid','expanded','relation','evidence'):
@@ -226,6 +240,24 @@ def run(query, book=None, mode='keyword', page=1, cur=None):
         timings['literal_ms'] = round((time.perf_counter()-phase)*1000,2)
         plan, probes, dense = None, [], []
         batches = [raw['hits']] if mode != 'semantic' else []
+        location_probe = _event_location_probe(query, raw) if mode in ('keyword', 'evidence') else None
+        annotation_only = location_probe and all(h['chunk']['layer'] == 'annotation' for h in raw['hits'])
+        if mode == 'evidence' and location_probe:
+            from search.evidence_pipeline import _quoted_reference
+            phrase = normalize(query)
+            if annotation_only or all(h['chunk']['layer'] == 'annotation'
+                                      or _quoted_reference(phrase, h['chunk']['text_orig']) for h in raw['hits']):
+                probe_started = time.perf_counter()
+                found = lexical(conn, location_probe, book, page_size=20)
+                literal_ids = {h['chunk']['chunk_id'] for h in raw['hits']}
+                # Some editions store their collation notes as body blocks.
+                additional = [h for h in found['hits']
+                              if h['chunk']['layer'] == 'body'
+                              and normalize(h['chunk'].get('heading', '')) != '校勘记'
+                              and h['chunk']['chunk_id'] not in literal_ids][:5]
+                batches.append(additional)
+                probes.append(dict(query=location_probe, total=found['total'], sampled=len(additional),
+                                   elapsed_ms=round((time.perf_counter()-probe_started)*1000,2)))
         if mode in ('expanded','relation','evidence') and not raw['total'] and raw['book_available']:
             from search.semantic_candidates import plan_query
             # Request-local memoization only: repeated grounding checks share
@@ -274,6 +306,8 @@ def run(query, book=None, mode='keyword', page=1, cur=None):
             result['query_plan'] = evidence['query_plan']
             result['evidence_pipeline'] = evidence['pipeline']
             result['audited_candidate_ids'] = evidence['candidate_ids']
+        if mode == 'keyword' and annotation_only:
+            result['reference_expansion'] = True
         if experiment is not None:
             result['baseline_query_plan'] = plan
             result['query_plan'] = experiment['query_plan']

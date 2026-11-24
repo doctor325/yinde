@@ -40,6 +40,7 @@ function phraseExpansion(query, explicitStrategy, page, result) {
   if (explicitStrategy || page!==1 || result.mode!=='keyword' || !result.book_available
       || result.biographies?.length || !/^\p{Script=Han}{6,48}$/u.test(query)) return '';
   if (result.total===0) return 'empty';
+  if (result.reference_expansion) return 'annotation';
   const hits=result.hits;
   const phrase=searchSimplified(query);
   if (hits.length && hits.length===result.total &&
@@ -94,12 +95,13 @@ async function punctuatedSearchView(params, revision, semantic = false) {
       const expansion=phraseExpansion(query,params.strategy,page,result);
       let literalResults='', expansionNote='';
       if (expansion) {
-        box.textContent=expansion==='quoted'?'字面匹配均在引语中，正在查找其他记载…':'未找到直接匹配，正在查找相关史料…';
+        box.textContent=expansion==='empty'?'未找到直接匹配，正在查找相关史料…':
+          '字面匹配来自引语或注释，正在查找其他记载…';
         try {
           const supplemental=await api('/api/punctuated/search?'+qs({...args,strategy:'evidence'}),{signal:controller.signal});
           if (!current()) return;
           if (supplemental.hits.length) {
-            if (expansion==='quoted') literalResults='<details class="literal-search-matches"><summary>查看字面匹配</summary>'+punctuatedSearchResults(result)+'</details>';
+            if (expansion!=='empty') literalResults='<details class="literal-search-matches"><summary>查看字面匹配</summary>'+punctuatedSearchResults(result)+'</details>';
             result=supplemental;
           }
         } catch (error) {

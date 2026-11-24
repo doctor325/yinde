@@ -95,6 +95,32 @@ class Search(unittest.TestCase):
         self.assertEqual(both[0]['channels'],['semantic','keyword'])
         self.assertEqual(both[0]['semantic_score'],.7)
 
+    def test_evidence_adds_a_scoped_probe_when_literal_matches_are_annotations(self):
+        from contextlib import nullcontext
+        from search import evidence_pipeline, semantic_bridge
+        calls = []
+        literal = {'chunk': {**self.chunks[1], 'text_orig': '某將擊破敵軍於北城。'}}
+        body = {'chunk': {**self.chunks[0], 'text_orig': '將與敵軍戰於北城。'}}
+        editorial = {'chunk': {**self.chunks[-1], 'heading': '校勘記', 'text_orig': '敵軍北城，底本誤。'}}
+
+        def lexical(conn, query, book, *args, **kwargs):
+            calls.append((query, book))
+            hits = [literal] if query == '某将破敌军于北城' else [editorial, body]
+            return dict(hits=hits, total=len(hits), book_available=True)
+
+        with patch.object(S,'connect',side_effect=lambda: nullcontext(self.db)), \
+             patch.object(S,'lexical',side_effect=lexical), \
+             patch.object(semantic_bridge.worker,'query',return_value=dict(hits=[])), \
+             patch.object(evidence_pipeline,'evaluate',return_value=dict(hits=[],query_plan={},pipeline={'elapsed_ms':0},candidate_ids=[])) as evaluate, \
+             patch('logging.getLogger'):
+            raw = S.run('某将破敌军于北城',book='a',mode='keyword')
+            self.assertTrue(raw['reference_expansion'])
+            self.assertEqual(raw['hits'],[literal])
+            result = S.run('某将破敌军于北城',book='a',mode='evidence')
+            self.assertEqual(result['lexical_searches'][0]['query'],'敌军 北城')
+            self.assertEqual(evaluate.call_args.args[3],[[literal],[body]])
+            self.assertEqual(calls,[('某将破敌军于北城','a'),('某将破敌军于北城','a'),('敌军 北城','a')])
+
     def test_raw_fallback_not_silently_used(self):
         with patch.object(S,'status',return_value=dict(ready=False,reason='stale')):
             with self.assertRaises(FileNotFoundError):
