@@ -374,6 +374,70 @@ def biography_context_candidates(conn,p,subject,book=None,*,semantic=()):
     return [hit for _,hit in ranked],dict(pages=len(anchors),scanned=scanned)
 
 
+def _quoted_reference(phrase, text):
+    """Recognize a citation or comparison that contains the literal match."""
+    text = zh.to_simplified(text)
+    total = S.normalize(text).count(phrase)
+    if not total:
+        return False
+    pairs = {'「': '」', '『': '』', '“': '”'}
+    stack, spans = [], []
+    for i, char in enumerate(text):
+        if char in pairs:
+            if not stack:
+                start = i
+            stack.append(pairs[char])
+        elif char in pairs.values():
+            if not stack or stack.pop() != char:
+                return False
+            if not stack:
+                spans.append((start, i))
+    if stack:
+        spans.append((start, len(text)))
+    references = 0
+    for start, end in spans:
+        quoted = text[start+1:end]
+        if S.normalize(quoted) == phrase and re.search(
+                r'《[^》\n]{1,24}》(?:书|载|记|云|曰)[：:\s]*$', text[:start]):
+            references += 1
+            continue
+        for sentence in re.split(r'[。！？!?；;\n]', quoted):
+            before, match, after = S.normalize(sentence).partition(phrase)
+            if match and phrase not in after and (
+                re.search(r'(?:何[以用]|孰)(?:愈|异于|过)$', before)
+                or re.fullmatch(r'[\u3400-\u9fff]{0,12}果(?:真)?有之(?:邪|耶|乎)', after)
+            ):
+                references += 1
+    return references == total
+
+
+def _order_by_source(query, plan, hits, priority):
+    """Swap the first two only when clear reference wording obscures nearby narrative."""
+    if (len(hits) < 2 or not plan['unsupported'] or plan['answer_slots']
+            or not re.fullmatch(r'[\u3400-\u9fff]{6,48}', query.strip())):
+        return None
+    reference, narrative = hits[:2]
+    c = narrative['chunk']
+    # Guard the existing evidence tier and leave large model-score gaps intact.
+    if (priority(reference) != priority(narrative) or 'lexical' not in reference['channels']
+            or 'semantic' not in narrative['channels'] or c['layer'] != 'body'
+            or narrative['context_relevance_score'] <= 0
+            or reference['context_relevance_score'] - narrative['context_relevance_score'] > 1):
+        return None
+    phrase = S.normalize(query)
+    if not _quoted_reference(phrase, reference['chunk']['text_orig']):
+        return None
+    # Look for the query opening and two further content characters in a single
+    # stretch of narration. This is a proximity check, not event verification.
+    clues = set(phrase[2:]) - set(phrase[:2]) - set('之其于於而以为也')
+    for passage in re.split(r'\n+| {2,}', event_attachment.narrative(c['text_orig'])):
+        prose = S.normalize(passage)
+        if phrase[:2] in prose and len(clues.intersection(prose)) >= 2:
+            hits[:2] = [narrative, reference]
+            return dict(narrative_chunk_id=c['chunk_id'], reference_chunk_id=reference['chunk']['chunk_id'])
+    return None
+
+
 def evaluate(query,conn,dense,batches,book=None,rerank=None):
     started=time.perf_counter();p=parse(query)
     subject,scan=R.candidates(conn,p,book)
@@ -481,10 +545,15 @@ def evaluate(query,conn,dense,batches,book=None,rerank=None):
         key=lambda h:(-h['context_relevance_score'],h['retrieval_rank'])),1)}
     from search.polity_evidence import review_hits, review_natural_hits
     review_natural_hits(conn, frame, hits)
-    hits.sort(key=lambda h:(
-        {'supported': 0, 'different_roles': 1}.get(h.get('advice_evidence', {}).get('status'), 2),
-        h['evidence_audit']['status']!='clues_present',
-        -h['context_relevance_score'],h['retrieval_rank']))
+
+    def priority(h):
+        return (
+            {'supported': 0, 'different_roles': 1}.get(h.get('advice_evidence', {}).get('status'), 2),
+            h['evidence_audit']['status'] != 'clues_present',
+        )
+
+    hits.sort(key=lambda h:(*priority(h),-h['context_relevance_score'],h['retrieval_rank']))
+    source_order = _order_by_source(query, p, hits, priority)
     diagnostics=[dict(chunk_id=h['chunk']['chunk_id'], channel_ranks=h['channel_ranks'],
                       model_rank=model_ranks[h['chunk']['chunk_id']],final_rank=i,
                       score=h['context_relevance_score'], audit_status=h['evidence_audit']['status'],
@@ -496,7 +565,7 @@ def evaluate(query,conn,dense,batches,book=None,rerank=None):
         channel_quota=CHANNEL_LIMIT,grounded_fallback=grounding,
         admission={name:dict(available=len(items),reserved=min(len(items),CHANNEL_LIMIT),
                             admitted=sum(name in h['channels'] for h in hits)) for name,items in channels},
-        candidate_diagnostics=diagnostics,
+        candidate_diagnostics=diagnostics, source_order=source_order,
         candidate_scan=scan,reranker_ms=model_report['ms'],rerank_query=ranking_query,
         audit_clues_present=sum(h['evidence_audit']['status']=='clues_present' for h in hits[:20]),
         model='BAAI/bge-reranker-base',model_generation_calls=0,

@@ -143,6 +143,52 @@ class Evidence(unittest.TestCase):
         self.assertTrue(all(not h['evidence_audit']['relation_verified'] for h in r['hits']))
         self.assertEqual(r['candidate_ids'],[1,2])
 
+    def test_reference_requires_a_citation_or_comparison_at_the_match(self):
+        phrase = '甲公破敌于城'
+        for text in (
+            '故史書曰：《紀》書「甲公破敵于城」，以勸來者。',
+            '乙君問曰：「甲公破敵于城，果有之邪？」',
+            '乙君責臣曰：『此過何用愈甲公破敵于城？',
+        ):
+            with self.subTest(text=text):
+                self.assertTrue(E._quoted_reference(phrase, text))
+        for text in (
+            '卒曰：「甲公破敵于城，臣親見之。」',
+            '乙君曰：「甲公破敵于城。另事果有之邪？」',
+            '《紀》書「甲公破敵于城」。甲公破敵于城。',
+            '《紀》書『甲公破敵于城」。',
+        ):
+            with self.subTest(text=text):
+                self.assertFalse(E._quoted_reference(phrase, text))
+
+    def test_source_order_only_swaps_supported_competitors_within_the_same_tier(self):
+        query = '甲公破敌于城'
+        plan = dict(unsupported=True, answer_slots=[])
+        cited = dict(chunk=chunk('乙君曰：「何用愈甲公破敵于城？」'), channels=['lexical'],
+                     context_relevance_score=5, tier=0)
+        direct = dict(chunk=chunk('甲公將兵攻城，敵軍敗走。', 2), channels=['semantic'],
+                      context_relevance_score=4.7, tier=0)
+        unrelated = dict(chunk=chunk('其他', 3), channels=['semantic'], context_relevance_score=1, tier=0)
+
+        def priority(hit):
+            return hit['tier']
+
+        hits = [cited, direct, unrelated]
+        decision = E._order_by_source(query, plan, hits, priority)
+        self.assertEqual(decision, dict(narrative_chunk_id=2, reference_chunk_id=1))
+        self.assertEqual(hits, [direct, cited, unrelated])
+        for candidate in (
+            {**direct, 'tier': 1},
+            {**direct, 'context_relevance_score': 3},
+            {**direct, 'channels': ['relation']},
+            {**direct, 'chunk': chunk('乙君曰：「甲公將兵攻城，敵軍敗走。」', 2)},
+            {**direct, 'chunk': chunk('甲公入朝。\n\n敵兵圍城。', 2)},
+        ):
+            with self.subTest(candidate=candidate):
+                hits = [cited, candidate, unrelated]
+                self.assertIsNone(E._order_by_source(query, plan, hits, priority))
+                self.assertEqual(hits, [cited, candidate, unrelated])
+
     def test_biography_context_recall_keeps_source_and_office_scope(self):
         db,_=self.evaluation_database()
         anchor={**chunk('司马某，字子长。'), 'heading':'司馬某'}
