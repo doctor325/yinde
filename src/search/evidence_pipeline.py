@@ -82,7 +82,12 @@ def place_attached(observation):
 def _activity_plan(text):
     if activity := activity_context.parse(text):
         p = R.plan(activity['person'])
-        p.update(subject=p['clues'][:1], constraints=[], relation_groups=[], answer_slots=[],
+        if anchor := activity.get('anchor'):
+            person = activity['person']
+            if [clue['text'] for clue in p['clues']] != [person]:
+                p['clues'] = [dict(text=person, forms=[S.normalize(person)], scope_titles=[])]
+            p['clues'].append(dict(text=anchor, forms=[S.normalize(anchor)], scope_titles=[]))
+        p.update(subject=p['clues'][:1], constraints=p['clues'][1:], relation_groups=[], answer_slots=[],
                  activity_question=activity, general_departure=None,
                  unsupported=True, pipeline_version=VERSION)
         return p
@@ -468,7 +473,11 @@ def _order_by_source(query, plan, hits, priority):
 
 
 def evaluate(query,conn,dense,batches,book=None,rerank=None):
-    started=time.perf_counter();p=parse(query, include_activity=False)
+    started=time.perf_counter()
+    activity_plan = _activity_plan(zh.to_simplified(query))
+    activity = activity_plan['activity_question'] if activity_plan else {}
+    # The earlier receipt/unrest patterns do not supply a retrieval anchor.
+    p = activity_plan if 'anchor' in activity else parse(query, include_activity=False)
     subject,scan=R.candidates(conn,p,book)
     _,relation_ranked=R.rank(dense,subject,p)
     literal=S.fused([],batches,limit=60)
@@ -481,6 +490,7 @@ def evaluate(query,conn,dense,batches,book=None,rerank=None):
         identity=resolved(name)
         if identity:
             biography=S.lexical(conn,name,book,identity=identity)['hits']
+    activity_hits = activity_context.candidates(conn, activity, subject, identity, book) if 'anchor' in activity else []
     annal={}
     event_hits=[]
     if identity and any(g['kind'] in annal_events.VERBS for g in p['relation_groups']):
@@ -508,10 +518,10 @@ def evaluate(query,conn,dense,batches,book=None,rerank=None):
     channels=(('attached_event',attached_events),('biography_context',biography_context),
               ('semantic',dense),('lexical',literal),('relation',relation_ranked),
               ('biography',biography),('annal_event',event_hits),('grounded',fallback))
+    if activity_hits:
+        channels = (('activity_trigger', activity_hits), *channels)
     hits=admit(channels);texts=[]
-    # Use the activity frame after admission so the narrower ranking task
-    # keeps the candidate coverage of the original retrieval plan.
-    p = _activity_plan(zh.to_simplified(query)) or p
+    p = activity_plan or p
     from search import biography_office, patient_references
     biography_pages={}
     candidate_ids=[h['chunk']['chunk_id'] for h in hits]

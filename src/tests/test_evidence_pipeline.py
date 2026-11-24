@@ -4,6 +4,7 @@ import re
 import sqlite3
 import sys
 import unittest
+from unittest.mock import patch
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from search import evidence_pipeline as E, punctuated_search as S
 
@@ -15,6 +16,51 @@ def chunk(text,cid=1,**kw):
 
 
 class Evidence(unittest.TestCase):
+    def test_activity_separates_person_event_and_question(self):
+        cases = [('甲湖报捷那会儿，王某正忙什么？', '王某', '甲湖', '报捷', '忙什么'),
+                 ('东门交战的时候，欧阳某在做什么？', '欧阳某', '东门', '交战', '做什么'),
+                 ('孙某刚在西城起兵那会儿在干什么？', '孙某', '西城', '起兵', '干什么')]
+        for query, person, anchor, trigger_action, ask in cases:
+            with self.subTest(query=query):
+                plan = E.parse(query)
+                frame = plan['activity_question']
+                self.assertEqual(plan['subject'][0]['text'], person)
+                self.assertEqual(plan['constraints'][0]['text'], anchor)
+                self.assertEqual((frame['trigger_action'], frame['asked_activity']), (trigger_action, ask))
+        self.assertNotIn('activity_question', E.parse('甲湖报捷那会儿，王某在哪里？'))
+        original = E.parse('王某接到战报时在做什么')['activity_question']
+        self.assertEqual(original['kind'], 'receipt')
+        self.assertNotIn('anchor', original)
+
+    def test_activity_admits_scoped_short_names_but_keeps_audit_unconfirmed(self):
+        db = sqlite3.connect(':memory:')
+        self.addCleanup(db.close)
+        db.executescript('''CREATE TABLE books(book_id TEXT,title TEXT);
+            INSERT INTO books VALUES('a','甲史');
+            CREATE TABLE chunks(chunk_id INTEGER PRIMARY KEY,book_id TEXT,page_id INTEGER,search_text TEXT,payload TEXT);
+            CREATE VIRTUAL TABLE chunk_fts USING fts5(search_text,tokenize='trigram');''')
+        passages = [(1, '王某，字敬之。', '王某', 'body'),
+                    (2, '贼既破，有驿书至，某方与客饮。', '王某', 'body'),
+                    (3, '有驿书至，某命使还。', '王某', 'body'),
+                    (4, '甲湖报捷，刘某方与客饮。', '刘某', 'body'),
+                    (5, '甲湖报捷，王某方与客饮。', '校勘记', 'body'),
+                    (6, '甲湖报捷，王某方与客饮。', '王某', 'annotation')]
+        for cid, source, heading, layer in passages:
+            c = chunk(source, cid)
+            c.update(heading=heading, layer=layer)
+            db.execute('INSERT INTO chunks VALUES(?,?,?,?,?)', (cid, 'a', 1, S.normalize(source), json.dumps(c)))
+            db.execute('INSERT INTO chunk_fts VALUES(?)', (S.normalize(source),))
+
+        with patch('search.biography_lookup.resolved', return_value=[]):
+            result = E.evaluate('甲湖报捷那会儿，王某正忙什么？', db, [], [], book='a',
+                                rerank=lambda query, texts: dict(scores=[0] * len(texts), ms=0))
+        self.assertEqual(result['pipeline']['candidate_scan']['scanned'], 3)
+        activity = [d['chunk_id'] for d in result['pipeline']['candidate_diagnostics']
+                    if 'activity_trigger' in d['channel_ranks']]
+        self.assertEqual(activity, [2])
+        hit = next(h for h in result['hits'] if h['chunk']['chunk_id'] == 2)
+        self.assertEqual(hit['evidence_audit']['status'], 'insufficient')
+
     def test_question_slots(self):
         for q,slot in [('甲公什么时候去世','time'),('甲公在哪里即位','place'),('甲公为何辞官','reason'),('甲公在位多少年','quantity')]:
             self.assertIn(slot,E.parse(q)['answer_slots'])
