@@ -14,6 +14,7 @@ VERSION = 'context-evidence-v2'
 # Each independent channel keeps its own quota before deduplication. A shared
 # 24-slot round robin silently discarded even a channel's tenth-ranked hit.
 CHANNEL_LIMIT = 20
+RERANK_REQUEST_LIMIT = 100  # Local semantic worker limit per call.
 ANSWER_PATTERNS = {
     'office':r'(?:'+annal_events.OFFICE+r'|[\u3400-\u9fff]{1,5}侯|翰林学士|中书舍人|御史中丞|[左右]司郎中|召权知[\u3400-\u9fff]{1,4}府)',
     'time':r'[元一二三四五六七八九十百千〇零\d]+年|[正一二三四五六七八九十冬腊]+月|[甲乙丙丁戊己庚辛壬癸][子丑寅卯辰巳午未申酉戌亥]',
@@ -175,13 +176,28 @@ def grounded_fallback(conn, p, subject, book=None):
 
 
 def admit(channels):
-    """Retain each channel's top 20; record provenance even past its quota."""
+    """Keep every channel's first 20 and reuse semantic/relation duplicates."""
     selected={}
     for name, hits in channels:
         for h in hits[:CHANNEL_LIMIT]:
             cid=h['chunk']['chunk_id']
             if cid not in selected:
                 selected[cid]=dict(chunk=h['chunk'], channels=[], channel_ranks={})
+
+    # Relation ranking includes the dense results as input. Its overlap with
+    # the semantic channel can hide most of the next relevant dense results.
+    ranked = dict(channels)
+    semantic = ranked.get('semantic', ())
+    relation = ranked.get('relation', ())
+    semantic_head = {h['chunk']['chunk_id'] for h in semantic[:CHANNEL_LIMIT]}
+    relation_head = {h['chunk']['chunk_id'] for h in relation[:CHANNEL_LIMIT]}
+    budget = min(RERANK_REQUEST_LIMIT, len(selected) + len(semantic_head & relation_head))
+    for hit in semantic[CHANNEL_LIMIT:]:
+        if len(selected) >= budget:
+            break
+        chunk = hit['chunk']
+        selected.setdefault(chunk['chunk_id'], dict(chunk=chunk, channels=[], channel_ranks={}))
+
     for name, hits in channels:
         for rank,h in enumerate(hits,1):
             cid=h['chunk']['chunk_id']
@@ -563,6 +579,7 @@ def evaluate(query,conn,dense,batches,book=None,rerank=None):
         candidate_counts=dict(semantic=len(dense),lexical=len(literal),subject=len(subject),context_scored=len(hits)),
         biography_sources=identity,biography_context_scan=biography_scan,
         channel_quota=CHANNEL_LIMIT,grounded_fallback=grounding,
+        backfilled_candidates=sum(min(h['channel_ranks'].values()) > CHANNEL_LIMIT for h in hits),
         admission={name:dict(available=len(items),reserved=min(len(items),CHANNEL_LIMIT),
                             admitted=sum(name in h['channels'] for h in hits)) for name,items in channels},
         candidate_diagnostics=diagnostics, source_order=source_order,

@@ -60,6 +60,18 @@ class Evidence(unittest.TestCase):
         self.assertEqual(both['channel_ranks'],{'semantic':34,'lexical':20})
         self.assertEqual(both['semantic_score'],.5)
 
+    def test_semantic_relation_overlap_backfills_distinct_candidates(self):
+        dense = [dict(chunk=chunk('候选', i), semantic_score=.5) for i in range(1, 61)]
+        relation = [*dense[4:24], *dense[:4], *dense[24:]]
+        lexical = [dict(chunk=chunk('字面候选', 26))]
+        hits = E.admit((('semantic', dense), ('lexical', lexical), ('relation', relation)))
+        ids = [h['chunk']['chunk_id'] for h in hits]
+        extra = list(range(25, 42))
+        extra.remove(26)  # Already in the lexical channel's first 20.
+        self.assertEqual(ids, [*range(1, 21), 26, *range(21, 25), *extra])
+        self.assertEqual(hits[-1]['channel_ranks'], {'semantic': 41, 'relation': 41})
+        self.assertEqual(hits[-1]['semantic_score'], .5)
+
     def test_grounded_prefix_is_scoped_and_does_not_become_identity(self):
         db=sqlite3.connect(':memory:');self.addCleanup(db.close)
         db.executescript('''CREATE TABLE books(book_id TEXT,title TEXT);
