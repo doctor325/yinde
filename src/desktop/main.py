@@ -31,9 +31,15 @@ def notify(message, error=False):
 def main(argv=None):
     parser = argparse.ArgumentParser()
     parser.add_argument("--smoke-test", action="store_true", help="运行真实窗口自动验收后退出")
+    parser.add_argument("--check-search", help="从真实窗口的搜索框提交一条问题后退出")
+    parser.add_argument("--expected-chunk", type=int, help="要求在前五条中显示的片段 ID")
     parser.add_argument("--require-semantic", action="store_true", help="验收必须包含实际可用的语义索引")
     parser.add_argument("--require-punctuated", action="store_true", help="验收必须包含本机标点本阅读")
     args = parser.parse_args(argv)
+    if (args.check_search is None) != (args.expected_chunk is None):
+        parser.error("--check-search 和 --expected-chunk 需要一起指定")
+    if args.check_search is not None:
+        args.smoke_test = True
     server = None
     lock = None
     owns_lock = False
@@ -89,7 +95,35 @@ def main(argv=None):
                 def receive(result):
                     smoke["checks"] = result
                     finished.set()
-                window.evaluate_js("""(async () => {
+                if args.check_search is not None:
+                    script = r"""(async ([query, expected]) => {
+                      const until = async (ready) => {
+                        const deadline = Date.now() + 90000;
+                        while (!ready()) {
+                          if (Date.now() >= deadline) throw new Error('等待史料检索超时');
+                          await new Promise(resolve => setTimeout(resolve, 100));
+                        }
+                      };
+                      location.hash = '#/search';
+                      const form = () => document.querySelector('#punctuatedSearchForm');
+                      const box = () => document.querySelector('#punctuatedSearchResult');
+                      await until(() => form());
+                      document.querySelector('#punctuatedSearchQuery').value = query;
+                      form().requestSubmit();
+                      await until(() => box()?.getAttribute('aria-busy') === 'false');
+                      const cards = [...box().querySelectorAll('.punctuated-search-hit')];
+                      const ids = cards.map(card => {
+                        const match = card.textContent.match(/· 片段\s+([\d,]+)/);
+                        return match ? Number(match[1].replaceAll(',', '')) : null;
+                      });
+                      const rank = ids.indexOf(expected) + 1;
+                      return {query, expected, rank, first_five: ids.slice(0, 5),
+                        expected_in_top_five: rank > 0 && rank <= 5,
+                        evidence_search: Boolean(box().querySelector('.evidence-pipeline-note')),
+                        status: cards.length ? 'results' : box().textContent.trim()};
+                    })(""" + json.dumps([args.check_search, args.expected_chunk]) + ").catch(error => ({error: String(error)}))"
+                else:
+                    script = """(async () => {
                   const until = async (predicate, timeout = 30000) => {
                     const deadline = Date.now() + timeout;
                     while (!predicate()) {
@@ -217,7 +251,8 @@ def main(argv=None):
                     punctuated_ready: punctuatedStatus.available, punctuated_reader: punctuatedCheck,
                     punctuated_primary_search:primarySearch,punctuated_primary_context:primaryContext,punctuated_primary_semantic:primarySemantic,
                     punctuated_relation_experiment:relationExperiment,punctuated_evidence_pipeline:evidencePipeline};
-                })().catch(error => ({error: String(error)}))""", callback=receive)
+                })().catch(error => ({error: String(error)}))"""
+                window.evaluate_js(script, callback=receive)
                 if not finished.wait(180):
                     raise TimeoutError("窗口验收脚本超时")
                 required = {"health", "books_loaded", "search_has_hits", "simplified", "original_restored",
@@ -234,6 +269,8 @@ def main(argv=None):
                         required.add('punctuated_primary_semantic')
                         required.add('punctuated_relation_experiment')
                         required.add('punctuated_evidence_pipeline')
+                if args.check_search is not None:
+                    required = {"expected_in_top_five", "evidence_search"}
                 if (not isinstance(smoke["checks"], dict) or not required.issubset(smoke["checks"])
                         or not all(smoke["checks"][key] is True for key in required)):
                     raise AssertionError(f"window checks failed: {smoke['checks']}")
@@ -280,7 +317,8 @@ def main(argv=None):
             elif args.require_semantic:
                 smoke["semantic_worker_stopped"] = False
                 smoke["completed"] = False
-            (state / "window-smoke.json").write_text(json.dumps(smoke, ensure_ascii=False, indent=2), encoding="utf-8")
+            report = "window-search.json" if args.check_search is not None else "window-smoke.json"
+            (state / report).write_text(json.dumps(smoke, ensure_ascii=False, indent=2), encoding="utf-8")
             return 0 if smoke["completed"] else 1
         return 0
     except Exception:

@@ -8,7 +8,7 @@ import math
 import re
 import time
 from search import advocacy_recall, annal_events, event_attachment, event_recall, execution_recall, punctuated_relevance as R, punctuated_search as S, zh
-from search import colloquial_advocacy
+from search import activity_context, colloquial_advocacy
 
 VERSION = 'context-evidence-v2'
 # Each independent channel keeps its own quota before deduplication. A shared
@@ -79,9 +79,20 @@ def place_attached(observation):
     return bool(re.search(r'(?:城|宫|殿|州|郡|县|邑|门|山|川|江|河|水|湖|池|海|关|塞|营|军中|里|铺|口)$',location))
 
 
-def parse(query):
+def _activity_plan(text):
+    if activity := activity_context.parse(text):
+        p = R.plan(activity['person'])
+        p.update(subject=p['clues'][:1], constraints=[], relation_groups=[], answer_slots=[],
+                 activity_question=activity, general_departure=None,
+                 unsupported=True, pipeline_version=VERSION)
+        return p
+
+
+def parse(query, *, include_activity=True):
     from search.office_events import general_departure_frame
     text=zh.to_simplified(query)
+    if include_activity and (activity_plan := _activity_plan(text)):
+        return activity_plan
     colloquial = colloquial_advocacy.parse(text)
     if colloquial:
         p = R.plan(colloquial['person'])
@@ -217,6 +228,8 @@ def focus(chunk, p):
     Never cut away qualifications inside the selected sentence. If the rule
     plan offers no event/object alignment, leave the whole candidate intact.
     """
+    if (frame := p.get('activity_question')) and (span := activity_context.focus(chunk, frame)):
+        return span
     best=None
     for match in re.finditer(r'[^。！？；\n]+[。！？；]?',chunk['text_orig']):
         f=R.features({**chunk,'text_orig':match.group(0)},p)
@@ -455,7 +468,7 @@ def _order_by_source(query, plan, hits, priority):
 
 
 def evaluate(query,conn,dense,batches,book=None,rerank=None):
-    started=time.perf_counter();p=parse(query)
+    started=time.perf_counter();p=parse(query, include_activity=False)
     subject,scan=R.candidates(conn,p,book)
     _,relation_ranked=R.rank(dense,subject,p)
     literal=S.fused([],batches,limit=60)
@@ -496,6 +509,9 @@ def evaluate(query,conn,dense,batches,book=None,rerank=None):
               ('semantic',dense),('lexical',literal),('relation',relation_ranked),
               ('biography',biography),('annal_event',event_hits),('grounded',fallback))
     hits=admit(channels);texts=[]
+    # Use the activity frame after admission so the narrower ranking task
+    # keeps the candidate coverage of the original retrieval plan.
+    p = _activity_plan(zh.to_simplified(query)) or p
     from search import biography_office, patient_references
     biography_pages={}
     candidate_ids=[h['chunk']['chunk_id'] for h in hits]
@@ -534,7 +550,8 @@ def evaluate(query,conn,dense,batches,book=None,rerank=None):
         after=c['text_orig'][f['end']:f['end']+60]
         prev=[n['text_orig'][-60:] for n in neighbors if n['chunk_id']<c['chunk_id']]
         nxt=[n['text_orig'][:60] for n in neighbors if n['chunk_id']>c['chunk_id']]
-        text+='\n前文：'+(before or '\n'.join(prev))+'\n后文：'+(after or '\n'.join(nxt))
+        if not f.get('activity_context'):
+            text+='\n前文：'+(before or '\n'.join(prev))+'\n后文：'+(after or '\n'.join(nxt))
         if campaign := h.get('campaign_context'):
             text += '\n同篇出兵前后：' + campaign
         h['context_truncated']=len(text)>1000;texts.append(text[:1000])
