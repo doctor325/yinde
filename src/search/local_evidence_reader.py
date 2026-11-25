@@ -16,7 +16,7 @@ DEFAULT_HOME = ROOT / 'src/data/evidence-reader'
 
 
 class LocalReader:
-    def __init__(self, home=DEFAULT_HOME, timeout=120, model='qwen3-4b', backend='cpu'):
+    def __init__(self, home=DEFAULT_HOME, timeout=120, model='qwen3-4b', backend='cpu', *, log_dir=None):
         from scripts.setup_evidence_reader import model_spec
         self.model_spec, self.assets = model_spec(model)
         self.model_key = model
@@ -26,6 +26,9 @@ class LocalReader:
         self.home = Path(home).resolve()
         if not self.home.is_relative_to(ROOT):
             raise ValueError('Reader assets must remain inside this repository')
+        self.log_dir = Path(log_dir).resolve() if log_dir is not None else self.home
+        if not self.log_dir.is_relative_to(ROOT):
+            raise ValueError('Reader logs must remain inside this repository')
         self.timeout = timeout
         self.process = self.log = None
         self.opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
@@ -104,7 +107,7 @@ class LocalReader:
         if self.backend == 'vulkan':
             from scripts.setup_reader_vulkan import environment
             env = environment(self.home)
-        self.log_path = self.home / ('reader-runtime.log' if self.backend == 'cpu' else 'reader-vulkan-runtime.log')
+        self.log_path = self.log_dir / ('reader-runtime.log' if self.backend == 'cpu' else 'reader-vulkan-runtime.log')
         self.log=self.log_path.open('w',encoding='utf8')
         started=time.perf_counter()
         try:
