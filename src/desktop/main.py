@@ -117,10 +117,27 @@ def main(argv=None):
                         return match ? Number(match[1].replaceAll(',', '')) : null;
                       });
                       const rank = ids.indexOf(expected) + 1;
-                      return {query, expected, rank, first_five: ids.slice(0, 5),
+                      const result = {query, expected, rank, first_five: ids.slice(0, 5),
                         expected_in_top_five: rank > 0 && rank <= 5,
                         evidence_search: Boolean(box().querySelector('.evidence-pipeline-note')),
                         status: cards.length ? 'results' : box().textContent.trim()};
+                      const evidence = cards[rank - 1]?.querySelector('.polity-evidence[data-status="supported"]');
+                      if (evidence) {
+                        const citations = [...evidence.querySelectorAll('dt')].map(label => ({
+                          label: label.textContent,
+                          link: label.nextElementSibling.querySelector('a')?.getAttribute('href')
+                        }));
+                        result.evidence_citations = citations;
+                        result.evidence_summary = evidence.querySelector('p').textContent;
+                        const identity = citations.find(c => c.label === '本纪身份互证') ||
+                          citations.find(c => c.label === '本纪身份');
+                        if (identity?.link?.startsWith('#/punctuated/')) {
+                          location.hash = identity.link;
+                          await until(() => document.querySelector('.punctuated-body .punctuated-match'));
+                          result.identity_highlight = document.querySelector('.punctuated-body .punctuated-match').textContent;
+                        }
+                      }
+                      return result;
                     })(""" + json.dumps([args.check_search, args.expected_chunk]) + ").catch(error => ({error: String(error)}))"
                 else:
                     script = """(async () => {

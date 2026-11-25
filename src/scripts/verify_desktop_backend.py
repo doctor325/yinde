@@ -14,7 +14,7 @@ def main():
  from PyInstaller.archive.readers import CArchiveReader
  archive=CArchiveReader(str(exe)).open_embedded_archive('PYZ.pyz')
  names=['search.evidence_pipeline','search.punctuated_roles','search.punctuated_relevance',
-        'search.activity_context','search.punctuated_search',
+        'search.activity_context','search.biography_lookup','search.receipt_evidence','search.punctuated_search',
         'search.person_references','search.patient_references','search.biography_office',
         'search.event_links','search.relative_time','search.block_page_cache','search.result_block',
         'search.office_events','search.departure_speech','search.causal_evidence',
