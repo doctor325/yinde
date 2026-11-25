@@ -167,23 +167,27 @@ def _annal_victory(sources, entry, victor, opponent):
     # the storming of the place and the opponent's fate agree in one sentence.
     event = re.compile(rf'{re.escape(victor)}拔{_HAN}{{2,10}}[，,]'
                        rf'{re.escape(opponent)}自焚(?:死)?(?=[，,。])')
+    pages = [volume['page_id'] for volume in (entry, *entry['continuations'])]
+    placeholders = ','.join('?' for _ in pages)
+    # The existing index is keyed by book, so query the book once for every
+    # attested volume. Keep the per-row revision and heading check below.
+    rows = sources.index.execute(
+        f'SELECT payload FROM chunks WHERE book_id=? AND page_id IN ({placeholders}) '
+        'AND search_text LIKE ? ORDER BY chunk_id',
+        (entry['book_id'], *pages, '%'+victor+'%'))
     matches = {}
-    for volume in (entry, *entry['continuations']):
-        rows = sources.index.execute(
-            'SELECT payload FROM chunks WHERE book_id=? AND page_id=? AND search_text LIKE ? ORDER BY chunk_id',
-            (entry['book_id'], volume['page_id'], '%'+victor+'%'))
-        for (payload,) in rows:
-            chunk = json.loads(payload)
-            if chunk['layer'] != 'body' or not _annal_scope(chunk, entry):
-                continue
-            original = chunk['text_orig']
-            text = zh.to_simplified(original)
-            if len(original) != len(text):
-                continue
-            for battle in event.finditer(event_attachment.narrative(text)):
-                ref = source_ref(chunk, *battle.span())
-                key = (ref['page_id'], tuple(map(tuple, ref['ranges'])))
-                matches[key] = ref
+    for (payload,) in rows:
+        chunk = json.loads(payload)
+        if chunk['layer'] != 'body' or not _annal_scope(chunk, entry):
+            continue
+        original = chunk['text_orig']
+        text = zh.to_simplified(original)
+        if len(original) != len(text):
+            continue
+        for battle in event.finditer(event_attachment.narrative(text)):
+            ref = source_ref(chunk, *battle.span())
+            key = (ref['page_id'], tuple(map(tuple, ref['ranges'])))
+            matches[key] = ref
     return next(iter(matches.values())) if len(matches) == 1 else None
 
 
