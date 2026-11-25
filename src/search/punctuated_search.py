@@ -239,7 +239,43 @@ def _event_location_probe(query, raw):
     return f"{match['object']} {match['place']}"
 
 
-def run(query, book=None, mode='keyword', page=1, cur=None):
+def _attested_place_batches(conn, query, book, groups):
+    """Add only whole location forms from explicitly paired original sources."""
+    from search import activity_context
+    from search.polity_evidence import Sources
+
+    frame = activity_context.parse(zh.to_simplified(query))
+    if not frame or not frame.get('anchor'):
+        return [], []
+    anchor = normalize(frame['anchor'])
+    matches = [group for group in groups if any(normalize(item['place']) == anchor for item in group)]
+    if not matches:
+        return [], []
+    if len(matches) != 1:
+        raise ValueError('同一地名有多组异体出处')
+    group = matches[0]
+    forms = [normalize(item['place']) for item in group]
+    if len(group) != 2 or len(set(forms)) != 2 or any(len(form) < 2 for form in forms):
+        raise ValueError('异体地名须提供两种完整写法')
+    with punctuated.connect() as library:
+        sources = Sources(conn, library, {})
+        refs = [sources.check(item['reference']) for item in group]
+    if len({ref['page_id'] for ref in refs}) != 2 or any(
+        item['place'] not in ref['quote'] for item, ref in zip(group, refs)
+    ):
+        raise ValueError('地名写法须能在不同篇章的出处中核对')
+
+    alternative = next(form for form in forms if form != anchor)
+    started = time.perf_counter()
+    found = lexical(conn, alternative, book, page_size=20)
+    hits = [h for h in found['hits'] if h['chunk']['layer'] == 'body'
+            and normalize(h['chunk']['heading']) != '校勘记']
+    return [hits], [dict(query=alternative, kind='attested_place_variant', anchor=anchor,
+                         total=found['total'], sampled=len(hits), references=refs,
+                         elapsed_ms=round((time.perf_counter()-started)*1000, 2))]
+
+
+def run(query, book=None, mode='keyword', page=1, cur=None, *, place_attestations=()):
     tokens(query)
     if mode not in ('keyword','semantic','hybrid','expanded','relation','evidence'):
         raise ValueError('未知标点版检索方式')
@@ -255,6 +291,10 @@ def run(query, book=None, mode='keyword', page=1, cur=None):
         timings['literal_ms'] = round((time.perf_counter()-phase)*1000,2)
         plan, probes, dense = None, [], []
         batches = [raw['hits']] if mode != 'semantic' else []
+        if mode == 'evidence' and place_attestations and raw['book_available']:
+            variants, variant_probes = _attested_place_batches(conn, query, book, place_attestations)
+            batches.extend(variants)
+            probes.extend(variant_probes)
         location_probe = _event_location_probe(query, raw) if mode in ('keyword', 'evidence') else None
         annotation_only = location_probe and all(h['chunk']['layer'] == 'annotation' for h in raw['hits'])
         if mode == 'evidence' and location_probe:
