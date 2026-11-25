@@ -161,11 +161,26 @@ def lexical(conn, query, book=None, page=1, page_size=20, *, exists_only=False, 
         source_pages = sorted({volume['page_id'] for e in identity
                                for volume in (e,*e.get('continuations', ()))})
         placeholders = ','.join('?' for _ in source_pages)
-        # Scope the bare title to attested biography volumes, including continuations.
-        where.append(f'(c.search_text LIKE ? OR c.search_text LIKE ? OR '
-                     f'(c.page_id IN ({placeholders}) AND c.search_text LIKE ?))')
-        args.extend(['%'+normalize(title)+'%', '%'+normalize(name)+'%', *source_pages,
-                     '%'+normalize(title[1:])+'%'])
+        person_terms = ['c.search_text LIKE ?', 'c.search_text LIKE ?']
+        args.extend(['%'+normalize(title)+'%', '%'+normalize(name)+'%'])
+        if not any(entry.get('short_titles') for entry in identity):
+            person_terms.append(f'(c.page_id IN ({placeholders}) AND c.search_text LIKE ?)')
+            args.extend([*source_pages, '%'+normalize(title[1:])+'%'])
+        else:
+            # Catalog-backed epithets may be shared across dynasties or editions.
+            for entry in identity:
+                forms = entry.get('short_titles', ())
+                if not forms:
+                    continue
+                matching = ' OR '.join('c.search_text LIKE ?' for _ in forms)
+                for volume in (entry, *entry.get('continuations', ())):
+                    if not volume.get('source_sha256'):
+                        continue
+                    person_terms.append(f"(c.page_id=? AND json_extract(c.payload,'$.revision_id')=? "
+                                        f"AND json_extract(c.payload,'$.source_sha256')=? AND ({matching}))")
+                    args.extend([volume['page_id'], volume['revision_id'], volume['source_sha256'],
+                                 *('%'+normalize(form)+'%' for form in forms)])
+        where.append('(' + ' OR '.join(person_terms) + ')')
     if book:
         where.append('c.book_id=?');args.append(book)
     sql = ' FROM '+table+' WHERE '+' AND '.join(where)

@@ -19,7 +19,8 @@ class Evidence(unittest.TestCase):
     def test_activity_separates_person_event_and_question(self):
         cases = [('甲湖报捷那会儿，王某正忙什么？', '王某', '甲湖', '报捷', '忙什么'),
                  ('东门交战的时候，欧阳某在做什么？', '欧阳某', '东门', '交战', '做什么'),
-                 ('孙某刚在西城起兵那会儿在干什么？', '孙某', '西城', '起兵', '干什么')]
+                 ('孙某刚在西城起兵那会儿在干什么？', '孙某', '西城', '起兵', '干什么'),
+                 ('西城被围那会儿，王某在干什么？', '王某', '西城', '被围', '干什么')]
         for query, person, anchor, trigger_action, ask in cases:
             with self.subTest(query=query):
                 plan = E.parse(query)
