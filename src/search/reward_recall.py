@@ -1,4 +1,4 @@
-"""Recall source passages for colloquial questions about post-victory rewards."""
+"""Recall source passages for colloquial questions about historical rewards."""
 import json
 import re
 
@@ -14,8 +14,12 @@ _EVENT = re.compile(
     rf'|(?P<attacker>{_NAME})?(?P<capture>攻克|攻下|攻破|打下)(?P<site>{_PLACE}))'
     r'(?:之后|以后|后|那会儿)[，,]\s*(?P<question>.+)'
 )
+_OCCASION = re.compile(rf'(?P<anchor>{_PLACE})那(?:一)?(?:回|次|会儿)[，,]\s*(?P<question>.+)')
 _GIFT = re.compile(
-    rf'(?P<giver>{_NAME})(?:给|向)(?P<recipient>{_NAME})(?:赏赐|赏|赐)(?:了)?(?:什么|哪些东西)'
+    rf'(?P<giver>{_NAME})(?:给|向)(?P<recipient>{_NAME})(?:赏赐|赏|赐)(?:了)?(?:什么(?:东西)?|哪些东西)'
+)
+_DIRECT_GIFT = re.compile(
+    rf'(?P<giver>{_NAME})(?:赏赐|赏给|赐给|赏|赐|送给)(?:了)?(?P<recipient>{_NAME})(?:什么(?:东西)?|哪些东西)'
 )
 _PRAISE = re.compile(rf'(?P<giver>{_NAME})(?:是)?(?:怎么|如何)(?:看待|评价|看)(?P<recipient>{_NAME})的?')
 _RECIPIENT = re.compile(r'(?:得到|受到|获得)赏赐的是谁|谁(?:得到|受到|获得)了?赏赐')
@@ -24,12 +28,15 @@ _UNNAMED = {'皇帝', '天子', '朝廷', '君主'}
 
 
 def parse(text):
-    event = _EVENT.fullmatch(text)
+    event = _EVENT.fullmatch(text) or _OCCASION.fullmatch(text)
     if not event:
         return None
+    event_parts = event.groupdict()
     question = event['question']
-    if match := _GIFT.fullmatch(question):
+    if match := _GIFT.fullmatch(question) or _DIRECT_GIFT.fullmatch(question):
         slot = 'gift'
+    elif 'trigger' not in event_parts:
+        return None
     elif match := _PRAISE.fullmatch(question):
         slot = 'appraisal'
     elif _RECIPIENT.fullmatch(question):
@@ -39,12 +46,12 @@ def parse(text):
     giver, recipient = (match['giver'], match['recipient']) if match else (None, None)
     # Use a named participant as the retrieval anchor. Store the direction of
     # the question independently so the same passage can be tested both ways.
-    victor = event['victor'] or event['attacker']
+    victor = event_parts.get('victor') or event_parts.get('attacker')
     participants = (victor, recipient, giver)
     person = next((name for name in participants if name and name not in _UNNAMED
                    and not _DYNASTIC_TITLE.fullmatch(name)), None)
-    return dict(kind='reward', anchor=event['anchor'] or event['site'],
-                trigger_action=event['trigger'] or event['capture'], victor=victor,
+    return dict(kind='reward', anchor=event['anchor'] or event_parts.get('site'),
+                trigger_action=event_parts.get('trigger') or event_parts.get('capture'), victor=victor,
                 giver=giver, recipient=recipient, asked_role=slot, person=person)
 
 
@@ -55,6 +62,8 @@ _ACTION = {
     'recipient': re.compile(r'赐(?:其)?(?:告捷者|报捷者)|(?:赉|赐)其使'),
     'appraisal': re.compile(r'赏[\u3400-\u9fff]{1,6}之知人|(?:上|帝)(?:嘉|称善)'),
 }
+_DELEGATED_GIFT = r'遣(?:使者|使)授(?:[\u3400-\u9fff]{1,6}?)?以[\u3400-\u9fff]{2,18}'
+_LOCAL_GIFT = re.compile(rf'{_ACTION["gift"].pattern}|{_DELEGATED_GIFT}')
 _EPISODE_BREAK = re.compile(r'(?:^|[。；\n])\s*(?:翌日|明年|其后|[一二三四五六七八九十]+年)[，,]')
 _SENTENCE = re.compile(r'[^。！？；\n]+[。！？；]?')
 
@@ -66,7 +75,8 @@ def _action_context(chunk, preceding, overlap, place, frame, short_name):
     if len(normalized) != len(original):
         return None
     prose = event_attachment.narrative(normalized)
-    action_pattern = _ACTION[frame['asked_role']]
+    local_gift = frame['trigger_action'] is None
+    action_pattern = _LOCAL_GIFT if local_gift else _ACTION[frame['asked_role']]
     for action in action_pattern.finditer(prose, len(prefix)):
         lo = max(0, action.start()-400)
         # Find the place in the lead-up to this action. A place that only
@@ -76,13 +86,17 @@ def _action_context(chunk, preceding, overlap, place, frame, short_name):
             continue
         start = max(lo, anchor-20)
         lead = prose[start:action.start()]
-        if _EPISODE_BREAK.search(prose[anchor:action.start()]) or not _OUTCOME.search(lead):
+        episode = prose[anchor:action.start()]
+        if _EPISODE_BREAK.search(episode):
             continue
-        if frame['asked_role'] == 'gift' and not _REPORT.search(lead):
+        if local_gift and re.search(r'\n\s*\n', episode):
+            continue
+        if not local_gift and (not _OUTCOME.search(lead) or frame['asked_role'] == 'gift' and not _REPORT.search(lead)):
             continue
         person = frame['person']
         heading = zh.to_simplified(chunk['heading']).strip()
-        if person and person not in normalized and person != heading and not (short_name and short_name in lead):
+        names = (frame['giver'], frame['recipient']) if local_gift else (person,)
+        if person and not any(name in normalized or name == heading for name in names) and not (short_name and short_name in lead):
             continue
         if frame['asked_role'] == 'appraisal' and frame['recipient'] not in normalized:
             continue

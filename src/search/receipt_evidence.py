@@ -21,6 +21,9 @@ _OTHER_REPORT = re.compile(_REPORT)
 _OTHER_FIGHT = re.compile(r'大破|败之|大溃|(?:再|又|复|遂)(?:攻|破|击|拔|战)')
 _GIFT = re.compile(rf'捷闻[，,]\s*(?P<actor>帝|上)曰[：:]\s{{1,90}}'
                    rf'(?P<action>赐(?!死|自尽|自裁)(?P<gift>{_HAN}{{2,16}}))(?=[。；！？])')
+_DELEGATION = re.compile(rf'(?:其明日|明日|翌日|次日)[，,](?P<action>遣(?:使者|使)授以'
+                         rf'(?P<gift>{_HAN}{{2,16}}))(?=[。；！？])')
+_LOCAL_GRANT = re.compile(r'赐|赉|遣(?:使者|使)授')
 
 
 def _opening_reference(sources, entry):
@@ -241,7 +244,125 @@ def _gift_evidence(sources, chunk, name, places, entry):
     return None
 
 
+def _biography_opening(sources, chunk, name):
+    if zh.to_simplified(chunk['heading']).strip() != name:
+        return None
+    _, blocks = sources.page(chunk['page_id'])
+    first = chunk['parts'][0]['block_index']
+    heading = next((i for i in range(first-1, -1, -1) if blocks[i]['kind'] == 'heading'), None)
+    if heading is None or blocks[heading]['text'] != chunk['heading']:
+        return None
+    i = heading+1
+    body = blocks[i]
+    text = zh.to_simplified(body['text'])
+    match = re.match(rf'\s*(?P<name>{re.escape(name)}[，,]?字{_HAN}{{1,4}})(?=[，,。])', text)
+    if body['kind'] == 'body' and match and len(text) == len(body['text']):
+        a, b = match.span('name')
+        return {**{k: chunk[k] for k in (*evidence_context.IDENTITY, 'title', 'source_url', 'heading')},
+                'ranges': [[i, a, b]], 'quote': body['text'][a:b]}
+    return None
+
+
+def _named_participant(sources, chunk, event, person):
+    """Find a full name beside the same confrontation wording in this work."""
+    rows = sources.index.execute(
+        'SELECT payload FROM chunks WHERE book_id=? AND page_id<>? AND search_text LIKE ? AND search_text LIKE ?',
+        (chunk['book_id'], chunk['page_id'], f'%{event}%', f'%{person}%'))
+    witness = re.compile(rf'{re.escape(event)}[^\n]{{0,140}}?{re.escape(person)}[^\n。！？]{{0,28}}[。！？][」』]?')
+    matches = {}
+    for (payload,) in rows:
+        peer = json.loads(payload)
+        if zh.to_simplified(peer['heading']).strip() != person:
+            continue
+        original = peer['text_orig']
+        text = zh.to_simplified(original)
+        if len(text) != len(original):
+            continue
+        for match in witness.finditer(text):
+            ref = source_ref(peer, *match.span())
+            matches[ref['page_id'], tuple(map(tuple, ref['ranges']))] = ref
+    return next(iter(matches.values())) if len(matches) == 1 else None
+
+
+def _delegated_roles(sources, chunk, view, lead, grant, places, giver, recipient):
+    # Require the order to the biographical subject, their reply, and release
+    # from the audience before attaching an unnamed next-day delegation.
+    opening = _biography_opening(sources, chunk, recipient)
+    if not opening or giver[-1] == recipient[-1]:
+        return None
+    actor, target = map(re.escape, (giver[-1], recipient[-1]))
+    audience = re.compile(
+        rf'(?:^|[。；\n])(?P<order>(?P<actor>{re.escape(giver)}|{actor})'
+        rf'(?:自)?(?:行酒)?(?:到|至|召|引)(?:{re.escape(recipient)}|{target})(?:前)?[，,]'
+        rf'(?:命|令)(?:{re.escape(recipient)}|{target}){_HAN}{{1,10}}'
+        rf'(?:[，,](?P=actor){_HAN}{{1,14}}){{0,2}}(?:[，,](?:问|谕|慰){_HAN}{{1,8}})?[。])'
+        rf'(?P<reply>(?:{re.escape(recipient)}|{target}){_HAN}{{1,20}}以对[，,](?:既)?毕[，,]'
+        rf'(?:使|令)(?:复服|退|就坐|归席)(?:[，,](?:欢[宴讌燕]|宴饮){_HAN}{{0,6}})?[。])$')
+    if not (turn := audience.search(lead)):
+        return None
+    if re.search(r'未|弗|拒|不许|欲|将遣', turn['order'] + turn['reply']):
+        return None
+    event = re.compile(rf'(?:^|[。；\n])\s*(?P<fight>{_HAN}{{2,5}}?(?:出|攻|犯|寇)(?:{places}))(?=[，,。])')
+    prior = lead[:turn.start()]
+    battles = list(event.finditer(prior))
+    if len(battles) != 1:
+        return None
+    battle = battles[0]
+    if _BREAK.search(prior[battle.end():]) or re.search(r'欲|未|拟|将', battle['fight']):
+        return None
+    refs = {'受赏者身份': opening}
+    if turn['actor'] != giver:
+        witness = _named_participant(sources, chunk, battle['fight'], giver)
+        if not witness:
+            return None
+        refs['赏赐者全名旁证'] = witness
+    base = grant.start() - len(lead)
+    return {**refs,
+            '所问战事': source_ref(view, *(base+i for i in battle.span('fight'))),
+            '赏赐者与受赏者': source_ref(view, *(base+i for i in turn.span('order'))),
+            '受赏者答话': source_ref(view, *(base+i for i in turn.span('reply')))}
+
+
+def _local_gift_evidence(sources, chunk, places, frame):
+    giver, recipient = frame['giver'], frame['recipient']
+    if not giver or giver == recipient or not (original := _original_view(sources, chunk, _LOCAL_GRANT)):
+        return None
+    view, prose = original
+    explicit = re.compile(rf'(?:^|[。；！？\n])\s*(?P<action>{re.escape(giver)}'
+                          rf'(?:(?:赐|赉){re.escape(recipient)}|遣(?:使者|使)授{re.escape(recipient)}以)'
+                          rf'(?!死|自尽|自裁)(?P<gift>{_HAN}{{2,16}}))(?=[。；！？])')
+    grants = [(match, False) for match in explicit.finditer(prose)]
+    grants.extend((match, True) for match in _DELEGATION.finditer(prose))
+    for grant, delegated in grants:
+        action = source_ref(view, *grant.span('action'))
+        if not inside(chunk, action):
+            continue
+        start = grant.start() if delegated else grant.start('action')
+        lo = max(0, start-400)
+        lead = prose[lo:start]
+        if paragraph := list(re.finditer(r'\n\s*\n', lead)):
+            lo += paragraph[-1].end()
+            lead = prose[lo:start]
+        if delegated:
+            refs = _delegated_roles(sources, chunk, view, lead, grant, places, giver, recipient)
+            if not refs:
+                continue
+        else:
+            locations = list(re.finditer(places, lead))
+            if not locations or _BREAK.search(lead[locations[-1].end():]):
+                continue
+            place = locations[-1]
+            refs = {'事发地点': source_ref(view, lo+place.start(), lo+place.end())}
+        refs['当时行动'] = action
+        gift = grant['gift']
+        return dict(person=giver, recipient=recipient, summary=f'赐{recipient}{gift}',
+                    citations={label: sources.check(ref) for label, ref in refs.items()})
+    return None
+
+
 def _review_reward(sources, chunk, entries, places, frame):
+    if frame['trigger_action'] is None:
+        return _local_gift_evidence(sources, chunk, places, frame)
     if frame['asked_role'] != 'gift':
         giver = frame['giver']
         if giver not in (None, '皇帝', '天子', '君主'):
@@ -270,9 +391,14 @@ def review_hits(index, activity, hits, *, place_forms=()):
         return
     forms = '|'.join(re.escape(form) for form in dict.fromkeys((activity['anchor'], *place_forms)))
     try:
-        identity = (biography_lookup.indexed_entries() if kind == 'reward'
-                    else biography_lookup.resolved(activity['person'], include_shared=True))
-        if not identity:
+        local_gift = kind == 'reward' and activity['trigger_action'] is None
+        if local_gift:
+            identity = ()
+        elif kind == 'reward':
+            identity = biography_lookup.indexed_entries()
+        else:
+            identity = biography_lookup.resolved(activity['person'], include_shared=True)
+        if not identity and not local_gift:
             return
         with punctuated.connect() as library:
             sources = Sources(index, library, {})

@@ -110,6 +110,45 @@ class Evidence(unittest.TestCase):
             db.execute('UPDATE chunks SET payload=? WHERE chunk_id=2', (json.dumps(dict(following,revision_id=2)),))
             self.assertEqual(reward_recall.candidates(db, frame, []), [])
 
+    def test_reward_without_victory_report_keeps_grant_direction(self):
+        from search import receipt_evidence, reward_recall
+        from search.polity_evidence import Sources
+
+        forward = E.parse('东城那一次，张义赏了韩忠什么东西？')['activity_question']
+        reverse = E.parse('东城那一次，韩忠赏了张义什么东西？')['activity_question']
+        self.assertEqual((forward['anchor'], forward['trigger_action']), ('东城', None))
+        self.assertEqual((forward['giver'], forward['recipient']), ('张义', '韩忠'))
+        self.assertEqual((reverse['giver'], reverse['recipient']), ('韩忠', '张义'))
+        self.assertNotIn('activity_question', E.parse('东城那一次，张义在哪里？'))
+
+        library = sqlite3.connect(':memory:')
+        self.addCleanup(library.close)
+        library.row_factory = sqlite3.Row
+        library.execute('CREATE TABLE chapters(page_id,book_id,revision_id,source_sha256,title,source_url,'
+                        'license_url,attribution,blocks_json)')
+        sources = Sources(None, library, {})
+        cases = (
+            ('张义至东城。张义遣使授韩忠以白璧。', True),
+            ('张义至东城。张义欲遣使授韩忠以白璧。', False),
+            ('张义至东城。客曰：「张义遣使授韩忠以白璧。」', False),
+            ('张义至东城。\n\n张义遣使授韩忠以白璧。', False),
+        )
+        for cid, (prose, confirmed) in enumerate(cases, 1):
+            with self.subTest(prose=prose):
+                c = chunk(prose, cid, title='甲传', source_url='https://example.invalid/source')
+                c.update(page_id=cid, heading='', parts=[dict(block_index=0, start=0, end=len(prose))])
+                library.execute('INSERT INTO chapters VALUES(?,?,?,?,?,?,?,?,?)',
+                                (cid, 'a', 1, 'source', c['title'], c['source_url'], '', '',
+                                 json.dumps([dict(kind='body', text=prose)])))
+                evidence = receipt_evidence._local_gift_evidence(sources, c, '东城', forward)
+                self.assertEqual(bool(evidence), confirmed)
+                self.assertIsNone(receipt_evidence._local_gift_evidence(sources, c, '东城', reverse))
+                if confirmed:
+                    self.assertEqual(evidence['summary'], '赐韩忠白璧')
+                    self.assertEqual(evidence['citations']['当时行动']['quote'], '张义遣使授韩忠以白璧')
+                    focus, _ = reward_recall._action_context(c, '', 0, '东城', forward, None)
+                    self.assertEqual(focus['text'], '张义遣使授韩忠以白璧。')
+
     def test_activity_admits_scoped_short_names_but_keeps_audit_unconfirmed(self):
         db = sqlite3.connect(':memory:')
         self.addCleanup(db.close)
