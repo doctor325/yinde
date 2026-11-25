@@ -201,10 +201,7 @@ def _entry(row, aliases, opening, block_index, **scope):
         opening_block=block_index, **scope)
 
 
-def lookup(query, book=None, *, include_shared=False):
-    key = _title_key(query.strip())
-    if not re.fullmatch(r'[\u3400-\u9fff]{2,5}',key):
-        return []
+def indexed_entries():
     path = punctuated.index_path()
     try:
         stat = path.stat()
@@ -215,7 +212,14 @@ def lookup(query, book=None, *, include_shared=False):
         catalog_mtime = manifest.stat().st_mtime_ns
     except FileNotFoundError:
         catalog_mtime = None
-    entries = _entries((str(path), stat.st_size, stat.st_mtime_ns), (str(manifest), catalog_mtime))
+    return _entries((str(path), stat.st_size, stat.st_mtime_ns), (str(manifest), catalog_mtime))
+
+
+def lookup(query, book=None, *, include_shared=False):
+    key = _title_key(query.strip())
+    if not re.fullmatch(r'[\u3400-\u9fff]{2,5}',key):
+        return []
+    entries = indexed_entries()
     if not include_shared:
         entries = [e for e in entries if 'scope_heading' not in e]
     matches = [e for e in entries if key in e['aliases'] and (not book or e['book_id']==book)]

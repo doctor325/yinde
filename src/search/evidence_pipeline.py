@@ -605,7 +605,10 @@ def evaluate(query,conn,dense,batches,book=None,rerank=None,*,activity_places=()
     model_ranks={h['chunk']['chunk_id']:i for i,h in enumerate(sorted(hits,
         key=lambda h:(-h['context_relevance_score'],h['retrieval_rank'])),1)}
     from search.polity_evidence import review_hits, review_natural_hits
+    from search.receipt_evidence import review_hits as review_receipts
     review_natural_hits(conn, frame, hits)
+    if activity.get('kind') == 'reward':
+        review_receipts(conn, activity, [h for h in hits if 'reward_recall' in h['channels']], place_forms=activity_places)
 
     def priority(h):
         return (
@@ -615,8 +618,8 @@ def evaluate(query,conn,dense,batches,book=None,rerank=None,*,activity_places=()
 
     hits.sort(key=lambda h:(*priority(h),-h['context_relevance_score'],h['retrieval_rank']))
     source_order = _order_by_source(query, p, hits, priority)
-    from search.receipt_evidence import review_hits as review_receipts
-    review_receipts(conn, activity, hits[:20], place_forms=activity_places)
+    if activity.get('kind') == 'receipt':
+        review_receipts(conn, activity, hits[:20], place_forms=activity_places)
     diagnostics=[dict(chunk_id=h['chunk']['chunk_id'], channel_ranks=h['channel_ranks'],
                       model_rank=model_ranks[h['chunk']['chunk_id']],final_rank=i,
                       score=h['context_relevance_score'], audit_status=h['evidence_audit']['status'],
