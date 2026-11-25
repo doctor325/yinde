@@ -46,6 +46,7 @@ class DesktopServer:
     def __init__(self, root: Path):
         frontend = configure(root)
         from api.main import Handler
+        from search.attested_places import ATTESTED_PLACES
         self.token = secrets.token_urlsafe(32)
         token = self.token
         preferences = root / "src" / "data" / "desktop" / "preferences.json"
@@ -58,6 +59,8 @@ class DesktopServer:
                 return "simplified"
 
         class LocalHandler(Handler):
+            place_attestations = ATTESTED_PLACES
+
             def authorized(handler):
                 if handler.headers.get("Host") != f"127.0.0.1:{handler.server.server_port}":
                     handler._err("invalid host", 403)

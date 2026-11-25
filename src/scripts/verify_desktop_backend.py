@@ -20,7 +20,7 @@ def main():
         'search.office_events','search.departure_speech','search.causal_evidence',
         'search.advocacy_recall','search.event_attachment','search.event_recall',
         'search.execution_recall','search.colloquial_advocacy','search.speech_turns',
-        'search.polity_evidence','desktop.main']
+        'search.polity_evidence','search.attested_places','api.main','desktop.runtime','desktop.main']
  rows=[]
  for name in names:
   source=root/'src'/Path(*name.split('.')).with_suffix('.py')

@@ -49,6 +49,18 @@ class Search(unittest.TestCase):
         note=S.lexical(self.db,'丁戊己')['hits'][0]['chunk']
         self.assertEqual(note['layer'],'annotation')
 
+    def test_place_expansion_skips_unrelated_and_stale_sources(self):
+        from search.attested_places import ATTESTED_PLACES
+
+        with patch.object(S.punctuated, 'connect', side_effect=FileNotFoundError('old edition')) as library:
+            self.assertEqual(S._attested_place_batches(
+                self.db, '洄曲报捷那会儿，唐宪宗在干什么？', None, ATTESTED_PLACES), ([], []))
+            library.assert_not_called()
+            with self.assertLogs(S.__name__, level='WARNING'):
+                self.assertEqual(S._attested_place_batches(
+                    self.db, '凌云栅报捷那会儿，唐宪宗在干什么？', None, ATTESTED_PLACES), ([], []))
+            library.assert_called_once()
+
     def test_script_punctuation_and_conjunction(self):
         a=S.lexical(self.db,'甲乙丙，迁于东都。')
         b=S.lexical(self.db,'甲乙丙 遷於東都')

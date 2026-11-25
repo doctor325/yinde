@@ -2,6 +2,7 @@
 from contextlib import contextmanager
 import hashlib
 import json
+import logging
 from pathlib import Path
 import re
 import sqlite3
@@ -257,9 +258,13 @@ def _attested_place_batches(conn, query, book, groups):
     forms = [normalize(item['place']) for item in group]
     if len(group) != 2 or len(set(forms)) != 2 or any(len(form) < 2 for form in forms):
         raise ValueError('异体地名须提供两种完整写法')
-    with punctuated.connect() as library:
-        sources = Sources(conn, library, {})
-        refs = [sources.check(item['reference']) for item in group]
+    try:
+        with punctuated.connect() as library:
+            sources = Sources(conn, library, {})
+            refs = [sources.check(item['reference']) for item in group]
+    except (FileNotFoundError, ValueError) as exc:
+        logging.getLogger(__name__).warning('Skipped place expansion with unavailable source: %s', exc)
+        return [], []
     if len({ref['page_id'] for ref in refs}) != 2 or any(
         item['place'] not in ref['quote'] for item, ref in zip(group, refs)
     ):
@@ -372,7 +377,7 @@ def run(query, book=None, mode='keyword', page=1, cur=None, *, place_attestation
     from search.biography_lookup import lookup
     result['biographies'] = lookup(query,book) if mode == 'keyword' else []
     result['elapsed_ms'] = round((time.perf_counter()-started)*1000,2)
-    import logging,uuid
+    import uuid
     from logging.handlers import RotatingFileHandler
     logger = logging.getLogger('yinde.punctuated.search')
     if not logger.handlers:

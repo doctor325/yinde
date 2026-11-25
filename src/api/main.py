@@ -220,6 +220,7 @@ def _catalog_snapshot() -> dict:
 
 class Handler(BaseHTTPRequestHandler):
     server_version = "HistoryAI/0.1"
+    place_attestations = ()
 
     # ------------------------------------------------------------ helpers
     def _send(self, code: int, body: bytes, ctype: str = "application/json; charset=utf-8"):
@@ -357,7 +358,7 @@ class Handler(BaseHTTPRequestHandler):
         try:
             result = self._with_cur(lambda c: punctuated_search.run(
                 self._q('q') or '',book=self._q('book') or None,mode=self._q('strategy') or 'keyword',
-                page=self._q('page',1,int),cur=c.cursor()))
+                page=self._q('page',1,int),cur=c.cursor(),place_attestations=self.place_attestations))
             return self._json(result)
         except (semantic_bridge.SemanticUnavailable, semantic_bridge.SemanticBusy) as exc:
             return self._err(str(exc),503)
