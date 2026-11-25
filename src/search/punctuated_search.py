@@ -354,7 +354,8 @@ def run(query, book=None, mode='keyword', page=1, cur=None, *, place_attestation
         evidence = None
         if mode == 'evidence' and raw['book_available']:
             from search import evidence_pipeline
-            evidence = evidence_pipeline.evaluate(query,conn,dense,batches,book)
+            places = [p['query'] for p in probes if p.get('kind') == 'attested_place_variant']
+            evidence = evidence_pipeline.evaluate(query,conn,dense,batches,book,activity_places=places)
             hits = evidence['hits']
             timings['evidence_ms'] = evidence['pipeline']['elapsed_ms']
         result = dict(query=query,book=book,mode=mode,page=page,page_size=20,hits=hits,

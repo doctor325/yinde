@@ -472,7 +472,7 @@ def _order_by_source(query, plan, hits, priority):
     return None
 
 
-def evaluate(query,conn,dense,batches,book=None,rerank=None):
+def evaluate(query,conn,dense,batches,book=None,rerank=None,*,activity_places=()):
     started=time.perf_counter()
     activity_plan = _activity_plan(zh.to_simplified(query))
     activity = activity_plan['activity_question'] if activity_plan else {}
@@ -601,6 +601,8 @@ def evaluate(query,conn,dense,batches,book=None,rerank=None):
 
     hits.sort(key=lambda h:(*priority(h),-h['context_relevance_score'],h['retrieval_rank']))
     source_order = _order_by_source(query, p, hits, priority)
+    from search.receipt_evidence import review_hits as review_receipts
+    review_receipts(conn, activity, hits[:20], place_forms=activity_places)
     diagnostics=[dict(chunk_id=h['chunk']['chunk_id'], channel_ranks=h['channel_ranks'],
                       model_rank=model_ranks[h['chunk']['chunk_id']],final_rank=i,
                       score=h['context_relevance_score'], audit_status=h['evidence_audit']['status'],

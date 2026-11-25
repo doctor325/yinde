@@ -187,9 +187,9 @@ function punctuatedActivityEvidence(evidence, returnTo) {
   }).join('');
   const identity = evidence.identity;
   return `<section class="polity-evidence" data-status="supported">
-    <p><strong>有原文依据</strong> · ${esc(evidence.person)}在这次围城中的行动</p>
+    <p><strong>有原文依据</strong> · ${esc(evidence.person)}${esc(evidence.summary || '在这次围城中的行动')}</p>
     <dl class="dissuasion-evidence">${entries}
-      <dt>人物出处</dt><dd>${readingTextHtml(identity.quote,{pb:false})} · ${punctuatedSourceLink(identity.source_url,'本纪固定版本')}</dd>
+      ${identity ? `<dt>人物出处</dt><dd>${readingTextHtml(identity.quote,{pb:false})} · ${punctuatedSourceLink(identity.source_url,'本纪固定版本')}</dd>` : ''}
     </dl></section>`;
 }
 

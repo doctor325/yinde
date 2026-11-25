@@ -13,9 +13,10 @@ HOUSES = {'宋史': ('宋', '赵'), '旧唐书': ('唐', '李'), '新唐书': ('
           '晋书': ('晋', '司马'), '隋书': ('隋', '杨')}
 TOC_LINK = re.compile(r'^[#*]+\s*\[\[([^|\]]+)(?:\|[^\]]*)?\]\]\s*(.*?)\s*$')
 _ORDINAL = r'[一二三四五六七八九十百〇0-9]+'
-_TOC_ANNAL = re.compile(rf'(?:本纪|帝纪)第{_ORDINAL}[:：]?\s*(\S+)')
+_TOC_ANNAL = re.compile(rf'(?:本纪|帝纪)第{_ORDINAL}[:：]?\s*(.+)')
 _TOC_TITLED = re.compile(rf'(\S{{1,7}}帝)纪\s*第{_ORDINAL}([上下]?)')
 _TITLED_LABEL = re.compile(r'([\u3400-\u9fff]{1,6})帝[上下]?')
+_SHARED_LABEL = re.compile(r'([\u3400-\u9fff][祖宗])(?:[上下一二三四五六七八九])?')
 
 
 def _title_key(text):
@@ -69,7 +70,10 @@ def _continuations(entry, chapters, toc):
     labels, revision, source = toc
     title = _title_key(entry['aliases'][0][1:])
     first = labels.get(_title_key(entry['title']))
-    if not first or first[0] not in (title+'一', title+'上'):
+    if not first:
+        return []
+    label = first[0].split()[-1] if 'scope_heading' in entry else first[0]
+    if label not in (title+'一', title+'上'):
         return []
     suffixes = '二三四五六七八九' if first[0].endswith('一') else '下'
     by_volume = {}
@@ -148,24 +152,39 @@ def _entries(signature, catalog_signature):
             opening = row['opening'] or ''
             toc = catalog.get(row['book_id'])
             found = toc[0].get(_title_key(row['title'])) if toc else None
+            labels = found[0].split() if found else []
+            shared = [_SHARED_LABEL.fullmatch(label) for label in labels]
+            if len(shared) > 1 and all(shared):
+                blocks = json.loads(conn.execute('SELECT blocks_json FROM chapters WHERE page_id=?',
+                                                (row['page_id'],)).fetchone()[0])
+                declared = {m[1] for m in shared}
+                for i, (heading, body) in enumerate(zip(blocks, blocks[1:]), 1):
+                    label = _title_key(heading['text'].strip())
+                    if heading['kind'] != 'heading' or body['kind'] != 'body' or label not in declared:
+                        continue
+                    aliases = opening_aliases(row['book_title'], body['text'])
+                    if aliases and aliases[0][1:] == label:
+                        entries.append(_entry(row, aliases, body['text'], i, scope_heading=label))
             aliases, short_titles = [], []
+            block_index = 0
             if found and _TITLED_LABEL.fullmatch(found[0]):
                 body = opening
                 if row['opening_kind'] != 'body':
-                    first_body = conn.execute("""SELECT json_extract(value,'$.text') FROM chapters, json_each(blocks_json)
+                    first_body = conn.execute("""SELECT key,json_extract(value,'$.text') FROM chapters, json_each(blocks_json)
                         WHERE page_id=? AND json_extract(value,'$.kind')='body' ORDER BY key LIMIT 1""",
                         (row['page_id'],)).fetchone()
-                    body = first_body[0] if first_body else ''
+                    if first_body:
+                        block_index, body = first_body
+                    else:
+                        body = ''
                 aliases, short_titles = _titled_opening(row['book_title'], body, found[0])
                 if aliases:
                     opening = body
             if not aliases:
                 aliases = opening_aliases(row['book_title'], opening)
+                block_index = 0
             if aliases:
-                entry = dict(page_id=row['page_id'],title=row['title'],book_id=row['book_id'],
-                             book_title=row['book_title'],aliases=aliases,source_sha256=row['source_sha256'],
-                             revision_id=row['revision_id'],source_url=row['source_url'],sort_number=row['sort_number'],
-                             quote=re.match(r'[^。]*。?',opening.strip())[0])
+                entry = _entry(row, aliases, opening, block_index)
                 if short_titles:
                     entry.update(short_titles=short_titles,toc_line=found[1],toc_revision_id=toc[1],toc_source_url=toc[2])
                 entries.append(entry)
@@ -175,7 +194,14 @@ def _entries(signature, catalog_signature):
         return entries
 
 
-def lookup(query, book=None):
+def _entry(row, aliases, opening, block_index, **scope):
+    return {key: row[key] for key in ('page_id', 'title', 'book_id', 'book_title', 'source_sha256',
+                                    'revision_id', 'source_url', 'sort_number')} | dict(
+        aliases=aliases, quote=opening.strip().split('。', 1)[0] + ('。' if '。' in opening else ''),
+        opening_block=block_index, **scope)
+
+
+def lookup(query, book=None, *, include_shared=False):
     key = _title_key(query.strip())
     if not re.fullmatch(r'[\u3400-\u9fff]{2,5}',key):
         return []
@@ -190,6 +216,8 @@ def lookup(query, book=None):
     except FileNotFoundError:
         catalog_mtime = None
     entries = _entries((str(path), stat.st_size, stat.st_mtime_ns), (str(manifest), catalog_mtime))
+    if not include_shared:
+        entries = [e for e in entries if 'scope_heading' not in e]
     matches = [e for e in entries if key in e['aliases'] and (not book or e['book_id']==book)]
     if matches:
         return matches
@@ -200,8 +228,8 @@ def lookup(query, book=None):
     return short if len(competing | {tuple(e['aliases']) for e in short}) == 1 else []
 
 
-def resolved(query):
-    entries = lookup(query)
+def resolved(query, *, include_shared=False):
+    entries = lookup(query, include_shared=include_shared)
     # Several editions may attest the same pair. Conflicting pairs stay separate.
     if len({tuple(e['aliases']) for e in entries}) == 1:
         return entries

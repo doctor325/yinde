@@ -51,6 +51,19 @@ assert.ok(activityHtml.includes('王某在这次围城中的行动'));
 assert.ok(activityHtml.includes('当时行动'));
 assert.ok(activityHtml.includes('本纪固定版本'));
 assert.ok(activityHtml.includes('#/punctuated/9?block=3&start=2&end=8'));
+activityFixture.hits[0].evidence_audit.activity_evidence = {
+  person:'唐宪宗', summary:'赞赏裴度识人',
+  citations:{
+    行动者:{quote:'上',page_id:9,revision_id:8,source_sha256:'hash',ranges:[[3,2,3]]},
+    对象全名:{quote:'裴度',page_id:9,revision_id:8,source_sha256:'hash',ranges:[[3,0,2]]},
+    本纪身份:{quote:'憲宗皇帝諱純',page_id:20,revision_id:99,source_sha256:'annal',ranges:[[7,2,8]]}
+  }
+};
+run('put')(activityFixture);
+const receiptHtml=run('punctuatedSearchResults(result)');
+assert.ok(receiptHtml.includes('唐宪宗赞赏裴度识人'));
+assert.match(receiptHtml, /对象全名[\s\S]*#\/punctuated\/9\?block=3&start=0&end=2/);
+assert.match(receiptHtml, /本纪身份[\s\S]*#\/punctuated\/20\?block=7&start=2&end=8[^"]*&rev=99&sha=annal/);
 const experiment={...fixture('甲書'),mode:'relation',candidate_counts:{semantic:1,keyword:0},
   query_plan:{clues:[{text:'<script>'}]},relation_experiment:{selection:'baseline_fallback',candidate_scan:{truncated:true}}};
 run('globalThis.put=x=>{globalThis.result=x}')(experiment);
