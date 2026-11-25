@@ -544,6 +544,10 @@ def evaluate(query,conn,dense,batches,book=None,rerank=None):
             if needs_office: observations+=biography_office.observations(c,p,peers)
             if needs_patient: observations+=patient_references.observations(c,p,peers)
         h['evidence_audit']=audit(c,p,neighbors,observations,attachment=attachments.get(c['chunk_id']))
+        if activity.get('kind') == 'siege':
+            if linked := activity_context.siege_evidence(conn, c, activity, identity):
+                h['evidence_audit'].update(status='clues_present', missing=[], activity_evidence=linked,
+                                           answer_slot_evidence={'activity': [linked['citations']['当时行动']['quote']]})
         # Center the pairwise comparison on the event sentence. Large unrelated
         # annal entries next to a six-character event used to dominate scoring.
         f=h['evidence_focus']=focus(c,p)

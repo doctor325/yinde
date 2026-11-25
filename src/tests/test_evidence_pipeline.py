@@ -16,6 +16,41 @@ def chunk(text,cid=1,**kw):
 
 
 class Evidence(unittest.TestCase):
+    def test_siege_promotes_only_the_scoped_rulers_actual_action(self):
+        db = sqlite3.connect(':memory:')
+        self.addCleanup(db.close)
+        db.executescript('''CREATE TABLE books(book_id TEXT,title TEXT);
+            INSERT INTO books VALUES('a','甲史');
+            CREATE TABLE chunks(chunk_id INTEGER PRIMARY KEY,book_id TEXT,page_id INTEGER,search_text TEXT,payload TEXT);
+            CREATE VIRTUAL TABLE chunk_fts USING fts5(search_text,tokenize='trigram');''')
+        passages = [
+            ('甲子，诏太傅入朝。贼围西城。齐王绝粮。乙丑，诏诸郡募兵。', {}),
+            ('贼围西城，齐王募兵赴援。', {}),
+            ('贼围西城。上欲遣使募兵。既解围，诏诸郡募兵。', {}),
+            ('客曰：「贼围西城。帝乃遣使募兵。」', {}),
+            ('贼围西城。乙丑，诏诸郡募兵。', {'source_sha256': 'other'}),
+            ('贼围东城。乙丑，诏诸郡募兵。', {}),
+            ('贼将欲幸西城，议围城。帝乃召兵赴援。', {}),
+        ]
+        hits = []
+        for cid, (text, fields) in enumerate(passages, 1):
+            c = chunk(text, cid, title='本纪', source_url='https://example.invalid/source')
+            c.update(fields)
+            db.execute('INSERT INTO chunks VALUES(?,?,?,?,?)', (cid, 'a', 1, S.normalize(text), json.dumps(c)))
+            db.execute('INSERT INTO chunk_fts VALUES(?)', (S.normalize(text),))
+            hits.append(dict(chunk=c, semantic_score=1.0))
+        identity = dict(book_id='a', aliases=['甲文帝', '王某'], page_id=1,
+                        revision_id=1, source_sha256='source', quote='文皇帝諱某', source_url='https://example.invalid/')
+        with patch('search.biography_lookup.resolved', return_value=[identity]):
+            result = E.evaluate('西城被围那会儿，王某在干什么？', db, hits, [],
+                                rerank=lambda query, texts: dict(scores=list(range(len(texts))), ms=0))
+        supported = [h for h in result['hits'] if h['evidence_audit']['status'] == 'clues_present']
+        self.assertEqual([h['chunk']['chunk_id'] for h in supported], [1])
+        self.assertEqual(result['hits'][0]['chunk']['chunk_id'], 1)
+        citations = supported[0]['evidence_audit']['activity_evidence']['citations']
+        self.assertEqual(citations['当时行动']['quote'], '乙丑，诏诸郡募兵')
+        self.assertEqual(citations['围城记载']['quote'], '贼围西城')
+
     def test_activity_separates_person_event_and_question(self):
         cases = [('甲湖报捷那会儿，王某正忙什么？', '王某', '甲湖', '报捷', '忙什么'),
                  ('东门交战的时候，欧阳某在做什么？', '欧阳某', '东门', '交战', '做什么'),

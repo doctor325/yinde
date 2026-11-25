@@ -41,6 +41,16 @@ assert.deepEqual(JSON.parse(splitLink.searchParams.get('ranges')),[[3,1,3],[4,0,
 assert.equal(splitLink.searchParams.get('back'),'#/search?q=甲乙');
 assert.equal(splitLink.searchParams.get('rev'),'8');
 assert.equal(splitLink.searchParams.get('sha'),'hash');
+const activityFixture=fixture('甲書');
+activityFixture.hits[0].evidence_audit={status:'clues_present',activity_evidence:{person:'王某',
+  identity:{quote:'文皇帝諱某',source_url:'https://zh.wikisource.org/a'},
+  citations:{当时行动:{quote:'詔諸郡募兵',page_id:9,revision_id:8,source_sha256:'hash',ranges:[[3,2,8]]}}}};
+run('globalThis.put=x=>{globalThis.result=x}')(activityFixture);
+const activityHtml=run('punctuatedSearchResults(result)');
+assert.ok(activityHtml.includes('王某在这次围城中的行动'));
+assert.ok(activityHtml.includes('当时行动'));
+assert.ok(activityHtml.includes('本纪固定版本'));
+assert.ok(activityHtml.includes('#/punctuated/9?block=3&start=2&end=8'));
 const experiment={...fixture('甲書'),mode:'relation',candidate_counts:{semantic:1,keyword:0},
   query_plan:{clues:[{text:'<script>'}]},relation_experiment:{selection:'baseline_fallback',candidate_scan:{truncated:true}}};
 run('globalThis.put=x=>{globalThis.result=x}')(experiment);

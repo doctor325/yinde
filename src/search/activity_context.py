@@ -2,8 +2,9 @@
 import json
 import re
 
-from search import event_attachment, punctuated_relevance as R, punctuated_search as S, zh
+from search import annal_events, event_attachment, punctuated_relevance as R, punctuated_search as S, zh
 from search.biography_scope import named_biographies
+from search.polity_evidence import source_ref
 
 
 _PERSON = r'[\u3400-\u9fff]{2,6}'
@@ -27,6 +28,11 @@ _CONFLICT = re.compile(r'战|攻|击|杀|拒')
 _SIEGE = re.compile(r'围|城下|城北|城中')
 _MUSTER = re.compile(r'起义兵|起兵|举义兵|举兵|募兵|率兵|发兵')
 _SENTENCE = re.compile(r'[^。！？；\n]+[。！？；]?')
+_CLAUSE = re.compile(r'[^，,。！？；\n]+')
+_SIEGE_END = re.compile(r'解围|围解|(?:贼|寇|敌)退|(?:明年|翌月|其后)[，,]|\n\s*\n')
+_DEFENCE = re.compile(r'留守|守城|守御|御敌|拒守|募兵|征兵|赴难|入卫|赴援|救援|救兵|救.{1,6}围')
+_APPROACH = re.compile(r'(?:军|兵)[^，。！？；\n]{0,10}(?:且至|将至)(?:城下|城北|城南|城东|城西)')
+_ARRIVAL = re.compile(r'(?:军|兵)[^，。！？；\n]{0,10}(?:已至|到|至)(?:城下|城北|城南|城东|城西)')
 
 
 def parse(query):
@@ -64,6 +70,96 @@ def _annal_candidates(conn, identity, anchor, book):
             chunk = json.loads(payload)
             if chunk['revision_id'] == revision and chunk['source_sha256'] == checksum:
                 yield chunk
+
+
+def _siege_prose(chunk):
+    original = chunk['text_orig']
+    text = zh.to_simplified(original)
+    return event_attachment.narrative(text) if len(text) == len(original) else ''
+
+
+def _siege_setting(conn, chunk, anchor, prose):
+    place = re.escape(anchor)
+    # A place and a siege may be recorded in successive clauses of one entry.
+    local = re.compile(rf'(?<!解)围(?:攻)?(?:于|於)?{place}城?(?=[，,。；！？]|$)|'
+                       rf'(?:(?:至|幸|入|次|保){place})[，。][^；\n]{{0,28}}?围城')
+    for m in local.finditer(prose):
+        onset = m.start() + m[0].rfind('围')
+        lead = re.split(r'[，,。；\n]', prose[max(0, onset - 16):onset])[-1]
+        if not re.search(r'欲|未|不|谋|将|拟|请|议', lead):
+            start = max(prose.rfind(mark, 0, m.start()) for mark in '，,。；\n') + 1
+            return m.end(), {'围城记载': source_ref(chunk, start, m.end())}
+
+    # Some editions split the account at interleaved annotations. Use the
+    # preceding body location and subsequent actual arrival only within the
+    # same edition/heading, with the approach explicit in the action fragment.
+    if not (approach := _APPROACH.search(prose)):
+        return None
+    cid = chunk['chunk_id']
+    before = None
+    for (payload,) in conn.execute('SELECT payload FROM chunks WHERE chunk_id BETWEEN ? AND ? ORDER BY chunk_id',
+                                   (cid - 4, cid + 4)):
+        peer = json.loads(payload)
+        if not all(peer.get(k) == chunk.get(k) for k in event_attachment.SOURCE_SCOPE):
+            continue
+        text = _siege_prose(peer)
+        if peer['chunk_id'] < cid:
+            if at := re.search(rf'(?:入|至|保|守){place}(?=[，,。；])', text):
+                before = (peer, at)
+            if _SIEGE_END.search(text[at.end():] if at else text):
+                before = None
+        elif peer['chunk_id'] > cid and before and (arrival := _ARRIVAL.search(text)):
+            if _SIEGE_END.search(text[:arrival.start()]):
+                break
+            peer_before, at = before
+            return approach.end(), {'围城地点': source_ref(peer_before, *at.span()),
+                                    '兵临城下': source_ref(peer, *arrival.span())}
+    return None
+
+
+def siege_evidence(conn, chunk, activity, identity):
+    """Require an anchored siege and the attested ruler's own defensive act."""
+    if chunk['layer'] != 'body' or not identity or not chunk.get('parts'):
+        return None
+    if S.normalize(chunk['heading']) in ('校勘记', '论', '赞'):
+        return None
+    entry = next((e for e in identity if chunk['book_id'] == e['book_id'] and any(
+        all(chunk.get(k) and chunk[k] == volume.get(k) for k in ('page_id', 'revision_id', 'source_sha256'))
+        for volume in (e, *e.get('continuations', ()))
+    )), None)
+    if not entry:
+        return None
+    prose = _siege_prose(chunk)
+    if not (setting := _siege_setting(conn, chunk, activity['anchor'], prose)):
+        return None
+    at, citations = setting
+    tail = prose[at:at + 180]
+    tail = _SIEGE_END.split(tail, maxsplit=1)[0]
+    names = [*entry['aliases'], *entry.get('short_titles', ()), entry['aliases'][0][1:], '帝', '上']
+    actor = '|'.join(map(re.escape, sorted(set(names), key=len, reverse=True)))
+    explicit = re.compile(rf'(?:{actor})(?:乃|遂|即|复|亲)?(?:下诏|诏|命|遣|令|使|发|召).+')
+    for clause in _CLAUSE.finditer(tail):
+        text = clause[0].lstrip()
+        match = explicit.fullmatch(text)
+        # An edict without a written subject is attributable only at the
+        # start of a dated entry, or a sentence in that same pinned annal.
+        start = at + clause.start() + len(clause[0]) - len(text)
+        previous = prose[:start].rstrip().rstrip('，,')
+        prefix = re.split(r'[。！？；\n]', previous)[-1].strip()
+        implicit = (text.startswith(('诏', '下诏')) and annal_events.DATE_PREFIX.fullmatch(prefix)
+                    and bool(previous) and (prefix or previous.endswith(('。', '！', '？'))))
+        if not _DEFENCE.search(text) or re.search(r'^(?:诏书|上书|帝欲|上欲)', text):
+            continue
+        if match or implicit:
+            if implicit and prefix:
+                start = previous.rfind(prefix)
+            end = at + clause.end()
+            if end >= len(prose) or prose[end] not in '，,。；！？':
+                continue
+            citations['当时行动'] = source_ref(chunk, start, end)
+            return dict(person=activity['person'], citations=citations,
+                        identity={key: entry[key] for key in ('quote', 'source_url') if key in entry})
+    return None
 
 
 def candidates(conn, frame, subject, identity, book=None):

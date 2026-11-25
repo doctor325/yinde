@@ -178,6 +178,21 @@ function punctuatedPolityEvidence(evidence, returnTo, advice=false) {
     </section>`;
 }
 
+function punctuatedActivityEvidence(evidence, returnTo) {
+  if (!evidence) return '';
+  const entries = Object.entries(evidence.citations).map(([label, ref]) => {
+    const parts = ref.ranges.map(([block_index, start, end]) => ({block_index, start, end}));
+    const href = punctuatedHitLink({...ref, parts}, returnTo);
+    return `<dt>${esc(label)}</dt><dd>${readingTextHtml(ref.quote,{pb:false})} · <a href="${href}">定位原文</a></dd>`;
+  }).join('');
+  const identity = evidence.identity;
+  return `<section class="polity-evidence" data-status="supported">
+    <p><strong>有原文依据</strong> · ${esc(evidence.person)}在这次围城中的行动</p>
+    <dl class="dissuasion-evidence">${entries}
+      <dt>人物出处</dt><dd>${readingTextHtml(identity.quote,{pb:false})} · ${punctuatedSourceLink(identity.source_url,'本纪固定版本')}</dd>
+    </dl></section>`;
+}
+
 function punctuatedHitContext(hit, returnTo) {
   const c=hit.chunk;
   const scope=['page_id','book_id','revision_id','source_sha256','layer','heading'];
@@ -242,6 +257,7 @@ function punctuatedSearchResults(result) {
       ${hit.channels?.includes('biography')?'<p class="quiet">按本纪记载的姓名与庙号找到</p>':''}
       <div class="blk-text">${readingTextHtml(c.text_orig,{pb:false})}</div>
       ${punctuatedPolityEvidence(evidence,returnTo,Boolean(hit.advice_evidence))}
+      ${punctuatedActivityEvidence(hit.evidence_audit?.activity_evidence,returnTo)}
       ${c.status!=='readable'?`<p class="quiet">${esc(c.reason)}</p>`:''}
       ${pipeline||hit.semantic_score==null?'':`<p class="quiet">语义相似分 ${Number(hit.semantic_score).toFixed(3)}（不是正确概率）</p>`}
       <div class="controls"><a class="btn read-link" href="${read}">标点原文与上下文</a>${punctuatedSourceLink(c.source_url,'固定版本出处')}${punctuatedCitation(c,c.text_orig,c.layer)}</div>
