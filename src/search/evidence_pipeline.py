@@ -8,7 +8,7 @@ import math
 import re
 import time
 from search import advocacy_recall, annal_events, event_attachment, event_recall, execution_recall, punctuated_relevance as R, punctuated_search as S, zh
-from search import activity_context, colloquial_advocacy
+from search import activity_context, colloquial_advocacy, reward_recall
 
 VERSION = 'context-evidence-v2'
 # Each independent channel keeps its own quota before deduplication. A shared
@@ -81,8 +81,12 @@ def place_attached(observation):
 
 def _activity_plan(text):
     if activity := activity_context.parse(text):
-        p = R.plan(activity['person'])
-        if anchor := activity.get('anchor'):
+        p = R.plan(activity['person'] or '')
+        if activity['kind'] == 'reward':
+            names = dict.fromkeys((activity['person'], activity['anchor'], activity['recipient']))
+            p['clues'] = [dict(text=name, forms=[S.normalize(name)], scope_titles=[])
+                          for name in names if name]
+        elif anchor := activity.get('anchor'):
             person = activity['person']
             if [clue['text'] for clue in p['clues']] != [person]:
                 p['clues'] = [dict(text=person, forms=[S.normalize(person)], scope_titles=[])]
@@ -224,6 +228,8 @@ def admit(channels):
                 if 'semantic_score' in h:value['semantic_score']=h['semantic_score']
                 if name == 'biography_context' and 'campaign_context' in h:
                     value['campaign_context'] = h['campaign_context']
+                if name == 'reward_recall':
+                    value.update(reward_focus=h['reward_focus'], reward_context=h['reward_context'])
     return list(selected.values())
 
 
@@ -490,7 +496,11 @@ def evaluate(query,conn,dense,batches,book=None,rerank=None,*,activity_places=()
         identity=resolved(name)
         if identity:
             biography=S.lexical(conn,name,book,identity=identity)['hits']
-    activity_hits = activity_context.candidates(conn, activity, subject, identity, book) if 'anchor' in activity else []
+    reward_hits, activity_hits = [], []
+    if activity.get('kind') == 'reward':
+        reward_hits = reward_recall.candidates(conn, activity, subject, book, place_forms=activity_places)
+    elif 'anchor' in activity:
+        activity_hits = activity_context.candidates(conn, activity, subject, identity, book)
     annal={}
     event_hits=[]
     if identity and any(g['kind'] in annal_events.VERBS for g in p['relation_groups']):
@@ -520,6 +530,8 @@ def evaluate(query,conn,dense,batches,book=None,rerank=None,*,activity_places=()
               ('biography',biography),('annal_event',event_hits),('grounded',fallback))
     if activity_hits:
         channels = (('activity_trigger', activity_hits), *channels)
+    if reward_hits:
+        channels = (('reward_recall', reward_hits), *channels)
     hits=admit(channels);texts=[]
     p = activity_plan or p
     from search import biography_office, patient_references
@@ -550,7 +562,7 @@ def evaluate(query,conn,dense,batches,book=None,rerank=None,*,activity_places=()
                                            answer_slot_evidence={'activity': [linked['citations']['当时行动']['quote']]})
         # Center the pairwise comparison on the event sentence. Large unrelated
         # annal entries next to a six-character event used to dominate scoring.
-        f=h['evidence_focus']=focus(c,p)
+        f=h['evidence_focus']=h.get('reward_focus') or focus(c,p)
         attachment = next(iter(h['evidence_audit']['attached_evidence']), None)
         if attachment and attachment.get('kind') == 'advocacy':
             event=attachment['event']
@@ -568,6 +580,8 @@ def evaluate(query,conn,dense,batches,book=None,rerank=None,*,activity_places=()
             text+='\n前文：'+(before or '\n'.join(prev))+'\n后文：'+(after or '\n'.join(nxt))
         if campaign := h.get('campaign_context'):
             text += '\n同篇出兵前后：' + campaign
+        if reward_context := h.get('reward_context'):
+            text += '\n同篇战事前文：' + reward_context
         h['context_truncated']=len(text)>1000;texts.append(text[:1000])
     model_report={'scores':[],'truncated_indices':[],'ms':0}
     ranking_query = query

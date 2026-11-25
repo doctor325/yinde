@@ -2,7 +2,7 @@
 import json
 import re
 
-from search import annal_events, event_attachment, punctuated_relevance as R, punctuated_search as S, zh
+from search import annal_events, event_attachment, punctuated_relevance as R, punctuated_search as S, reward_recall, zh
 from search.biography_scope import named_biographies
 from search.polity_evidence import source_ref
 
@@ -55,7 +55,7 @@ def parse(query):
         else:
             kind = 'muster'
         return dict(**match.groupdict(), kind=kind, anchor=event['anchor'], trigger_action=action)
-    return None
+    return reward_recall.parse(text)
 
 
 def _annal_candidates(conn, identity, anchor, book):

@@ -68,6 +68,48 @@ class Evidence(unittest.TestCase):
         self.assertEqual(original['kind'], 'receipt')
         self.assertNotIn('anchor', original)
 
+    def test_colloquial_post_victory_queries_preserve_roles(self):
+        from search import activity_context
+
+        question = '赵某在南浦打赢后，皇帝怎么看孙某？'
+        plan = E.parse(question)
+        frame = plan['activity_question']
+        self.assertEqual((frame['anchor'], frame['victor'], frame['giver'], frame['recipient'], frame['asked_role']),
+                         ('南浦', '赵某', '皇帝', '孙某', 'appraisal'))
+        self.assertEqual([c['text'] for c in plan['clues']], ['赵某', '南浦', '孙某'])
+        recipient = activity_context.parse('打下石门寨以后，得到赏赐的是谁？')
+        self.assertEqual((recipient['anchor'], recipient['person'], recipient['asked_role']), ('石门寨', None, 'recipient'))
+        gift = activity_context.parse('石门寨报捷以后，赵某给孙某赏了什么？')
+        reversed_gift = activity_context.parse('石门寨报捷以后，孙某给赵某赏了什么？')
+        self.assertEqual((gift['giver'], gift['recipient']), ('赵某', '孙某'))
+        self.assertEqual((reversed_gift['giver'], reversed_gift['recipient']), ('孙某', '赵某'))
+        self.assertIsNone(activity_context.parse('石门寨报捷以前，赵某在哪里？'))
+
+    def test_post_victory_reward_recall_requires_same_source_overlap(self):
+        from search import reward_recall
+
+        db = sqlite3.connect(':memory:')
+        self.addCleanup(db.close)
+        db.execute('CREATE TABLE chunks(chunk_id INTEGER PRIMARY KEY,payload TEXT)')
+        lead = '王某，字明之。攻东城，城破。'
+        overlap = '军士各还其营。'
+        tail = '捷闻，帝曰：「善。」赐金帛一千匹。'
+        seed = chunk(lead+overlap)
+        following = chunk(overlap+tail, 2)
+        for part, start, text in ((seed, 0, lead+overlap), (following, len(lead), overlap+tail)):
+            part['parts'] = [dict(block_index=0, start=start, end=start+len(text))]
+            part['heading'] = '王某'
+        frame = E.parse('东城报捷以后，汉文帝给王某赏了什么？')['activity_question']
+        with patch('search.reward_recall.S.lexical', return_value={'hits': [dict(chunk=seed)]}), \
+             patch('search.reward_recall.named_biographies', return_value=[]):
+            db.execute('INSERT INTO chunks VALUES(?,?)', (2, json.dumps(following)))
+            hits = reward_recall.candidates(db, frame, [])
+            self.assertEqual([h['chunk']['chunk_id'] for h in hits], [2])
+            self.assertEqual(hits[0]['reward_focus']['text'], tail)
+            self.assertIn('城破', hits[0]['reward_context'])
+            db.execute('UPDATE chunks SET payload=? WHERE chunk_id=2', (json.dumps(dict(following,revision_id=2)),))
+            self.assertEqual(reward_recall.candidates(db, frame, []), [])
+
     def test_activity_admits_scoped_short_names_but_keeps_audit_unconfirmed(self):
         db = sqlite3.connect(':memory:')
         self.addCleanup(db.close)
