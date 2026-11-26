@@ -230,6 +230,8 @@ def admit(channels):
                     value['campaign_context'] = h['campaign_context']
                 if name == 'reward_recall':
                     value.update(reward_focus=h['reward_focus'], reward_context=h['reward_context'])
+                if name == 'source_reading':
+                    value['reading_support'] = h['reading_support']
     return list(selected.values())
 
 
@@ -532,6 +534,9 @@ def evaluate(query,conn,dense,batches,book=None,rerank=None,*,activity_places=()
         channels = (('activity_trigger', activity_hits), *channels)
     if reward_hits:
         channels = (('reward_recall', reward_hits), *channels)
+    from search.reading_grounding import recall as recall_reading
+    if reading_hits := recall_reading(conn, query, book):
+        channels = (('source_reading', reading_hits), *channels)
     hits=admit(channels);texts=[]
     p = activity_plan or p
     from search import biography_office, patient_references
@@ -612,6 +617,7 @@ def evaluate(query,conn,dense,batches,book=None,rerank=None,*,activity_places=()
 
     def priority(h):
         return (
+            'reading_support' not in h,
             {'supported': 0, 'different_roles': 1}.get(h.get('advice_evidence', {}).get('status'), 2),
             h['evidence_audit']['status'] != 'clues_present',
         )
