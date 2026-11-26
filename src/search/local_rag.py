@@ -4,8 +4,9 @@ import json
 import time
 from urllib.parse import urlencode
 
+from search import activity_context, zh
 from search.evidence_context import IDENTITY, quotes_balanced, units
-from search.polity_evidence import source_ref
+from search.polity_evidence import covered, source_ref
 
 
 MAX_SOURCE_CHARS = 2200
@@ -31,10 +32,13 @@ SCHEMA = {
 
 def reader_href(ref):
     block, start, end = ref['ranges'][0]
-    return f"#/punctuated/{ref['page_id']}?" + urlencode({
+    coordinates = {
         'block': block, 'start': start, 'end': end,
         'rev': ref['revision_id'], 'sha': ref['source_sha256'],
-    })
+    }
+    if len(ref['ranges']) > 1:
+        coordinates['ranges'] = json.dumps(ref['ranges'], separators=(',', ':'))
+    return f"#/punctuated/{ref['page_id']}?" + urlencode(coordinates)
 
 
 def evidence_packet(saved, sources):
@@ -92,8 +96,50 @@ def evidence_packet(saved, sources):
         evidence.append(dict(ref, id=f'E{len(evidence)+1}', edition='维基文库录入本 · 标点版',
                              layer=layer, ranks=sorted(group['ranks']), href=reader_href(ref)))
         remaining -= len(quote)
-    return dict(evidence=evidence, omitted=omitted,
-                hit_ids=[hit['chunk']['chunk_id'] for hit in hits])
+    packet = dict(evidence=evidence, omitted=omitted,
+                  hit_ids=[hit['chunk']['chunk_id'] for hit in hits])
+    if frame := local_gift_frame(saved.get('query', '')):
+        facts = [fact for hit in hits if (fact := gift_fact(hit, frame))]
+        if len(facts) == 1:
+            packet['gift_fact'] = facts[0]
+    return packet
+
+
+def local_gift_frame(question):
+    frame = activity_context.parse(zh.to_simplified(question))
+    if frame and frame['kind'] == 'reward' and frame['asked_role'] == 'gift' and frame['trigger_action'] is None:
+        return frame
+    return None
+
+
+def gift_fact(hit, frame):
+    """Reuse the strict reward reader's existing finding for this search."""
+    card = hit.get('evidence_audit', {}).get('activity_evidence') or {}
+    giver, recipient = frame['giver'], frame['recipient']
+    if (card.get('person'), card.get('recipient')) != (giver, recipient):
+        return None
+    refs = card['citations']
+    prefix = f'赐{recipient}'
+    summary = card['summary']
+    action = zh.to_simplified(refs['当时行动']['quote'])
+    if not summary.startswith(prefix):
+        return None
+    item = summary[len(prefix):]
+    if not item or not action.endswith(item):
+        return None
+    required = {'赏赐动作与物品': refs['当时行动']}
+    if action.startswith(giver) and recipient in action[len(giver):-len(item)] and '事发地点' in refs:
+        required['事发地点'] = refs['事发地点']
+    else:
+        labels = {'受赏者身份', '所问战事', '赏赐者与受赏者', '受赏者答话'}
+        if not labels <= refs.keys():
+            return None
+        required.update((label, ref) for label, ref in refs.items() if label in labels)
+        if '赏赐者全名旁证' in refs:
+            required['赏赐者全名'] = refs['赏赐者全名旁证']
+        elif giver not in zh.to_simplified(refs['赏赐者与受赏者']['quote']):
+            return None
+    return dict(anchor=frame['anchor'], giver=giver, recipient=recipient, item=item, required=required)
 
 
 def validate_answer(raw, packet, sources):
@@ -116,6 +162,48 @@ def validate_answer(raw, packet, sources):
         citations = [sources.check(by_id[key]) for key in dict.fromkeys(ids)]
         checked.append(dict(text=text.strip(), evidence_ids=[ref['id'] for ref in citations]))
     return dict(status=raw['status'], claims=checked, citation_integrity='passed')
+
+
+def resolve_answer(raw, question, packet, sources):
+    """Add field-level coverage only for a question matching a proven local gift."""
+    frame, fact = local_gift_frame(question), packet.get('gift_fact')
+    if not frame or not fact or frame['anchor'] != fact['anchor']:
+        return validate_answer(raw, packet, sources)
+    asked = frame['giver'], frame['recipient']
+    actual = fact['giver'], fact['recipient']
+    if asked not in (actual, actual[::-1]):
+        return validate_answer(raw, packet, sources)
+
+    checked = {}
+    missing = []
+    for label, ref in fact['required'].items():
+        covering = next((unit for unit in packet['evidence']
+                         if all(unit[key] == ref[key] for key in IDENTITY)
+                         and all(covered(span, unit['ranges']) for span in ref['ranges'])), None)
+        if covering is None:
+            missing.append(label)
+            continue
+        sources.check(ref)
+        sources.check(covering)
+        checked[label] = dict(ref, id=covering['id'], href=reader_href(ref))
+    answer = dict(citation_integrity='passed', claims=[], verified_support=checked,
+                  missing_support=missing, status='insufficient')
+    try:
+        answer['model_draft'] = validate_answer(raw, packet, sources)
+    except ValueError as exc:
+        answer['model_draft_error'] = str(exc)
+    if '赏赐动作与物品' not in checked:
+        return answer
+    if missing:
+        answer.update(status='partial', claims=[dict(
+            text=f"这段原文记载赐予{fact['item']}。", evidence_ids=[checked['赏赐动作与物品']['id']])])
+        return answer
+    sentence = f"{fact['giver']}赐{fact['recipient']}{fact['item']}。"
+    correction = asked != actual
+    answer.update(status='correction' if correction else 'answer', claims=[dict(
+        text=f'原文中的赏赐方向与问句相反。{sentence}' if correction else sentence,
+        evidence_ids=list(dict.fromkeys(ref['id'] for ref in checked.values())))])
+    return answer
 
 
 def read(reader, question, packet):

@@ -23,12 +23,26 @@ def render(report):
     for row in report['results']:
         body.append(f"<section><h2>{escape(row['question'])}</h2>")
         if answer := row.get('answer'):
-            body.append('<p>模型释读草稿 · 引用已核对</p>')
+            if 'verified_support' in answer:
+                heading = {'answer': '史料作答', 'correction': '史料纠正问句',
+                           'partial': '史料支持部分作答', 'insufficient': '关键证据缺失'}
+                body.append(f"<p>{heading[answer['status']]}</p>")
+            else:
+                body.append('<p>模型释读草稿 · 引用位置已核对</p>')
             if answer['status'] == 'insufficient':
                 body.append('<p>现有史料不足以作答。</p>')
             for claim in answer['claims']:
                 citations = ' '.join(f'<a href="#{key}">[{key}]</a>' for key in claim['evidence_ids'])
                 body.append(f"<p>{escape(claim['text'])} {citations}</p>")
+            for label, ref in answer.get('verified_support', {}).items():
+                body.append(f'<p><a href="#{ref["id"]}">{escape(label)}</a> '
+                            f'<q>{escape(ref["quote"])}</q></p>')
+            if missing := answer.get('missing_support'):
+                body.append(f"<p>尚缺依据。{escape('、'.join(missing))}</p>")
+            if 'verified_support' in answer and 'output' in row:
+                body.append(f'<details><summary>模型原始作答与引用</summary><pre>'
+                            f'{escape(json.dumps(row["output"], ensure_ascii=False, indent=2))}'
+                            '</pre></details>')
         elif row.get('error'):
             body.append(f"<p>{escape(row['error'])}</p>")
         body.append('</section>')
@@ -96,7 +110,7 @@ def main():
                                        elapsed_ms=round((time.perf_counter()-started)*1000, 2))
                             break
                         try:
-                            row['answer'] = local_rag.validate_answer(row['output'], packet, sources)
+                            row['answer'] = local_rag.resolve_answer(row['output'], question, packet, sources)
                         except ValueError as exc:
                             row['error'] = str(exc)
             except (RuntimeError, OSError, ValueError, KeyError) as exc:
