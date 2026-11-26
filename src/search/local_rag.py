@@ -218,7 +218,29 @@ def _reading_answer(raw, question, plan, packet, sources):
     refs = packet.get('reading_refs', {}) if packet.get('reading_question') == question else {}
     if plan['kind'] == 'name_list':
         return _verify(raw, {}, ('逐项写出名称的原文',), packet, sources)
+    if plan['kind'] == 'pursuit_date':
+        return _verify(raw, refs, ('追赶原文', '被追者身份', '与该次追赶相连的月日'), packet, sources)
+    if plan['kind'] == 'proposal_order':
+        labels = ('提出主张的原文', '人物别称', '被围原文')
+        answer = _verify(raw, refs, labels, packet, sources)
+        if not answer['missing_support']:
+            earlier = plan['order'] in ('之前', '以前', '前')
+            text = f"原文先记{plan['person']}提出{plan['proposal']}，后记他被围于{plan['place']}。"
+            answer.update(status='correction' if earlier else 'answer', claims=[dict(
+                text=text, evidence_ids=list(dict.fromkeys(ref['id'] for ref in answer['verified_support'].values())))])
+        return answer
     if plan['kind'] == 'quote_attribution':
+        if any(label in refs for label in ('发言原文', '说话者身份', '被称赞者身份')):
+            labels = ('发言原文', '说话者身份', '被称赞者身份')
+            answer = _verify(raw, refs, labels, packet, sources)
+            if not answer['missing_support']:
+                checked = answer['verified_support']
+                speaker = re.sub(r'者[，,]$', '', zh.to_simplified(checked['说话者身份']['quote']).strip())
+                target = zh.to_simplified(checked['被称赞者身份']['quote'])
+                answer.update(status='answer', claims=[dict(
+                    text=f'这句话出自{speaker}，称赞的是{target}。',
+                    evidence_ids=list(dict.fromkeys(ref['id'] for ref in checked.values())))])
+            return answer
         labels = ('发言人与所指人物', '所指人物全名')
         answer = _verify(raw, refs, labels, packet, sources)
         checked = answer['verified_support']
@@ -232,11 +254,18 @@ def _reading_answer(raw, question, plan, packet, sources):
                 text=f"这句话出自{episode['speaker']}，说的是{target}。",
                 evidence_ids=list(dict.fromkeys(ref['id'] for ref in checked.values())))])
         return answer
-    if plan['kind'] == 'parentage_comparison':
+    if plan['kind'] in ('parentage_comparison', 'death_comparison'):
         labels = (plan['first'], plan['second'])
-        answer = _verify(raw, refs, labels, packet, sources)
-        for label, ref in answer['verified_support'].items():
-            answer['claims'].append(dict(text=f'《{label}》记载“{ref["quote"].strip()}”', evidence_ids=[ref['id']]))
+        required = (*labels, '人物身份') if plan['kind'] == 'death_comparison' else labels
+        answer = _verify(raw, refs, required, packet, sources)
+        checked = answer['verified_support']
+        identity = checked.get('人物身份')
+        if '人物身份' in required and identity is None:
+            return answer
+        for label in labels:
+            if ref := checked.get(label):
+                ids = list(dict.fromkeys((ref['id'], identity['id']))) if identity else [ref['id']]
+                answer['claims'].append(dict(text=f'《{label}》记载“{ref["quote"].strip()}”', evidence_ids=ids))
         if answer['claims']:
             answer['status'] = 'partial' if answer['missing_support'] else 'answer'
         return answer

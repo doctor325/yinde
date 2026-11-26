@@ -12,7 +12,7 @@ from search.polity_evidence import Sources, source_ref
 
 
 HAN = r'[\u3400-\u9fff]'
-CHAPTER = rf'{HAN}{{2,12}}?(?:本纪|列传|世家)'
+CHAPTER = rf'{HAN}{{2,12}}?(?:本纪|列传|世家|年表)'
 COMPARISON = re.compile(rf'《(?P<book>{HAN}{{2,12}})》(?:的)?(?P<first>{CHAPTER})'
                         rf'(?:和|与|及|、)(?P<second>{CHAPTER})对(?P<person>{HAN}{{2,8}})的'
                         r'(?:身世|出身|生父)(?:是)?(?:怎么写的|有何不同|有何记载)')
@@ -22,6 +22,15 @@ RELOCATION = re.compile(rf'(?P<person>{HAN}{{2,4}}?)被(?:迁往|迁到|迁至|�
 ATTRIBUTION = re.compile(rf'《(?P<book>{HAN}{{2,12}})》(?:里|中)?[“「](?P<quote>[^”」]{{6,60}})[”」]'
                          r'(?:这句话)?是谁说的[，,]说的是谁')
 NAME_LIST = re.compile(r'《[^》]{2,32}》(?:里|中)?[，,]?[^？?]{3,140}(?:分别叫|各叫|各自叫)什么(?:名字)?')
+DEATH_COMPARISON = re.compile(rf'《(?P<book>{HAN}{{2,12}})》(?:的)?(?P<first>{CHAPTER})'
+                              rf'(?:和|与|及|、)(?P<second>{CHAPTER})(?:分别)?(?:怎么写|如何记载)'
+                              rf'(?P<person>{HAN}{{2,8}}?)之死')
+PROPOSAL_ORDER = re.compile(rf'(?P<person>{HAN}{{2,8}}?)被困(?:于|在)?(?P<place>{HAN}{{2,8}}?)'
+                            rf'[，,]?(?:是)?在他提出(?P<proposal>{HAN}{{3,12}}?)'
+                            r'(?P<order>之前|之后|以前|以后|前|后)吗')
+PURSUIT_DATE = re.compile(rf'《(?P<book>{HAN}{{2,12}})[·・](?P<chapter>{CHAPTER})》(?:里|中)?[，,]?'
+                          rf'(?P<person>{HAN}{{2,4}}?)追(?:赶)?(?P<target>{HAN}{{2,4}}?)'
+                          r'(?:那天|当天)(?:究竟|具体)?(?:是|为)?几月几日')
 AUDIENCE = re.compile(rf'(?:^|[，。；\n])(?P<target>{HAN}{{1,4}}?)立(?P<speaker>{HAN}{{1,4}}帝)。'
                       r'帝[^。：「『\n]{1,60}?[，,]目(?P=target)曰[：:][『「“](?P<quote>[^』」”]+)[』」”]')
 
@@ -29,6 +38,8 @@ AUDIENCE = re.compile(rf'(?:^|[，。；\n])(?P<target>{HAN}{{1,4}}?)立(?P<spea
 def frame(query):
     text = zh.to_simplified(query).strip().rstrip('？?。')
     for kind, pattern in (('parentage_comparison', COMPARISON), ('relocation_order', RELOCATION),
+                          ('death_comparison', DEATH_COMPARISON), ('proposal_order', PROPOSAL_ORDER),
+                          ('pursuit_date', PURSUIT_DATE),
                           ('quote_attribution', ATTRIBUTION), ('name_list', NAME_LIST)):
         if match := pattern.fullmatch(text):
             return dict(kind=kind, **match.groupdict())
@@ -225,7 +236,8 @@ def _attribution(index, library, plan, book):
             ref = sources.check(source_ref(chunk, episode.start(), episode.end()))
             matched.setdefault((ref['page_id'], tuple(map(tuple, ref['ranges']))), (chunk, ref, episode))
     if len(matched) != 1:
-        return []
+        from search.reading_scope import named_speech
+        return named_speech(sources, attempts, plan) if not matched else []
     chunk, ref, episode = next(iter(matched.values()))
     result = [dict(chunk=chunk, reading_support={'发言人与所指人物': ref})]
     target, speaker = episode['target'], episode['speaker']
@@ -257,6 +269,9 @@ def recall(index, query, book=None):
                 return _scoped_comparison(index, library, plan, book)
             if plan['kind'] == 'quote_attribution':
                 return _attribution(index, library, plan, book)
+            if plan['kind'] in ('death_comparison', 'proposal_order', 'pursuit_date'):
+                from search import reading_scope
+                return reading_scope.recall(Sources(index, library, {}), plan, book)
             return _relocation(index, library, plan, book)
     except FileNotFoundError:
         return []
