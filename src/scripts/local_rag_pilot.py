@@ -34,6 +34,10 @@ def render(report):
             for claim in answer['claims']:
                 citations = ' '.join(f'<a href="#{key}">[{key}]</a>' for key in claim['evidence_ids'])
                 body.append(f"<p>{escape(claim['text'])} {citations}</p>")
+            for rejected in answer.get('rejected_claims', ()):
+                reason = rejected.get('unsupported_quantities') or rejected.get('missing_chapters') or []
+                note = f"（{escape('、'.join(map(str, reason)))}）" if reason else ''
+                body.append(f"<p>已拒答：{escape(rejected['text'])}{note}</p>")
             for label, ref in answer.get('verified_support', {}).items():
                 body.append(f'<p><a href="#{ref["id"]}">{escape(label)}</a> '
                             f'<q>{escape(ref["quote"])}</q></p>')
@@ -54,9 +58,12 @@ def render(report):
         source = escape(ref['source_url'], quote=True)
         edition = escape(ref['edition'])
         block, start, end = ref['ranges'][0]
-        body.append(f'<article id="{ref["id"]}"><h3>{ref["id"]} · {title} · {layer}</h3>'
+        quote = ('……' if ref.get('truncated_before') else '') + ref['quote']
+        quote += '……' if ref.get('truncated_after') else ''
+        note = ' · 节选' if ref.get('excerpt') else ''
+        body.append(f'<article id="{ref["id"]}"><h3>{ref["id"]} · {title} · {layer}{note}</h3>'
                     f'<p>{heading} · {edition} · 修订 {ref["revision_id"]} · 原文块 {block} 字符 {start}–{end}</p>'
-                    f'<blockquote>{escape(ref["quote"])}</blockquote>')
+                    f'<blockquote>{escape(quote)}</blockquote>')
         related = [item for item in evidence if item is not ref and set(item['ranks']).intersection(ref['ranks'])]
         if related:
             links = ' '.join(f'<a href="#{item["id"]}">[{item["id"]}]</a>' for item in related)

@@ -7,7 +7,7 @@ import json
 import math
 import re
 import time
-from search import advocacy_recall, annal_events, event_attachment, event_recall, execution_recall, punctuated_relevance as R, punctuated_search as S, zh
+from search import advocacy_recall, annal_events, event_attachment, event_recall, execution_recall, punctuated_relevance as R, punctuated_search as S, source_catalog, zh
 from search import activity_context, colloquial_advocacy, reward_recall
 
 VERSION = 'context-evidence-v2'
@@ -232,6 +232,8 @@ def admit(channels):
                     value.update(reward_focus=h['reward_focus'], reward_context=h['reward_context'])
                 if name == 'source_reading':
                     value['reading_support'] = h['reading_support']
+                if name == 'named_chapter':
+                    value['named_chapter'] = h.get('named_chapter')
     return list(selected.values())
 
 
@@ -480,6 +482,96 @@ def _order_by_source(query, plan, hits, priority):
     return None
 
 
+def _chapter_terms(query, plan):
+    names, labels = source_catalog.mentions(query)
+    excluded = {S.normalize(value) for value in (*names, *labels)}
+    terms = []
+    for clue in plan.get('clues', ()):
+        for value in (clue.get('text'), *(clue.get('forms') or ())):
+            key = S.normalize(value or '')
+            if len(key) >= 2 and key not in excluded and key not in terms:
+                terms.append(key)
+    return terms
+
+
+def _shared_size(text, term):
+    for size in range(min(len(term), 12), 1, -1):
+        for start in range(len(term) - size + 1):
+            if term[start:start + size] in text:
+                return size
+    return 0
+
+
+def _chapter_fallback(conn, locations, terms, limit):
+    """Last resort when the ordinary channels missed an explicitly named chapter."""
+    scored = []
+    for book_id, page_id in locations:
+        for (payload,) in conn.execute(
+                'SELECT payload FROM chunks WHERE book_id=? AND page_id=?', (book_id, page_id)):
+            c = json.loads(payload)
+            if c.get('layer') != 'body':
+                continue
+            prose = S.normalize(c.get('text_orig', ''))
+            score = max((_shared_size(prose, term) for term in terms), default=0)
+            if score >= 2:
+                scored.append((score, c['chunk_id'], c))
+    scored.sort(key=lambda row: (-row[0], row[1]))
+    return [c for _, _, c in scored[:limit]]
+
+
+def named_chapter_candidates(conn, query, plan, book, channels, per_chapter=2):
+    """Promote chunks from chapters named in the question.
+
+    The ordinary channels already rank semantic matches; this channel only
+    keeps their chunks that fall inside a resolved chapter, so it adds coverage
+    without inventing a second relevance model. A chapter with no pooled chunk
+    gets a bounded lexical fallback.
+    """
+    names, labels = source_catalog.mentions(query)
+    if not labels:
+        return []
+    books = []
+    for name in names:
+        books.extend(source_catalog.book_ids(name))
+    books = list(dict.fromkeys(books))
+    if book:
+        books = [value for value in books if value == book] if books else [book]
+    elif not books:
+        books = list(source_catalog.catalogued_books())
+    pages, by_label = {}, {}
+    for label in labels:
+        for book_id in books:
+            targets = source_catalog.chapter_targets(book_id, label)
+            if not targets:
+                continue
+            for page_id in source_catalog.page_ids(conn, book_id, targets):
+                pages.setdefault((book_id, page_id), label)
+                by_label.setdefault(label, []).append((book_id, page_id))
+    if not pages:
+        return []
+    pool, seen = [], set()
+    for _, hits in channels:
+        for hit in hits:
+            chunk = hit['chunk']
+            if chunk['chunk_id'] not in seen:
+                seen.add(chunk['chunk_id'])
+                pool.append(chunk)
+    selected, counts = [], {}
+    for chunk in pool:
+        label = pages.get((chunk['book_id'], chunk['page_id']))
+        if label is None or counts.get(label, 0) >= per_chapter:
+            continue
+        counts[label] = counts.get(label, 0) + 1
+        selected.append(dict(chunk=chunk, named_chapter=label))
+    terms = _chapter_terms(query, plan)
+    for label, locations in by_label.items():
+        if counts.get(label, 0) or not terms:
+            continue
+        for chunk in _chapter_fallback(conn, locations, terms, per_chapter):
+            selected.append(dict(chunk=chunk, named_chapter=label))
+    return selected
+
+
 def evaluate(query,conn,dense,batches,book=None,rerank=None,*,activity_places=()):
     started=time.perf_counter()
     activity_plan = _activity_plan(zh.to_simplified(query))
@@ -537,6 +629,8 @@ def evaluate(query,conn,dense,batches,book=None,rerank=None,*,activity_places=()
     from search.reading_grounding import recall as recall_reading
     if reading_hits := recall_reading(conn, query, book):
         channels = (('source_reading', reading_hits), *channels)
+    if named_hits := named_chapter_candidates(conn, query, p, book, channels):
+        channels = (('named_chapter', named_hits), *channels)
     hits=admit(channels);texts=[]
     p = activity_plan or p
     from search import biography_office, patient_references
@@ -618,6 +712,7 @@ def evaluate(query,conn,dense,batches,book=None,rerank=None,*,activity_places=()
     def priority(h):
         return (
             'reading_support' not in h,
+            'named_chapter' not in h['channels'],
             {'supported': 0, 'different_roles': 1}.get(h.get('advice_evidence', {}).get('status'), 2),
             h['evidence_audit']['status'] != 'clues_present',
         )
