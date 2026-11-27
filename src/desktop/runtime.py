@@ -12,6 +12,63 @@ from http.server import ThreadingHTTPServer
 from pathlib import Path
 
 
+HISTORY_MAX = 100
+HISTORY_MAX_BODY = 256 * 1024
+HISTORY_KINDS = {"punctuated", "original"}
+HISTORY_STRATEGIES = {"keyword", "expanded", "evidence", "relation", "hybrid", "semantic", "original"}
+
+
+def normalize_history(value):
+    """Keep only bounded, well-formed entries; the history file is data, never executable state."""
+    if not isinstance(value, list):
+        return []
+    entries = []
+    seen = set()
+    for item in value:
+        if not isinstance(item, dict):
+            continue
+        q = item.get("q")
+        if not isinstance(q, str):
+            continue
+        q = q.strip()
+        if not q or len(q) > 300:
+            continue
+        kind = item.get("kind")
+        if not isinstance(kind, str) or kind not in HISTORY_KINDS:
+            continue
+        book = item.get("book", "")
+        label = item.get("bookLabel", "")
+        edition = item.get("edition", "")
+        strategy = item.get("strategy", "")
+        at = item.get("at", 0)
+        if not isinstance(book, str) or len(book) > 64:
+            continue
+        if not isinstance(label, str) or len(label) > 100:
+            continue
+        if not isinstance(edition, str) or len(edition) > 32:
+            continue
+        if not isinstance(strategy, str) or (strategy and strategy not in HISTORY_STRATEGIES):
+            continue
+        book, label, edition = book.strip(), label.strip(), edition.strip()
+        if kind == "punctuated":
+            edition = ""
+            if strategy == "original":
+                strategy = ""
+        else:
+            strategy = "original"
+        if not isinstance(at, int) or isinstance(at, bool) or not 0 <= at <= 9_999_999_999_999:
+            at = 0
+        key = (kind, q, book, edition)
+        if key in seen:
+            continue
+        seen.add(key)
+        entries.append({"q": q, "kind": kind, "book": book, "bookLabel": label,
+                        "edition": edition, "strategy": strategy, "at": at})
+        if len(entries) >= HISTORY_MAX:
+            break
+    return entries
+
+
 def configure(root: Path) -> Path:
     """Resolve explicit project paths; never use an inherited external data path."""
     from scripts.pipeline import config
@@ -50,6 +107,7 @@ class DesktopServer:
         self.token = secrets.token_urlsafe(32)
         token = self.token
         preferences = root / "src" / "data" / "desktop" / "preferences.json"
+        history = root / "src" / "data" / "desktop" / "search-history.json"
 
         def get_mode():
             try:
@@ -57,6 +115,13 @@ class DesktopServer:
                 return mode if mode in ("orig", "simplified") else "simplified"
             except (OSError, ValueError, AttributeError):
                 return "simplified"
+
+        def get_history():
+            try:
+                payload = json.loads(history.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                return []
+            return normalize_history(payload.get("history") if isinstance(payload, dict) else None)
 
         class LocalHandler(Handler):
             place_attestations = ATTESTED_PLACES
@@ -91,11 +156,43 @@ class DesktopServer:
                     return
                 if handler.path == "/api/desktop/health":
                     return handler._json({"status": "ready", "application": "yinde-desktop", "version": 1})
+                if handler.path == "/api/desktop/search-history":
+                    return handler._json({"history": get_history()})
                 return super(LocalHandler, handler).do_GET()
 
             def do_POST(handler):
                 if not handler.authorized():
                     return
+                if handler.path == "/api/desktop/search-history":
+                    if handler.headers.get("Origin") != f"http://127.0.0.1:{handler.server.server_port}":
+                        return handler._err("invalid origin", 403)
+                    try:
+                        length = int(handler.headers.get("Content-Length", "0"))
+                        if not 0 < length <= HISTORY_MAX_BODY:
+                            return handler._err("invalid length", 413)
+                        handler.connection.settimeout(5)
+                        body = json.loads(handler.rfile.read(length))
+                    except (ValueError, OSError):
+                        return handler._err("invalid search history", 400)
+                    if not isinstance(body, dict) or not isinstance(body.get("history"), list):
+                        return handler._err("invalid search history", 400)
+                    if len(body["history"]) > HISTORY_MAX:
+                        return handler._err("invalid search history", 400)
+                    entries = normalize_history(body["history"])
+                    # A short result means an entry was invalid or duplicated. Reject the
+                    # whole save instead of silently dropping a query.
+                    if len(entries) != len(body["history"]):
+                        return handler._err("invalid search history", 400)
+                    try:
+                        history.parent.mkdir(parents=True, exist_ok=True)
+                        with handler.server.history_lock:
+                            staging = history.with_suffix(".tmp")
+                            staging.write_text(json.dumps({"history": entries}, ensure_ascii=False),
+                                               encoding="utf-8")
+                            staging.replace(history)
+                    except OSError:
+                        return handler._err("search history could not be saved", 500)
+                    return handler._json({"saved": True, "count": len(entries)})
                 if handler.path == "/api/desktop/preferences":
                     if handler.headers.get("Origin") != f"http://127.0.0.1:{handler.server.server_port}":
                         return handler._err("invalid origin", 403)
@@ -136,6 +233,7 @@ class DesktopServer:
 
         self.server = ThreadingHTTPServer(("127.0.0.1", 0), LocalHandler)
         self.server.preferences_lock = threading.Lock()
+        self.server.history_lock = threading.Lock()
         self.server.daemon_threads = True
         self.thread = threading.Thread(target=self.server.serve_forever, name="yinde-http", daemon=True)
         self.started = False

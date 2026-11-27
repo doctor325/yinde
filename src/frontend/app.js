@@ -326,6 +326,12 @@ async function homeView() {
 function homeSearch(word) {
   const v = word ?? $("#q").value.trim();
   if (!v) { $("#q").focus(); return; }
+  void recordSearchHistory({
+    q: v, book: "", bookLabel: "全部标点史书", kind: "punctuated",
+    strategy: typeof unifiedSearchStrategy === "function"
+      ? unifiedSearchStrategy(v, undefined) : "keyword",
+    at: Date.now(),
+  });
   location.hash = `#/search?q=${encodeURIComponent(v)}`;
 }
 
@@ -544,6 +550,177 @@ function isCurrentSearch(request) {
     request.revision === routeRevision && request.hash === location.hash &&
     request.box === $("#result");
 }
+
+/* ---------- 搜索历史（本机） ----------
+ * 只记录主搜索框的检索，不上传。桌面版每次启动用随机端口，localStorage 的
+ * origin 会变，所以桌面版走本机后端 JSON；网页/静态模式用 localStorage。
+ * 历史是可选功能：读不到或存不下都不影响检索本身。 */
+const SEARCH_HISTORY_KEY = "historyai.searchHistory";
+const SEARCH_HISTORY_LIMIT = 100;
+const SEARCH_HISTORY_KINDS = new Set(["punctuated", "original"]);
+const SEARCH_HISTORY_STRATEGIES = new Set(
+  ["keyword", "expanded", "evidence", "relation", "hybrid", "semantic", "original"]);
+let searchHistory = null;
+let searchHistoryPromise = null;
+let searchHistorySave = Promise.resolve();
+let searchHistoryLoadError = false;
+let searchHistorySaveError = false;
+
+function historyKey(item) {
+  return JSON.stringify([item.kind, item.q, item.book, item.edition]);
+}
+function sanitizeSearchHistory(value) {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set(), out = [];
+  for (const raw of value) {
+    if (!raw || typeof raw !== "object") continue;
+    const q = typeof raw.q === "string" ? raw.q.trim() : "";
+    if (!q || q.length > 300) continue;
+    const kind = SEARCH_HISTORY_KINDS.has(raw.kind) ? raw.kind : "";
+    if (!kind) continue;
+    const book = typeof raw.book === "string" ? raw.book.trim().slice(0, 64) : "";
+    const bookLabel = typeof raw.bookLabel === "string" ? raw.bookLabel.trim().slice(0, 100) : "";
+    const edition = kind === "original" && typeof raw.edition === "string"
+      ? raw.edition.trim().slice(0, 32) : "";
+    let strategy = typeof raw.strategy === "string" && SEARCH_HISTORY_STRATEGIES.has(raw.strategy)
+      ? raw.strategy : "";
+    if (kind === "original") strategy = "original";
+    if (kind === "punctuated" && strategy === "original") strategy = "";
+    const at = Number.isFinite(raw.at) && raw.at > 0 ? Math.floor(raw.at) : 0;
+    const item = { q, kind, book, bookLabel, edition, strategy, at };
+    const key = historyKey(item);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(item);
+    if (out.length >= SEARCH_HISTORY_LIMIT) break;
+  }
+  return out;
+}
+function localSearchHistory() {
+  try { return sanitizeSearchHistory(JSON.parse(localStorage.getItem(SEARCH_HISTORY_KEY) || "[]")); }
+  catch (_) { return []; }
+}
+async function loadSearchHistory() {
+  if (searchHistory !== null) return searchHistory;
+  if (!searchHistoryPromise) searchHistoryPromise = (async () => {
+    if (window.YindeDesktopMode === undefined) {
+      searchHistory = localSearchHistory();
+      return searchHistory;
+    }
+    try {
+      const response = await fetch("/api/desktop/search-history");
+      if (!response.ok) throw new Error("history unavailable");
+      const data = await response.json();
+      searchHistory = sanitizeSearchHistory(data && data.history);
+    } catch (_) {
+      searchHistoryLoadError = true;
+      searchHistory = localSearchHistory();
+    }
+    return searchHistory;
+  })();
+  return searchHistoryPromise;
+}
+function persistSearchHistory() {
+  if (window.YindeDesktopMode === undefined) {
+    try {
+      localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(searchHistory));
+      if (searchHistorySaveError) { searchHistorySaveError = false; refreshSearchHistory(); }
+    } catch (_) {
+      if (!searchHistorySaveError) { searchHistorySaveError = true; refreshSearchHistory(); }
+    }
+    return;
+  }
+  const payload = JSON.stringify({ history: searchHistory });
+  searchHistorySave = searchHistorySave.then(() => fetch("/api/desktop/search-history", {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: payload,
+  })).then(response => {
+    if (!response.ok) throw new Error("history not saved");
+    if (searchHistorySaveError) { searchHistorySaveError = false; refreshSearchHistory(); }
+  }).catch(() => {
+    if (!searchHistorySaveError) { searchHistorySaveError = true; refreshSearchHistory(); }
+  });
+}
+function saveSearchHistory(items) {
+  searchHistory = sanitizeSearchHistory(items);
+  window.YindeSearchHistory = searchHistory;
+  persistSearchHistory();
+}
+async function recordSearchHistory(entry) {
+  try {
+    await loadSearchHistory();
+    // Read the latest list after awaiting: two quick searches must not overwrite each other.
+    const item = sanitizeSearchHistory([{ ...entry, at: entry.at || Date.now() }])[0];
+    if (!item) return;
+    const key = historyKey(item);
+    const next = [item, ...(searchHistory || []).filter(x => historyKey(x) !== key)]
+      .slice(0, SEARCH_HISTORY_LIMIT);
+    saveSearchHistory(next);
+    refreshSearchHistory();
+  } catch (_) { /* 历史是可选功能，不能影响检索。 */ }
+}
+function formatHistoryTime(at) {
+  if (!at) return "";
+  const date = new Date(at);
+  if (Number.isNaN(date.getTime())) return "";
+  const pad = n => String(n).padStart(2, "0");
+  const clock = `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  const today = new Date();
+  if (date.toDateString() === today.toDateString()) return `今天 ${clock}`;
+  const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
+  if (date.toDateString() === yesterday.toDateString()) return `昨天 ${clock}`;
+  if (date.getFullYear() === today.getFullYear())
+    return `${date.getMonth() + 1}月${date.getDate()}日 ${clock}`;
+  return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
+}
+function historyHref(item) {
+  if (item.kind === "original") {
+    return `#/search?${qs({ q: item.q, book: item.book, edition: item.edition, source: "original" })}`;
+  }
+  return `#/search?${qs({ q: item.q, book: item.book, strategy: item.strategy })}`;
+}
+function historyMeta(item) {
+  const parts = [item.kind === "original" ? "原底本" : "标点"];
+  if (item.kind === "original" && item.edition)
+    parts.push(item.edition === "sbck" ? "SBCK" : item.edition);
+  if (item.kind === "punctuated") {
+    const strategies = { keyword: "关键词", expanded: "扩展", evidence: "提问",
+      relation: "关系", hybrid: "混合", semantic: "语义" };
+    if (strategies[item.strategy]) parts.push(strategies[item.strategy]);
+  }
+  parts.push(item.bookLabel || (item.kind === "original" ? "全部史书" : "全部标点史书"));
+  const time = formatHistoryTime(item.at);
+  if (time) parts.push(time);
+  return parts.join(" · ");
+}
+function searchHistoryHtml(open = false) {
+  const items = searchHistory || [];
+  if (!items.length)
+    return `<details class="search-history" id="searchHistoryPanel" hidden></details>`;
+  const rows = items.map(item => `<li class="search-history-item"><a href="${esc(historyHref(item))}">
+    <span class="search-history-query">${esc(item.q)}</span>
+    <span class="search-history-meta">${esc(historyMeta(item))}</span></a></li>`).join("");
+  return `<details class="search-history" id="searchHistoryPanel"${open ? " open" : ""}>
+    <summary>最近搜索 <span class="quiet">${items.length} 条</span></summary>
+    <ul class="search-history-list">${rows}</ul>
+    <div class="search-history-actions"><span class="quiet">只保存在本机，不上传</span>
+      <button type="button" class="btn" onclick="clearSearchHistory()">清空历史</button></div>
+    ${searchHistorySaveError ? '<p class="quiet">历史未能保存到本机；本次仍可在当前窗口查看。</p>' : ""}
+    ${searchHistoryLoadError ? '<p class="quiet">历史未能从本机读取，当前列表可能不完整。</p>' : ""}
+  </details>`;
+}
+function refreshSearchHistory() {
+  const panel = $("#searchHistoryPanel");
+  if (!panel) return;
+  const open = panel.open;
+  panel.outerHTML = searchHistoryHtml(open);
+}
+window.clearSearchHistory = function () {
+  if (!window.confirm("清空本机搜索历史？此操作不能撤销。")) return;
+  searchHistorySaveError = false;
+  saveSearchHistory([]);
+  refreshSearchHistory();
+};
+
 /* 在册未入库的书（第六点四阶段 §25 情况四）。数据来自 /api/catalog 的 planned；
  * 演示模式下拿不到目录，集合为空 —— 于是公开站的下拉里只有演示书，
  * **真实书名一个都不进产物**（§22）。 */
@@ -564,6 +741,8 @@ async function searchView(params, revision = routeRevision, hash = location.hash
   // 「这部史书尚未收录」这句话在浏览器里根本没有入口，「情况四」也就无从验收。
   const cat = await tryCatalog();
   if (revision !== routeRevision || hash !== location.hash) return;
+  await loadSearchHistory();
+  if (revision !== routeRevision || hash !== location.hash) return;
   plannedBooks = (cat && cat.planned) || [];
   searchState = { ...searchState, q: params.q ?? "", book: params.book ?? "",
                   edition: params.edition ?? "", page: +(params.page || 1),
@@ -574,7 +753,7 @@ async function searchView(params, revision = routeRevision, hash = location.hash
       <div class="search-main">
       <input id="sq" type="text" value="${esc(searchState.q)}"
         aria-label="检索关键词" placeholder="人物、地名或原文词句">
-      <button class="btn primary" onclick="doSearch()">检索原文</button></div>
+      <button class="btn primary" onclick="doSearch(null,true)">检索原文</button></div>
       <details class="search-options"${searchState.book || searchState.edition ? " open" : ""}><summary>筛选与阅读设置</summary><div class="search-filters">
       <label class="filter-label">史书
       <select id="sbook">
@@ -608,8 +787,9 @@ async function searchView(params, revision = routeRevision, hash = location.hash
       </label>
       </div></details>
     </div>
+    ${searchHistoryHtml()}
     <div id="result"><div class="load">输入关键词开始检索<br>例：「齐桓公」「城濮」「殽之战」均可；空结果可换用更短词（如「殽」）</div></div>`;
-  $("#sq").addEventListener("keydown", e => { if (e.key === "Enter") doSearch(); });
+  $("#sq").addEventListener("keydown", e => { if (e.key === "Enter") doSearch(null, true); });
   if (searchState.q) doSearch();
 }
 // 显示长度改变：记住选择并重搜（只取当前页，避免整库重跑两次历史记录）
@@ -623,7 +803,7 @@ try { const m = localStorage.getItem("historyai.mode");
       if (BLOCK_MODES.some(x => x[0] === m)) searchState.mode = m; } catch (e) { /* 忽略 */ }
 
 
-async function doSearch(page) {
+async function doSearch(page, record = false) {
   const box = $("#result");
   if (!box || parseHash().seg[0] !== "search") return;
   cancelSearch();
@@ -637,6 +817,13 @@ async function doSearch(page) {
     box.innerHTML = `<div class="load">输入关键词开始检索</div>`;
     if (sq) sq.focus();
     return;
+  }
+  if (record) {
+    void recordSearchHistory({
+      q: searchState.q, book: searchState.book,
+      bookLabel: sb?.selectedOptions?.[0]?.textContent || "全部史书",
+      edition: searchState.edition, kind: "original", strategy: "original", at: Date.now(),
+    });
   }
   const rp = { q: searchState.q, book: searchState.book, edition: searchState.edition, source: 'original',
                page: searchState.page, page_size: searchState.pageSize,

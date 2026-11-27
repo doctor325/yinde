@@ -66,6 +66,8 @@ async function punctuatedSearchView(params, revision, semantic = false) {
   }
   const books = await getBooks();
   if (revision !== routeRevision) return true;
+  await loadSearchHistory();
+  if (revision !== routeRevision) return true;
   view.innerHTML = `<div class="page-heading"><p class="eyebrow">标点版优先 · 独立版本</p>
     <h1>搜索史料</h1>
     <p>输入词句或直接提问，查找有出处的史料。</p></div>
@@ -74,17 +76,25 @@ async function punctuatedSearchView(params, revision, semantic = false) {
       <button class="btn primary">搜索</button></div><details><summary>检索选项</summary><div class="controls">
       <label>史书 <select id="punctuatedSearchBook"><option value="">全部标点史书</option>${books.map(b=>`<option value="${esc(b.book_id)}" ${params.book===b.book_id?'selected':''}>${esc(b.title)}${status.manifest.book_chunks[b.book_id]?'':'（暂无标点版）'}</option>`).join('')}</select></label>
       <a href="${original}">原底本对照检索</a></div></details></form>
+    ${searchHistoryHtml()}
     <p class="quiet">覆盖 ${num(status.manifest.books)} 部、${num(status.manifest.pages)} 篇。未命中不代表原书没有记载。</p>
     <div id="punctuatedSearchResult" aria-live="polite"></div>`;
-  async function search(page=1) {
+  async function search(page=1, record=false) {
     const query=$('#punctuatedSearchQuery').value.trim();
     if (!query) return;
+    const bookSelect=$('#punctuatedSearchBook');
+    const book=bookSelect.value;
+    const strategy=unifiedSearchStrategy(query,params.strategy);
+    if (record) {
+      void recordSearchHistory({q:query,book,
+        bookLabel:bookSelect.selectedOptions?.[0]?.textContent||'全部标点史书',
+        kind:'punctuated',strategy,at:Date.now()});
+    }
     if (historyQaRequest) historyQaRequest.abort();
     const controller=historyQaRequest=new AbortController();
     const box=$('#punctuatedSearchResult');
     const current=()=>revision===routeRevision && historyQaRequest===controller && box===$('#punctuatedSearchResult');
-    const strategy=unifiedSearchStrategy(query,params.strategy);
-    const args={q:query,book:$('#punctuatedSearchBook').value,strategy,page:strategy==='keyword'?page:1};
+    const args={q:query,book,strategy,page:strategy==='keyword'?page:1};
     history.replaceState(null,'',`#/${route}?${qs({...args,strategy:params.strategy})}`);
     box.setAttribute('aria-busy','true');
     box.textContent=strategy==='evidence'?'正在查找史料并比较上下文，首次加载本地模型可能较慢…':
@@ -116,7 +126,7 @@ async function punctuatedSearchView(params, revision, semantic = false) {
       if (current() && error.name!=='AbortError') box.textContent=error.message;
     } finally { if(current())box.setAttribute('aria-busy','false'); }
   }
-  $('#punctuatedSearchForm').addEventListener('submit',event=>{event.preventDefault();return search();});
+  $('#punctuatedSearchForm').addEventListener('submit',event=>{event.preventDefault();return search(1,true);});
   if(params.q)await search(Math.max(1,Number(params.page)||1));
   return true;
 }

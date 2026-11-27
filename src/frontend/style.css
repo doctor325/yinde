@@ -292,6 +292,24 @@ footer { font-size: 12px; margin: 0; padding: 24px; }
 .filter-label select { max-width: 240px; }
 .modepick { padding: 0; background: transparent; }
 .search-filters .modepick select { background: white; border: 1px solid var(--line); }
+/* 搜索历史：检索框下方折叠列表，点击条目重新检索。 */
+.search-history { margin: 0 0 18px; border-bottom: 1px solid var(--line); padding: 10px 0 12px;
+  font-size: 13px; color: var(--ink2); }
+.search-history > summary { cursor: pointer; width: fit-content; color: var(--ink2); }
+.search-history > summary:hover { color: var(--accent); }
+.search-history-list { list-style: none; margin: 10px 0 0; padding: 0; border-top: 1px solid var(--line);
+  max-height: 320px; overflow-y: auto; }
+.search-history-item { border-bottom: 1px solid var(--line); }
+.search-history-item a { display: flex; align-items: baseline; gap: 16px; padding: 9px 2px;
+  color: var(--ink); text-decoration: none; }
+.search-history-item a:hover { background: var(--paper2); }
+.search-history-query { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; font-family: var(--serif); font-size: 15px; }
+.search-history-meta { flex: 0 0 auto; color: var(--ink2); font-size: 12px; white-space: nowrap; }
+.search-history-actions { display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; padding-top: 10px; }
+.search-history-actions .btn { padding: 5px 12px; font-size: 12px; }
+@media (max-width: 700px) { .search-history-meta { display: none; } }
 #result { margin-top: 18px; }
 #result[aria-busy=true] > .load { min-height: 180px; }
 .resulthead { padding: 16px 0; border-bottom: 1px solid var(--line); font-size: 13px; }

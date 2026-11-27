@@ -124,6 +124,76 @@ class DesktopTests(unittest.TestCase):
         self.start()
         self.assertIn(b'window.YindeDesktopMode="simplified"', self.request("/")[2])
 
+    def test_history_roundtrip(self):
+        self.start()
+        code, _, body = self.request("/api/desktop/search-history")
+        self.assertEqual(code, 200)
+        self.assertEqual(json.loads(body), {"history": []})
+        punctuated = {"q": "陈寿的字", "kind": "punctuated", "book": "",
+                      "bookLabel": "全部标点史书", "edition": "", "strategy": "evidence",
+                      "at": 1700000000000}
+        original = {"q": "陈寿的字", "kind": "original", "book": "jinshu",
+                    "bookLabel": "《晋书》", "edition": "sbck", "strategy": "original",
+                    "at": 1700000001000}
+        payload = json.dumps({"history": [punctuated, original]}, ensure_ascii=False).encode("utf-8")
+        code, _, body = self.request("/api/desktop/search-history", method="POST", body=payload,
+                                      origin=self.server.origin)
+        self.assertEqual(code, 200)
+        self.assertEqual(json.loads(body)["count"], 2)
+        code, _, body = self.request("/api/desktop/search-history")
+        self.assertEqual(code, 200)
+        self.assertEqual(json.loads(body)["history"], [punctuated, original])
+        stored = json.loads((self.root / "src/data/desktop/search-history.json").read_text(encoding="utf-8"))
+        self.assertEqual(stored["history"], [punctuated, original])
+
+    def test_history_rejects_invalid_entries(self):
+        self.start()
+        bodies = [
+            b"null",
+            b'{"history":{}}',
+            b'{"history":[{"q":"","kind":"punctuated"}]}',
+            b'{"history":[{"q":"x","kind":"unknown"}]}',
+            b'{"history":[{"q":"x","kind":"punctuated","book":1}]}',
+            b'{"history":[{"q":"x","kind":"punctuated"},{"q":"x","kind":"punctuated"}]}',
+            json.dumps({"history": [{"q": "x" * 301, "kind": "punctuated"}]}).encode(),
+            json.dumps({"history": [{"q": "x", "kind": "punctuated"}] * 101}).encode(),
+        ]
+        for body in bodies:
+            code, _, _ = self.request("/api/desktop/search-history", method="POST", body=body,
+                                      origin=self.server.origin)
+            self.assertEqual(code, 400, body[:80])
+
+    def test_history_origin_and_size(self):
+        self.start()
+        payload = json.dumps({"history": [{"q": "x", "kind": "punctuated"}]}).encode()
+        code, _, _ = self.request("/api/desktop/search-history", method="POST", body=payload,
+                                  origin="https://evil.invalid")
+        self.assertEqual(code, 403)
+        self.assertEqual(self.request("/api/desktop/search-history", auth=False, method="POST",
+                                      body=payload)[0], 403)
+        # Declare an oversized body without sending it: the server must reject on
+        # Content-Length alone. Sending the bytes makes Windows reset the socket
+        # before the 413 is read whenever the server closes with unread input.
+        with socket.create_connection(("127.0.0.1", self.server.server.server_port), timeout=5) as probe:
+            probe.sendall((
+                "POST /api/desktop/search-history HTTP/1.0\r\n"
+                f"Host: 127.0.0.1:{self.server.server.server_port}\r\n"
+                f"Cookie: yinde_desktop={self.server.token}\r\n"
+                f"Origin: {self.server.origin}\r\n"
+                f"Content-Length: {256 * 1024 + 1}\r\n\r\n"
+            ).encode("ascii"))
+            status = probe.recv(1024).split(b"\r\n", 1)[0]
+        self.assertIn(b" 413 ", status)
+
+    def test_history_corrupt_file_fallback(self):
+        target = self.root / "src/data/desktop/search-history.json"
+        target.parent.mkdir(parents=True)
+        target.write_text("broken", encoding="utf-8")
+        self.start()
+        code, _, body = self.request("/api/desktop/search-history")
+        self.assertEqual(code, 200)
+        self.assertEqual(json.loads(body)["history"], [])
+
     def test_sibling_prefix_traversal_blocked(self):
         sibling = self.root / "src/frontend-private"
         sibling.mkdir()
