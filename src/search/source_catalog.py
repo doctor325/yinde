@@ -17,6 +17,7 @@ _BRACE = re.compile(r'-\{|\}-')
 _MENTION = re.compile(r'《([^》]{1,60})》')
 _DOT = re.compile(r'[·・•‧]')
 _BARE = re.compile(r'([㐀-鿿]{1,8})[·・•‧]([㐀-鿿]{2,20})')
+_QUOTE_SPLIT = re.compile(r'[，,。；;：:！!？?、\s“”「」『』（）()《》〈〉]+')
 
 
 def normalize(text):
@@ -24,6 +25,36 @@ def normalize(text):
     text = _SUB.sub('', zh.to_simplified(text or ''))
     text = _BRACE.sub('', text)
     return ''.join(c for c in text.lower() if unicodedata.category(c)[0] in 'LN')
+
+
+def _quote_text(text):
+    # ``於`` and ``于`` are the same preposition but the simplifier keeps ``於``
+    # for its surname reading; quotation matching must not split on that.
+    return zh.to_simplified(text or '').replace('於', '于')
+
+
+def quote_segments(text, minimum=4):
+    """Split a quoted passage into punctuation-free segments worth matching."""
+    segments = []
+    for part in _QUOTE_SPLIT.split(_quote_text(text)):
+        key = normalize(part)
+        if len(key) >= minimum and key not in segments:
+            segments.append(key)
+    return segments
+
+
+def quote_matches(text, quote, minimum=2):
+    """Match a quote tolerantly against a source text.
+
+    Questions paraphrase quotations, drop a character, or use a variant. Two
+    distinct segments of the question's quotation must occur in the source, so
+    a shared common phrase alone is not enough.
+    """
+    segments = quote_segments(quote)
+    if not segments:
+        return False
+    haystack = normalize(_quote_text(text))
+    return sum(segment in haystack for segment in segments) >= min(minimum, len(segments))
 
 
 def _acquisition():

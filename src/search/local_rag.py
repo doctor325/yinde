@@ -34,6 +34,21 @@ SCHEMA = {
         }},
     },
 }
+PERSON_SCHEMA = json.loads(json.dumps(SCHEMA))
+PERSON_SCHEMA['required'] = ['status', 'claims', 'persons']
+PERSON_SCHEMA['properties']['persons'] = {
+    'type': 'array', 'maxItems': 6, 'items': {
+        'type': 'object', 'required': ['name', 'role'], 'additionalProperties': False,
+        'properties': {
+            'name': {'type': 'string', 'minLength': 1, 'maxLength': 12},
+            'role': {'type': 'string', 'minLength': 1, 'maxLength': 12},
+        },
+    },
+}
+_PERSON_QUESTION = re.compile(r'由谁|是谁|谁主持|谁主谋|谁主使|谁说|谁人|何人')
+_PERSON_ROLE = re.compile(r'主持|主谋|主使|首谋|发起|谋划|策划|主导|决定')
+PERSON_PROMPT = ('问题问“由谁”“是谁”时，persons 逐项列出史料中的人物姓名及其动作角色'
+                 '（如“主持”“主谋”“参与”“被立”）；姓名必须见于所引材料。')
 
 
 def reader_href(ref):
@@ -103,14 +118,13 @@ def _same_book(chunk, title):
 
 
 def _quoted_page(query, hits):
-    from search.punctuated_search import normalize
     match = re.fullmatch(r'《([^》]+)》[^“「]{0,16}[“「]([^”」]{6,60})[”」][，,]?(.*)', query)
     if not match or not re.match(r'(?:[^，。？]{1,12})?(?:是谁|谁说|是谁说)', match[3]):
         return None
     passages = {(chunk['book_id'], chunk['page_id']) for hit in hits
                 for chunk in (hit['chunk'],)
                 if _same_book(chunk, match[1])
-                and normalize(match[2]) in normalize(chunk['text_orig'])}
+                and source_catalog.quote_matches(chunk['text_orig'], match[2])}
     return next(iter(passages)) if len(passages) == 1 else None
 
 
@@ -330,13 +344,78 @@ def _comparison_answer(answer, question, packet):
     return answer
 
 
-def validate_answer(raw, packet, sources):
-    if not isinstance(raw, dict) or raw.keys() != {'status', 'claims'} or raw['status'] not in STATUSES:
+def _person_question(question):
+    return bool(_PERSON_QUESTION.search(zh.to_simplified(question or '')))
+
+
+def _supported_persons(persons, packet):
+    """Keep only names that actually occur in the cited packet."""
+    supported = []
+    for person in persons:
+        key = source_catalog.normalize(person['name'])
+        if not key:
+            continue
+        ids = [item['id'] for item in packet['evidence']
+               if key in source_catalog.normalize(
+                   ' '.join(str(item.get(field, '')) for field in ('quote', 'heading', 'title')))]
+        if ids:
+            supported.append(dict(name=person['name'].strip(), role=person['role'].strip(),
+                                  evidence_ids=list(dict.fromkeys(ids))))
+    return supported
+
+
+def _person_answer(answer, question, packet, persons):
+    """Supply a source-verified name when a who-question omitted it.
+
+    The model's role field decides which name matters; the name itself must have
+    passed the evidence check. A participant or the person being installed is
+    never promoted to the answer by this fallback.
+    """
+    if not persons or not _person_question(question) or answer['status'] not in ('answer', 'correction'):
+        return answer
+    if len(answer['claims']) >= 3:
+        return answer
+    target = next((person for person in persons
+                   if _PERSON_ROLE.search(zh.to_simplified(person['role']))), None)
+    if target is None:
+        return answer
+    claimed = source_catalog.normalize(' '.join(claim['text'] for claim in answer['claims']))
+    key = source_catalog.normalize(target['name'])
+    if key in claimed:
+        return answer
+    by_id = {item['id']: item for item in packet.get('evidence', ())}
+    used_ids = {item_id for claim in answer['claims'] for item_id in claim['evidence_ids']}
+    ids = [item_id for item_id in target['evidence_ids']
+           if item_id in by_id and item_id in used_ids
+           and key in source_catalog.normalize(by_id[item_id].get('quote', ''))]
+    scopes = _chapter_scope(question, packet)
+    if scopes:
+        ids = [item_id for item_id in ids if _evidence_labels(by_id[item_id], scopes)]
+    if not ids:
+        return answer
+    claim = dict(text=f"据所引史料，{target['name']}{target['role']}此事。",
+                 evidence_ids=ids, derived_from='persons')
+    return dict(answer, claims=[*answer['claims'], claim])
+
+
+def validate_answer(raw, packet, sources, question=''):
+    if not isinstance(raw, dict):
+        raise ValueError('无效的释读状态')
+    keys = {'status', 'claims'} | ({'persons'} if 'persons' in raw else set())
+    if raw.keys() != keys or raw['status'] not in STATUSES:
         raise ValueError('无效的释读状态')
     claims = raw['claims']
     if not isinstance(claims, list) or len(claims) > 3 or bool(claims) != (raw['status'] != 'insufficient'):
         raise ValueError('释读状态与主张数量不符')
     by_id = {item['id']: item for item in packet['evidence']}
+    persons = raw.get('persons', [])
+    if not isinstance(persons, list) or len(persons) > 6:
+        raise ValueError('无效的人物字段')
+    for person in persons:
+        if (not isinstance(person, dict) or person.keys() != {'name', 'role'}
+                or not isinstance(person['name'], str) or not 1 <= len(person['name'].strip()) <= 12
+                or not isinstance(person['role'], str) or not 1 <= len(person['role'].strip()) <= 12):
+            raise ValueError('无效的人物字段')
     checked, rejected = [], []
     for claim in claims:
         if not isinstance(claim, dict) or claim.keys() != {'text', 'evidence_ids'}:
@@ -358,8 +437,12 @@ def validate_answer(raw, packet, sources):
     status = raw['status']
     if rejected:
         status = 'partial' if checked else 'insufficient'
-    return dict(status=status, claims=checked, citation_integrity='passed',
-                rejected_claims=rejected)
+    supported = _supported_persons(persons, packet)
+    answer = dict(status=status, claims=checked, citation_integrity='passed',
+                  rejected_claims=rejected)
+    if supported:
+        answer['person_support'] = supported
+    return _person_answer(answer, question, packet, supported)
 
 
 def _verify(raw, refs, labels, packet, sources):
@@ -460,11 +543,11 @@ def resolve_answer(raw, question, packet, sources):
         return _reading_answer(raw, question, reading_plan, packet, sources)
     frame, fact = local_gift_frame(question), packet.get('gift_fact')
     if not frame or not fact or frame['anchor'] != fact['anchor']:
-        return _comparison_answer(validate_answer(raw, packet, sources), question, packet)
+        return _comparison_answer(validate_answer(raw, packet, sources, question), question, packet)
     asked = frame['giver'], frame['recipient']
     actual = fact['giver'], fact['recipient']
     if asked not in (actual, actual[::-1]):
-        return _comparison_answer(validate_answer(raw, packet, sources), question, packet)
+        return _comparison_answer(validate_answer(raw, packet, sources, question), question, packet)
     answer = _verify(raw, fact['required'], fact['required'], packet, sources)
     checked, missing = answer['verified_support'], answer['missing_support']
     if '赏赐动作与物品' not in checked:
@@ -491,14 +574,17 @@ def read(reader, question, packet):
     if not evidence:
         return dict(output=dict(status='insufficient', claims=[]), elapsed_ms=0, usage={}, model_calls=0)
     data = dict(question=question, evidence=evidence)
+    who = _person_question(question)
+    schema = PERSON_SCHEMA if who else SCHEMA
+    system = SYSTEM + '\n' + PERSON_PROMPT if who else SYSTEM
     started = time.perf_counter()
     response = reader.request('/v1/chat/completions', {
-        'model': 'local', 'messages': [{'role': 'system', 'content': SYSTEM},
+        'model': 'local', 'messages': [{'role': 'system', 'content': system},
                                       {'role': 'user', 'content': json.dumps(data, ensure_ascii=False)}],
         'temperature': 0, 'max_tokens': 450, 'seed': 20261111,
         'chat_template_kwargs': {'enable_thinking': False},
         'response_format': {'type': 'json_schema', 'json_schema': {
-            'name': 'local_rag_answer', 'strict': True, 'schema': SCHEMA}},
+            'name': 'local_rag_answer', 'strict': True, 'schema': schema}},
     })
     elapsed = round((time.perf_counter() - started) * 1000, 2)
     choice = response['choices'][0]

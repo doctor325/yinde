@@ -91,6 +91,44 @@ class LocalRag(unittest.TestCase):
                    side_effect=lambda name: ('KR2a0007',) if name == '汉书' else ()):
             self.assertEqual(local_rag._quoted_page(question, [hit]), ('KR2a0007', 19688))
 
+    def test_quoted_page_accepts_a_variant_quotation(self):
+        question = '《汉书》里“人固有一死，或重于泰山，或轻于鸿毛”是谁说的？'
+        hit = dict(chunk=dict(book_id='KR2a0007', page_id=19688, book_title='前漢書',
+                              text_orig='人固有一死，死有重於泰山，或輕於鴻毛。'))
+        with patch('search.source_catalog.book_ids',
+                   side_effect=lambda name: ('KR2a0007',) if name == '汉书' else ()):
+            self.assertEqual(local_rag._quoted_page(question, [hit]), ('KR2a0007', 19688))
+
+    def test_person_support_adds_a_missing_actor(self):
+        quote = '趙高乃與公子胡亥、丞相斯陰謀立子胡亥為太子。'
+        packet = dict(evidence=[dict(id='E1', quote=quote, ranges=[[0, 0, len(quote)]],
+                                     page_id=1, book_id='a', revision_id=1,
+                                     source_sha256='source', title='甲史/卷1',
+                                     source_url='', heading='趙高', layer='body')])
+        raw = dict(status='answer', claims=[dict(text='两篇记载一致。', evidence_ids=['E1'])],
+                   persons=[dict(name='赵高', role='主持'), dict(name='胡亥', role='参与')])
+        answer = local_rag.validate_answer(
+            raw, packet, Lenient(), '两篇对由谁主持立胡亥的记载是否一致？')
+        self.assertEqual(answer['status'], 'answer')
+        self.assertEqual(len(answer['claims']), 2)
+        self.assertIn('赵高', answer['claims'][1]['text'])
+        self.assertEqual(answer['claims'][1]['derived_from'], 'persons')
+        self.assertEqual([person['name'] for person in answer['person_support']],
+                         ['赵高', '胡亥'])
+
+    def test_person_support_drops_a_name_not_in_the_evidence(self):
+        quote = '趙高乃與公子胡亥、丞相斯陰謀立子胡亥為太子。'
+        packet = dict(evidence=[dict(id='E1', quote=quote, ranges=[[0, 0, len(quote)]],
+                                     page_id=1, book_id='a', revision_id=1,
+                                     source_sha256='source', title='甲史/卷1',
+                                     source_url='', heading='趙高', layer='body')])
+        raw = dict(status='answer', claims=[dict(text='两篇记载一致。', evidence_ids=['E1'])],
+                   persons=[dict(name='王五', role='主持')])
+        answer = local_rag.validate_answer(
+            raw, packet, Lenient(), '两篇对由谁主持立胡亥的记载是否一致？')
+        self.assertNotIn('person_support', answer)
+        self.assertEqual(len(answer['claims']), 1)
+
     def test_multi_chapter_claim_must_cite_both_chapters(self):
         packet = dict(evidence=[
             dict(id='E1', book_id='a', title='甲史/卷1', quote='甲', ranges=[[0, 0, 1]],
@@ -116,6 +154,30 @@ class LocalRag(unittest.TestCase):
             answer = local_rag.resolve_answer(both, question, packet, Lenient())
             self.assertEqual(answer['status'], 'answer')
             self.assertEqual(answer['claims'][0]['evidence_ids'], ['E1', 'E2'])
+
+    def test_quoted_context_finds_the_speaker_introduction(self):
+        db = sqlite3.connect(':memory:')
+        self.addCleanup(db.close)
+        db.execute('CREATE TABLE chunks(chunk_id INTEGER PRIMARY KEY, book_id TEXT, '
+                   'page_id INTEGER, payload TEXT)')
+        quote = '人固有一死，死有重於泰山，或輕於鴻毛。'
+        intro = ('而十篇缺，有錄無書。\n\n遷既被刑之後，為中書令，尊寵任職。'
+                 '故人益州刺史任安予遷書，責以古賢臣之義。遷報之曰：\n\n少卿足下：')
+        rows = [(9, intro), (10, '固主上所戲弄，' + quote),
+                (11, '責以古賢臣之義。遷報之曰：\n\n少卿足下：')]
+        chunks = {}
+        for cid, text in rows:
+            payload = chunk(text, chunk_id=cid, page_id=5, book_id='a',
+                            title='甲史/卷1', heading='談子 司馬遷')
+            chunks[cid] = payload
+            db.execute('INSERT INTO chunks VALUES(?,?,?,?)',
+                       (cid, 'a', 5, json.dumps(payload, ensure_ascii=False)))
+        question = '《汉书》里“人固有一死，或重于泰山，或轻于鸿毛”是谁说的？'
+        with patch('search.source_catalog.book_ids',
+                   side_effect=lambda name: ('a',) if name == '汉书' else ()):
+            selected = E.quoted_context_candidates(
+                db, question, (('pool', [dict(chunk=chunks[10])]),))
+        self.assertEqual([hit['chunk']['chunk_id'] for hit in selected], [9])
 
     def test_named_chapter_channel_uses_pooled_and_fallback_chunks(self):
         db = sqlite3.connect(':memory:')

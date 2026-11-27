@@ -234,6 +234,8 @@ def admit(channels):
                     value['reading_support'] = h['reading_support']
                 if name == 'named_chapter':
                     value['named_chapter'] = h.get('named_chapter')
+                if name == 'quoted_context':
+                    value['quoted_context'] = True
     return list(selected.values())
 
 
@@ -572,6 +574,87 @@ def named_chapter_candidates(conn, query, plan, book, channels, per_chapter=2):
     return selected
 
 
+_QUOTED = re.compile(r'《([^》]{1,40})》[^“「]{0,16}[“「]([^”」]{6,60})[”」]')
+_SPEECH_END = re.compile(r'(?:曰|云|謂|谓|報|报|言|對|对|問|问|答|書|书)[：:]\s*$')
+_HEADING_SPLIT = re.compile(r'[\s·・•‧、，,/]+')
+_GENERIC_NAMES = {'列傳', '列传', '本紀', '本纪', '世家', '太史公曰', '史評', '史评', '附'}
+_SHORT_STOP = set('曰云謂谓報报言對对問问答書书之其此是以與与乃為为不')
+
+
+def _heading_names(chunk):
+    names = []
+    for token in _HEADING_SPLIT.split(chunk.get('heading', '') or ''):
+        token = token.strip()
+        if not 2 <= len(token) <= 4 or token in _GENERIC_NAMES:
+            continue
+        if not all('㐀' <= char <= '鿿' for char in token):
+            continue
+        names.append(token)
+        if token[-1] not in _SHORT_STOP:
+            names.append(token[-1])
+    return list(dict.fromkeys(names))
+
+
+def quoted_context_candidates(conn, query, channels, book=None, limit=1):
+    """Add the paragraph that introduces a quoted speaker.
+
+    A direct quotation often starts mid-letter, so the page's opening sentence
+    naming the author and addressee is not what lexical search matches. This
+    channel only acts when the question names a book, quotes a passage and asks
+    who said it; it then keeps the same-page paragraph that starts with a name
+    and ends with a speech cue.
+    """
+    match = _QUOTED.search(query)
+    if not match or '谁' not in query:
+        return []
+    books = set(source_catalog.book_ids(match[1]))
+    if not books:
+        return []
+    passages, anchors = set(), []
+    for _, hits in channels:
+        for hit in hits:
+            chunk = hit['chunk']
+            if chunk['book_id'] in books and source_catalog.quote_matches(
+                    chunk.get('text_orig', ''), match[2]):
+                passages.add((chunk['book_id'], chunk['page_id']))
+                anchors.append(chunk)
+    if len(passages) != 1:
+        return []
+    book_id, page_id = next(iter(passages))
+    if book and book_id != book:
+        return []
+    names = [name for chunk in anchors for name in _heading_names(chunk)]
+    keys = [source_catalog.normalize(name) for name in dict.fromkeys(names)]
+    keys = [key for key in keys if key]
+    if not keys:
+        return []
+    scored = []
+    for (payload,) in conn.execute(
+            'SELECT payload FROM chunks WHERE book_id=? AND page_id=?', (book_id, page_id)):
+        chunk = json.loads(payload)
+        if chunk.get('layer') != 'body':
+            continue
+        for paragraph in re.split(r'\n\s*\n', chunk.get('text_orig', '')):
+            paragraph = paragraph.strip()
+            if not 8 <= len(paragraph) <= 200:
+                continue
+            key = source_catalog.normalize(paragraph)
+            if not any(key.startswith(name) for name in keys) or not _SPEECH_END.search(paragraph):
+                continue
+            score = len(paragraph) + (20 if '書' in paragraph or '书' in paragraph else 0)
+            scored.append((score, chunk['chunk_id'], chunk))
+    scored.sort(key=lambda row: (-row[0], row[1]))
+    selected, seen = [], set()
+    for _, chunk_id, chunk in scored:
+        if chunk_id in seen:
+            continue
+        seen.add(chunk_id)
+        selected.append(dict(chunk=chunk, quoted_context=True))
+        if len(selected) >= limit:
+            break
+    return selected
+
+
 def evaluate(query,conn,dense,batches,book=None,rerank=None,*,activity_places=()):
     started=time.perf_counter()
     activity_plan = _activity_plan(zh.to_simplified(query))
@@ -631,6 +714,8 @@ def evaluate(query,conn,dense,batches,book=None,rerank=None,*,activity_places=()
         channels = (('source_reading', reading_hits), *channels)
     if named_hits := named_chapter_candidates(conn, query, p, book, channels):
         channels = (('named_chapter', named_hits), *channels)
+    if quoted_hits := quoted_context_candidates(conn, query, channels, book):
+        channels = (('quoted_context', quoted_hits), *channels)
     hits=admit(channels);texts=[]
     p = activity_plan or p
     from search import biography_office, patient_references
@@ -712,6 +797,7 @@ def evaluate(query,conn,dense,batches,book=None,rerank=None,*,activity_places=()
     def priority(h):
         return (
             'reading_support' not in h,
+            'quoted_context' not in h['channels'],
             'named_chapter' not in h['channels'],
             {'supported': 0, 'different_roles': 1}.get(h.get('advice_evidence', {}).get('status'), 2),
             h['evidence_audit']['status'] != 'clues_present',
